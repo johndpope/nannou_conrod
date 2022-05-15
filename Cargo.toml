@@ -1,0 +1,13 @@
+[workspace]
+members = [
+    "examples",
+    "nannou_conrod",
+    "nannou_timeline",
+]
+
+# WGPU requires at least this feature resolver.
+resolver = "2"
+
+# Switch back to crates.io when nannou 0.18.1 or later is published.
+[patch.crates-io]
+nannou = { git = "https://github.com/nannou-org/nannou", rev = "a0929e066511be7fe23b16bb9505d41462b97d1a" }

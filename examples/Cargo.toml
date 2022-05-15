@@ -1,0 +1,29 @@
+[package]
+name = "examples"
+version = "0.1.0"
+authors = [ "mitchmindtree <mitchell.nordine@gmail.com>" ]
+description = "A suite examples for nannou_conrod."
+readme = "README.md"
+keywords = ["conrod", "ui", "graphics", "2d", "example"]
+license = "MIT"
+repository = "https://github.com/nannou-org/nannou_conrod.git"
+homepage = "https://github.com/nannou-org/nannou_conrod"
+edition = "2018"
+publish = false
+
+[[example]]
+name = "named_color_reference"
+path = "named_color_reference.rs"
+[[example]]
+name = "simple_ui"
+path = "simple_ui.rs"
+[[example]]
+name = "timeline_demo"
+path = "timeline_demo.rs"
+
+[dev-dependencies]
+nannou = { version = "0.18.0" }
+nannou_conrod = { version = "0.18.0", path = "../nannou_conrod" }
+nannou_timeline = { version = "0.18.0", features = ["serde1"], path =  "../nannou_timeline" }
+pitch_calc = { version = "0.12", features = ["serde"] }
+time_calc = { version= "0.13", features = ["serde"] }
