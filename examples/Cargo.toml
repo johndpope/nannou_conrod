@@ -20,6 +20,9 @@ path = "simple_ui.rs"
 [[example]]
 name = "timeline_demo"
 path = "timeline_demo.rs"
+[[example]]
+name = "timeline_egui_demo"
+path = "timeline_egui_demo.rs"
 
 [dev-dependencies]
 nannou = { version = "0.18.0" }

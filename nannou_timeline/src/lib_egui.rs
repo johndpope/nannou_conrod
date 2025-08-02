@@ -3,21 +3,22 @@
 //! The primary type is **Timeline** - an egui widget that mimics Adobe Flash's
 //! timeline interface with layers, keyframes, and playback controls.
 
-use egui::Color32;
+use egui::{Context, Ui, Response, Vec2, Rect, Color32, Stroke, FontId};
+use std::collections::HashMap;
 
-pub use playhead_egui::Playhead;
-pub use ruler_egui::Ruler;
-pub use timeline_egui::{Timeline, TimelineState};
+pub use playhead::Playhead;
+pub use ruler::Ruler;
+pub use timeline::{Timeline, TimelineState};
 pub use layer::{Layer, LayerId, LayerType};
 pub use frame::{Frame, FrameType, KeyframeId};
-pub use track_simple::Track;
+pub use track::Track;
 
-pub mod playhead_egui;
-pub mod ruler_egui;
-pub mod timeline_egui;
+pub mod playhead;
+pub mod ruler;
+pub mod timeline;
 pub mod layer;
 pub mod frame;
-pub mod track_simple;
+pub mod track;
 pub mod ui;
 
 // Re-export time calculation utilities

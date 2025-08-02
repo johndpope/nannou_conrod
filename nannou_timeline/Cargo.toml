@@ -2,27 +2,32 @@
 name = "nannou_timeline"
 version ="0.18.0"
 authors = ["mitchmindtree <mitchell.nordine@gmail.com>"]
-description = "A timeline widget, compatible with all conrod GUI projects."
+description = "A Flash-inspired timeline widget for nannou using egui."
 readme = "README.md"
-keywords = ["timeline", "automation", "GUI", "conrod", "envelope"]
+keywords = ["timeline", "animation", "GUI", "egui", "flash"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/nannou-org/nannou_timeline.git"
 homepage = "https://nannou.cc"
+edition = "2021"
 
 [dependencies]
-conrod_derive = "0.76"
-conrod_core = "0.76"
+egui = "0.24"
 envelope = "0.8"
-itertools = "0.4.16"
-num = "0.1.27"
+itertools = "0.10"
+num = "0.4"
 pitch_calc = { version = "0.12", features = ["serde"] }
 time_calc = { version= "0.13", features = ["serde"] }
-serde = { version = "1", features = ["derive"], optional = true }
+serde = { version = "1", features = ["derive"] }
+uuid = { version = "1.6", features = ["v4", "serde"] }
 
 [features]
-default = []
+default = ["serde1"]
 serde1 = [
-    "serde",
     "pitch_calc/serde",
     "time_calc/serde",
 ]
+
+[dev-dependencies]
+insta = "1.34"
+criterion = "0.5"
+test-case = "3.1"
