@@ -29,6 +29,8 @@ pub struct TimelineState {
     pub scroll_y: f32,
     /// Track heights that have been manually adjusted
     pub track_heights: HashMap<LayerId, f32>,
+    /// Right-click context menu state
+    pub context_menu: Option<ContextMenuState>,
 }
 
 impl Default for TimelineState {
@@ -42,6 +44,7 @@ impl Default for TimelineState {
             scroll_x: 0.0,
             scroll_y: 0.0,
             track_heights: HashMap::new(),
+            context_menu: None,
         }
     }
 }
@@ -66,6 +69,9 @@ impl Timeline {
     /// Show the timeline UI
     pub fn show(&mut self, ui: &mut Ui, engine: &mut Box<dyn RiveEngine>) -> Response {
         let available_rect = ui.available_rect_before_wrap();
+        
+        // Handle keyboard shortcuts
+        self.handle_keyboard_shortcuts(ui, engine);
         
         // Allocate space for the timeline
         let response = ui.allocate_rect(available_rect, Sense::click_and_drag());
@@ -107,6 +113,9 @@ impl Timeline {
         self.draw_frame_grid(ui, frame_grid_rect, engine);
         self.draw_playback_controls(ui, controls_rect, engine);
         self.draw_playhead(ui, ruler_rect, frame_grid_rect, engine);
+        
+        // Handle context menu (needs mutable engine access)
+        self.handle_context_menu(ui, engine);
 
         response
     }
@@ -202,45 +211,19 @@ impl Timeline {
 
     /// Draw the ruler at the top
     fn draw_ruler(&mut self, ui: &mut Ui, rect: Rect, engine: &Box<dyn RiveEngine>) {
-        // Draw background
-        ui.painter().rect_filled(
-            rect,
-            0.0,
-            self.config.style.layer_background,
-        );
-
-        // Draw border
-        ui.painter().line_segment(
-            [rect.left_bottom(), rect.right_bottom()],
-            Stroke::new(1.0, self.config.style.border_color),
-        );
-
+        let ruler = crate::Ruler::new();
         let total_frames = engine.get_total_frames();
         let frame_width = self.config.frame_width * self.state.zoom_level;
-
-        // Draw frame numbers
-        let visible_start_frame = (self.state.scroll_x / frame_width) as u32;
-        let visible_frames = (rect.width() / frame_width).ceil() as u32;
-
-        for frame in visible_start_frame..=(visible_start_frame + visible_frames).min(total_frames) {
-            if frame % 5 == 0 {
-                let x = rect.min.x + (frame as f32 - self.state.scroll_x / frame_width) * frame_width;
-                
-                ui.painter().text(
-                    pos2(x, rect.center().y),
-                    Align2::CENTER_CENTER,
-                    frame.to_string(),
-                    FontId::default(),
-                    self.config.style.text_color,
-                );
-
-                // Draw tick mark
-                ui.painter().line_segment(
-                    [pos2(x, rect.bottom() - 5.0), pos2(x, rect.bottom())],
-                    Stroke::new(1.0, self.config.style.border_color),
-                );
-            }
-        }
+        
+        ruler.draw(
+            ui,
+            rect,
+            0,
+            total_frames,
+            frame_width,
+            self.state.scroll_x,
+            &self.config.frame_labels,
+        );
     }
 
     /// Draw the frame grid
@@ -325,11 +308,59 @@ impl Timeline {
             y_offset += layer_height;
         }
 
-        // Handle frame selection (stubbed)
-        if ui.input(|i| i.pointer.primary_clicked()) {
-            if let Some(pos) = ui.input(|i| i.pointer.interact_pos()) {
-                if rect.contains(pos) {
-                    println!("Frame grid clicked at {:?}", pos);
+        // Handle frame interactions
+        let response = ui.interact(rect, ui.id().with("frame_grid"), Sense::click());
+        
+        if response.clicked() {
+            if let Some(pos) = response.interact_pointer_pos() {
+                let frame_width = self.config.frame_width * self.state.zoom_level;
+                let clicked_frame = ((pos.x - rect.min.x + self.state.scroll_x) / frame_width) as u32;
+                
+                // Find which layer was clicked
+                let mut y_offset = rect.min.y;
+                for layer in &layers {
+                    let layer_height = self.state.track_heights
+                        .get(&layer.id)
+                        .copied()
+                        .unwrap_or(self.config.default_track_height);
+                    
+                    if pos.y >= y_offset && pos.y < y_offset + layer_height {
+                        println!("Frame {} clicked on layer {}", clicked_frame, layer.name);
+                        break;
+                    }
+                    y_offset += layer_height;
+                }
+            }
+        }
+        
+        // Handle right-click for context menu
+        if response.secondary_clicked() {
+            if let Some(pos) = response.interact_pointer_pos() {
+                let frame_width = self.config.frame_width * self.state.zoom_level;
+                let clicked_frame = ((pos.x - rect.min.x + self.state.scroll_x) / frame_width) as u32;
+                
+                // Find which layer was clicked
+                let mut clicked_layer = None;
+                let mut y_offset = rect.min.y;
+                for layer in &layers {
+                    let layer_height = self.state.track_heights
+                        .get(&layer.id)
+                        .copied()
+                        .unwrap_or(self.config.default_track_height);
+                    
+                    if pos.y >= y_offset && pos.y < y_offset + layer_height {
+                        clicked_layer = Some(layer.id.clone());
+                        break;
+                    }
+                    y_offset += layer_height;
+                }
+                
+                if let Some(layer_id) = clicked_layer {
+                    self.state.context_menu = Some(ContextMenuState {
+                        position: pos,
+                        frame: clicked_frame,
+                        layer_id,
+                    });
                 }
             }
         }
@@ -384,8 +415,26 @@ impl Timeline {
 
                 ui.add_space(20.0);
 
-                // FPS display
-                ui.label(format!("FPS: {:.1}", engine.get_fps()));
+                // FPS selector
+                ui.label("FPS:");
+                egui::ComboBox::from_id_source("fps_selector")
+                    .selected_text(self.config.fps.label())
+                    .show_ui(ui, |ui| {
+                        for preset in crate::FpsPreset::all_presets() {
+                            if ui.selectable_value(&mut self.config.fps, preset, preset.label()).clicked() {
+                                println!("FPS changed to: {}", preset.to_fps());
+                                // TODO: Update engine FPS when connected
+                            }
+                        }
+                        
+                        ui.separator();
+                        
+                        // Custom FPS option
+                        if ui.button("Custom...").clicked() {
+                            // TODO: Open dialog for custom FPS
+                            println!("Custom FPS dialog would open");
+                        }
+                    });
 
                 ui.add_space(20.0);
 
@@ -442,4 +491,166 @@ impl Timeline {
             }
         }
     }
+    
+    /// Handle keyboard shortcuts
+    fn handle_keyboard_shortcuts(&mut self, ui: &mut Ui, engine: &mut Box<dyn RiveEngine>) {
+        let ctx = ui.ctx();
+        
+        // Get selected layer and frame
+        if let Some(layer_id) = self.state.selected_layers.first() {
+            let current_frame = engine.get_current_frame();
+            
+            // F5: Insert Frame
+            if ctx.input(|i| i.key_pressed(egui::Key::F5) && !i.modifiers.shift) {
+                println!("F5: Insert frame at {} on layer {:?}", current_frame, layer_id);
+                engine.insert_frame(layer_id.clone(), current_frame);
+            }
+            
+            // Shift+F5: Remove Frame
+            if ctx.input(|i| i.key_pressed(egui::Key::F5) && i.modifiers.shift) {
+                println!("Shift+F5: Remove frame at {} on layer {:?}", current_frame, layer_id);
+                engine.remove_frame(layer_id.clone(), current_frame);
+            }
+            
+            // F6: Insert Keyframe
+            if ctx.input(|i| i.key_pressed(egui::Key::F6) && !i.modifiers.shift) {
+                println!("F6: Insert keyframe at {} on layer {:?}", current_frame, layer_id);
+                engine.insert_keyframe(layer_id.clone(), current_frame);
+            }
+            
+            // Shift+F6: Clear Keyframe
+            if ctx.input(|i| i.key_pressed(egui::Key::F6) && i.modifiers.shift) {
+                println!("Shift+F6: Clear keyframe at {} on layer {:?}", current_frame, layer_id);
+                engine.clear_keyframe(layer_id.clone(), current_frame);
+            }
+        }
+        
+        // Spacebar: Play/Pause
+        if ctx.input(|i| i.key_pressed(egui::Key::Space)) {
+            self.state.is_playing = !self.state.is_playing;
+            if self.state.is_playing {
+                engine.play();
+            } else {
+                engine.pause();
+            }
+        }
+        
+        // Home: Go to first frame
+        if ctx.input(|i| i.key_pressed(egui::Key::Home)) {
+            engine.seek(0);
+        }
+        
+        // End: Go to last frame
+        if ctx.input(|i| i.key_pressed(egui::Key::End)) {
+            let total_frames = engine.get_total_frames();
+            engine.seek(total_frames.saturating_sub(1));
+        }
+        
+        // Left Arrow: Previous frame
+        if ctx.input(|i| i.key_pressed(egui::Key::ArrowLeft)) {
+            let current = engine.get_current_frame();
+            if current > 0 {
+                engine.seek(current - 1);
+            }
+        }
+        
+        // Right Arrow: Next frame
+        if ctx.input(|i| i.key_pressed(egui::Key::ArrowRight)) {
+            let current = engine.get_current_frame();
+            let total = engine.get_total_frames();
+            if current < total - 1 {
+                engine.seek(current + 1);
+            }
+        }
+    }
+    
+    /// Handle the right-click context menu
+    fn handle_context_menu(&mut self, ui: &mut Ui, engine: &mut Box<dyn RiveEngine>) {
+        if let Some(menu_state) = self.state.context_menu.clone() {
+            self.draw_context_menu(ui, &menu_state, engine);
+        }
+    }
+    
+    /// Draw the right-click context menu
+    fn draw_context_menu(&mut self, ui: &mut Ui, menu_state: &ContextMenuState, engine: &mut Box<dyn RiveEngine>) {
+        let mut close_menu = false;
+        
+        egui::Area::new("frame_context_menu")
+            .fixed_pos(menu_state.position)
+            .order(egui::Order::Foreground)
+            .show(ui.ctx(), |ui| {
+                egui::Frame::popup(ui.style())
+                    .show(ui, |ui| {
+                        ui.set_min_width(150.0);
+                        
+                        // Insert Frame (F5)
+                        if ui.button("Insert Frame (F5)").clicked() {
+                            println!("Insert frame at {} on layer {:?}", menu_state.frame, menu_state.layer_id);
+                            engine.insert_frame(menu_state.layer_id.clone(), menu_state.frame);
+                            close_menu = true;
+                        }
+                        
+                        // Remove Frame (Shift+F5)
+                        if ui.button("Remove Frame (Shift+F5)").clicked() {
+                            println!("Remove frame at {} on layer {:?}", menu_state.frame, menu_state.layer_id);
+                            engine.remove_frame(menu_state.layer_id.clone(), menu_state.frame);
+                            close_menu = true;
+                        }
+                        
+                        ui.separator();
+                        
+                        // Insert Keyframe (F6)
+                        if ui.button("Insert Keyframe (F6)").clicked() {
+                            println!("Insert keyframe at {} on layer {:?}", menu_state.frame, menu_state.layer_id);
+                            engine.insert_keyframe(menu_state.layer_id.clone(), menu_state.frame);
+                            close_menu = true;
+                        }
+                        
+                        // Clear Keyframe (Shift+F6)
+                        if ui.button("Clear Keyframe (Shift+F6)").clicked() {
+                            println!("Clear keyframe at {} on layer {:?}", menu_state.frame, menu_state.layer_id);
+                            engine.clear_keyframe(menu_state.layer_id.clone(), menu_state.frame);
+                            close_menu = true;
+                        }
+                        
+                        ui.separator();
+                        
+                        // Create Motion Tween
+                        if ui.button("Create Motion Tween").clicked() {
+                            println!("Create motion tween at {} on layer {:?}", menu_state.frame, menu_state.layer_id);
+                            engine.create_motion_tween(menu_state.layer_id.clone(), menu_state.frame);
+                            close_menu = true;
+                        }
+                        
+                        // Create Shape Tween
+                        if ui.button("Create Shape Tween").clicked() {
+                            println!("Create shape tween at {} on layer {:?}", menu_state.frame, menu_state.layer_id);
+                            engine.create_shape_tween(menu_state.layer_id.clone(), menu_state.frame);
+                            close_menu = true;
+                        }
+                        
+                        ui.separator();
+                        
+                        // Insert Frame Label
+                        if ui.button("Insert Frame Label...").clicked() {
+                            println!("Insert frame label at {} on layer {:?}", menu_state.frame, menu_state.layer_id);
+                            // TODO: Open dialog for frame label
+                            close_menu = true;
+                        }
+                    });
+            });
+        
+        // Close menu if clicked outside or an action was taken
+        if close_menu || ui.input(|i| i.pointer.primary_clicked()) {
+            self.state.context_menu = None;
+        }
+    }
+}
+
+/// State for the right-click context menu
+#[derive(Clone, Debug)]
+pub struct ContextMenuState {
+    pub position: Pos2,
+    pub frame: u32,
+    pub layer_id: LayerId,
 }

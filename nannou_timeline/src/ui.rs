@@ -86,4 +86,34 @@ impl crate::RiveEngine for MockRiveEngine {
     fn get_fps(&self) -> f32 {
         self.fps
     }
+    
+    fn insert_frame(&mut self, layer_id: crate::LayerId, frame: u32) {
+        println!("MockRiveEngine: Inserting frame at {} on layer {:?}", frame, layer_id);
+        // In a real implementation, this would modify the timeline data
+    }
+    
+    fn remove_frame(&mut self, layer_id: crate::LayerId, frame: u32) {
+        println!("MockRiveEngine: Removing frame at {} on layer {:?}", frame, layer_id);
+        // In a real implementation, this would modify the timeline data
+    }
+    
+    fn insert_keyframe(&mut self, layer_id: crate::LayerId, frame: u32) {
+        println!("MockRiveEngine: Inserting keyframe at {} on layer {:?}", frame, layer_id);
+        // In a real implementation, this would create a new keyframe
+    }
+    
+    fn clear_keyframe(&mut self, layer_id: crate::LayerId, frame: u32) {
+        println!("MockRiveEngine: Clearing keyframe at {} on layer {:?}", frame, layer_id);
+        // In a real implementation, this would remove the keyframe
+    }
+    
+    fn create_motion_tween(&mut self, layer_id: crate::LayerId, frame: u32) {
+        println!("MockRiveEngine: Creating motion tween at {} on layer {:?}", frame, layer_id);
+        // In a real implementation, this would create a motion tween between keyframes
+    }
+    
+    fn create_shape_tween(&mut self, layer_id: crate::LayerId, frame: u32) {
+        println!("MockRiveEngine: Creating shape tween at {} on layer {:?}", frame, layer_id);
+        // In a real implementation, this would create a shape tween between keyframes
+    }
 }

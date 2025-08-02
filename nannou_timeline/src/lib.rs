@@ -19,9 +19,10 @@ pub mod layer;
 pub mod frame;
 pub mod track_simple;
 pub mod ui;
+pub mod time;
 
-// Re-export time calculation utilities
-pub use time_calc as time;
+// Re-export time types
+pub use time::{FrameTime, FpsPreset, FrameLabel};
 
 /// Mock interface for Rive integration
 pub trait RiveEngine: Send + Sync {
@@ -33,6 +34,18 @@ pub trait RiveEngine: Send + Sync {
     fn get_current_frame(&self) -> u32;
     fn get_total_frames(&self) -> u32;
     fn get_fps(&self) -> f32;
+    
+    // Frame operations
+    fn insert_frame(&mut self, layer_id: LayerId, frame: u32);
+    fn remove_frame(&mut self, layer_id: LayerId, frame: u32);
+    
+    // Keyframe operations
+    fn insert_keyframe(&mut self, layer_id: LayerId, frame: u32);
+    fn clear_keyframe(&mut self, layer_id: LayerId, frame: u32);
+    
+    // Tween operations
+    fn create_motion_tween(&mut self, layer_id: LayerId, frame: u32);
+    fn create_shape_tween(&mut self, layer_id: LayerId, frame: u32);
 }
 
 /// Timeline configuration
@@ -48,6 +61,10 @@ pub struct TimelineConfig {
     pub default_track_height: f32,
     /// Frame width (for zoom)
     pub frame_width: f32,
+    /// Frames per second
+    pub fps: FpsPreset,
+    /// Frame labels
+    pub frame_labels: Vec<FrameLabel>,
     /// Colors and styling
     pub style: TimelineStyle,
 }
@@ -60,6 +77,8 @@ impl Default for TimelineConfig {
             controls_height: 40.0,
             default_track_height: 30.0,
             frame_width: 10.0,
+            fps: FpsPreset::default(),
+            frame_labels: Vec::new(),
             style: TimelineStyle::default(),
         }
     }
@@ -97,11 +116,3 @@ impl Default for TimelineStyle {
     }
 }
 
-/// The duration of a sequence of bars in ticks (preserved from original)
-pub fn bars_duration_ticks<I>(bars: I, ppqn: time::Ppqn) -> time::Ticks
-where
-    I: IntoIterator<Item = time::TimeSig>,
-{
-    bars.into_iter()
-        .fold(time::Ticks(0), |acc, ts| acc + ts.ticks_per_bar(ppqn))
-}
