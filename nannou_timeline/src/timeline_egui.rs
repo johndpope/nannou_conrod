@@ -138,13 +138,25 @@ impl Timeline {
         // Get layers from engine
         let layers = engine.get_layers();
         
+        // Apply vertical scroll offset to sync with frame grid
+        let scroll_offset = self.state.scroll_y;
+        
+        // Clip to the visible area
+        ui.set_clip_rect(rect);
+        
         // Draw each layer
-        let mut y_offset = rect.min.y;
+        let mut y_offset = rect.min.y - scroll_offset;
         for (_idx, layer) in layers.iter().enumerate() {
             let layer_height = self.state.track_heights
                 .get(&layer.id)
                 .copied()
                 .unwrap_or(self.config.default_track_height);
+
+            // Skip layers outside visible area
+            if y_offset + layer_height < rect.min.y || y_offset > rect.max.y {
+                y_offset += layer_height;
+                continue;
+            }
 
             let layer_rect = Rect::from_min_size(
                 pos2(rect.min.x, y_offset),
@@ -228,22 +240,45 @@ impl Timeline {
 
     /// Draw the frame grid
     fn draw_frame_grid(&mut self, ui: &mut Ui, rect: Rect, engine: &Box<dyn RiveEngine>) {
-        // Clip to rect
-        ui.painter().with_clip_rect(rect).rect_filled(
-            rect,
-            0.0,
-            self.config.style.background_color,
-        );
+        // Use ScrollArea for both horizontal and vertical scrolling
+        egui::ScrollArea::both()
+            .id_source("timeline_scroll")
+            .auto_shrink([false, false])
+            .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysVisible)
+            .show_viewport(ui, |ui, viewport| {
+                // Update scroll state
+                self.state.scroll_x = viewport.min.x;
+                self.state.scroll_y = viewport.min.y;
 
-        let layers = engine.get_layers();
-        let frame_width = self.config.frame_width * self.state.zoom_level;
+                let layers = engine.get_layers();
+                let frame_width = self.config.frame_width * self.state.zoom_level;
+                let total_frames = engine.get_total_frames();
+                
+                // Calculate content size
+                let total_width = total_frames as f32 * frame_width;
+                let total_height = layers.iter()
+                    .map(|l| self.state.track_heights.get(&l.id).copied()
+                        .unwrap_or(self.config.default_track_height))
+                    .sum::<f32>();
+                
+                // Set the content size for scrolling
+                ui.set_min_size(vec2(total_width, total_height));
+                
+                // Calculate visible range
+                let visible_start_frame = (viewport.min.x / frame_width).floor() as u32;
+                let visible_end_frame = ((viewport.max.x / frame_width).ceil() as u32).min(total_frames);
+                let _visible_frames = visible_end_frame.saturating_sub(visible_start_frame);
 
-        // Draw grid lines
-        let visible_start_frame = (self.state.scroll_x / frame_width) as u32;
-        let visible_frames = (rect.width() / frame_width).ceil() as u32;
-
-        for frame in visible_start_frame..=(visible_start_frame + visible_frames) {
-            let x = rect.min.x + (frame as f32 - self.state.scroll_x / frame_width) * frame_width;
+                // Draw background
+                ui.painter().rect_filled(
+                    ui.max_rect(),
+                    0.0,
+                    self.config.style.background_color,
+                );
+                
+                // Draw grid lines
+                for frame in visible_start_frame..=visible_end_frame {
+                    let x = frame as f32 * frame_width;
             
             let color = if frame % 5 == 0 {
                 self.config.style.grid_color
@@ -251,80 +286,119 @@ impl Timeline {
                 self.config.style.grid_color.gamma_multiply(0.5)
             };
 
-            ui.painter().line_segment(
-                [pos2(x, rect.min.y), pos2(x, rect.max.y)],
-                Stroke::new(1.0, color),
-            );
-        }
+                    ui.painter().line_segment(
+                        [pos2(x, viewport.min.y), pos2(x, viewport.min.y + total_height)],
+                        Stroke::new(1.0, color),
+                    );
+                }
 
-        // Draw frames for each layer
-        let mut y_offset = rect.min.y;
-        for layer in &layers {
+                // Draw frames for each layer
+                let mut y_offset = 0.0;
+                for (layer_idx, layer) in layers.iter().enumerate() {
             let layer_height = self.state.track_heights
                 .get(&layer.id)
                 .copied()
                 .unwrap_or(self.config.default_track_height);
 
-            // Draw alternating row background
-            if layers.iter().position(|l| l.id == layer.id).unwrap_or(0) % 2 == 1 {
-                ui.painter().rect_filled(
-                    Rect::from_min_size(
-                        pos2(rect.min.x, y_offset),
-                        vec2(rect.width(), layer_height),
-                    ),
-                    0.0,
-                    self.config.style.background_color.gamma_multiply(1.1),
-                );
-            }
+                    // Only draw if layer is visible
+                    if y_offset + layer_height < viewport.min.y || y_offset > viewport.max.y {
+                        y_offset += layer_height;
+                        continue;
+                    }
+                    
+                    // Draw alternating row background
+                    if layer_idx % 2 == 1 {
+                        ui.painter().rect_filled(
+                            Rect::from_min_size(
+                                pos2(0.0, y_offset),
+                                vec2(total_width, layer_height),
+                            ),
+                            0.0,
+                            self.config.style.background_color.gamma_multiply(1.1),
+                        );
+                    }
 
-            // Draw frames (stubbed - would get from engine)
-            for frame in visible_start_frame..=(visible_start_frame + visible_frames) {
-                let frame_data = engine.get_frame_data(layer.id.clone(), frame);
-                let x = rect.min.x + (frame as f32 - self.state.scroll_x / frame_width) * frame_width;
+                    // Draw frames
+                    for frame in visible_start_frame..=visible_end_frame {
+                        let frame_data = engine.get_frame_data(layer.id.clone(), frame);
+                        let x = frame as f32 * frame_width;
                 
-                let frame_rect = Rect::from_min_size(
-                    pos2(x, y_offset),
-                    vec2(frame_width - 1.0, layer_height - 1.0),
-                );
+                        let frame_rect = Rect::from_min_size(
+                            pos2(x, y_offset),
+                            vec2(frame_width - 1.0, layer_height - 1.0),
+                        );
 
-                let color = match frame_data.frame_type {
-                    crate::frame::FrameType::Empty => self.config.style.frame_empty,
-                    crate::frame::FrameType::Keyframe => self.config.style.frame_keyframe,
-                    crate::frame::FrameType::Tween => self.config.style.frame_tween,
-                };
+                        let color = match frame_data.frame_type {
+                            crate::frame::FrameType::Empty => self.config.style.frame_empty,
+                            crate::frame::FrameType::Keyframe => self.config.style.frame_keyframe,
+                            crate::frame::FrameType::Tween => self.config.style.frame_tween,
+                        };
 
-                ui.painter().rect_filled(frame_rect, 2.0, color);
+                        ui.painter().rect_filled(frame_rect, 2.0, color);
 
-                // Draw keyframe indicator
-                if matches!(frame_data.frame_type, crate::frame::FrameType::Keyframe) {
-                    ui.painter().circle_filled(
-                        frame_rect.center(),
-                        3.0,
-                        self.config.style.text_color,
-                    );
+                        // Draw keyframe indicator
+                        if matches!(frame_data.frame_type, crate::frame::FrameType::Keyframe) {
+                            ui.painter().circle_filled(
+                                frame_rect.center(),
+                                3.0,
+                                self.config.style.text_color,
+                            );
+                        }
+                    }
+
+                    y_offset += layer_height;
+                }
+            });
+
+        
+        // Handle frame interactions
+        let response = ui.interact(rect, ui.id().with("frame_grid"), Sense::click_and_drag());
+        
+        // Handle mouse wheel scrolling
+        if let Some(hover_pos) = response.hover_pos() {
+            if rect.contains(hover_pos) {
+                let scroll_delta = ui.input(|i| i.scroll_delta);
+                
+                // Horizontal scroll with shift or horizontal wheel
+                if ui.input(|i| i.modifiers.shift) || scroll_delta.x != 0.0 {
+                    self.state.scroll_x = (self.state.scroll_x - scroll_delta.y * 20.0).max(0.0);
+                }
+                // Zoom with ctrl/cmd
+                else if ui.input(|i| i.modifiers.ctrl || i.modifiers.command) {
+                    let zoom_delta = scroll_delta.y * 0.001;
+                    let old_zoom = self.state.zoom_level;
+                    self.state.zoom_level = (self.state.zoom_level * (1.0 + zoom_delta)).clamp(0.1, 5.0);
+                    
+                    // Zoom centered on mouse position
+                    if old_zoom != self.state.zoom_level {
+                        let mouse_frame_pos = (hover_pos.x - rect.min.x + self.state.scroll_x) / (self.config.frame_width * old_zoom);
+                        let new_mouse_x = mouse_frame_pos * self.config.frame_width * self.state.zoom_level;
+                        self.state.scroll_x = (new_mouse_x - (hover_pos.x - rect.min.x)).max(0.0);
+                    }
+                }
+                // Vertical scroll normally
+                else {
+                    self.state.scroll_y = (self.state.scroll_y - scroll_delta.y).max(0.0);
                 }
             }
-
-            y_offset += layer_height;
         }
-
-        // Handle frame interactions
-        let response = ui.interact(rect, ui.id().with("frame_grid"), Sense::click());
         
+        // Handle clicks
         if response.clicked() {
             if let Some(pos) = response.interact_pointer_pos() {
                 let frame_width = self.config.frame_width * self.state.zoom_level;
                 let clicked_frame = ((pos.x - rect.min.x + self.state.scroll_x) / frame_width) as u32;
                 
                 // Find which layer was clicked
-                let mut y_offset = rect.min.y;
+                let layers = engine.get_layers();
+                let mut y_offset = self.state.scroll_y;
                 for layer in &layers {
                     let layer_height = self.state.track_heights
                         .get(&layer.id)
                         .copied()
                         .unwrap_or(self.config.default_track_height);
                     
-                    if pos.y >= y_offset && pos.y < y_offset + layer_height {
+                    if pos.y >= rect.min.y + y_offset && pos.y < rect.min.y + y_offset + layer_height {
                         println!("Frame {} clicked on layer {}", clicked_frame, layer.name);
                         break;
                     }
@@ -340,15 +414,16 @@ impl Timeline {
                 let clicked_frame = ((pos.x - rect.min.x + self.state.scroll_x) / frame_width) as u32;
                 
                 // Find which layer was clicked
+                let layers = engine.get_layers();
                 let mut clicked_layer = None;
-                let mut y_offset = rect.min.y;
+                let mut y_offset = self.state.scroll_y;
                 for layer in &layers {
                     let layer_height = self.state.track_heights
                         .get(&layer.id)
                         .copied()
                         .unwrap_or(self.config.default_track_height);
                     
-                    if pos.y >= y_offset && pos.y < y_offset + layer_height {
+                    if pos.y >= rect.min.y + y_offset && pos.y < rect.min.y + y_offset + layer_height {
                         clicked_layer = Some(layer.id.clone());
                         break;
                     }
