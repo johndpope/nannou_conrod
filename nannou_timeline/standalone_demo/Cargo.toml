@@ -11,4 +11,12 @@ chrono = "0.4"
 dirs = "5.0"
 uuid = { version = "1.6", features = ["v4"] }
 
+[[bin]]
+name = "timeline-demo"
+path = "src/main.rs"
+
+[[bin]]
+name = "timeline-demo-dock"
+path = "src/main_dock.rs"
+
 [workspace]

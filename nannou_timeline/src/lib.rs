@@ -26,6 +26,7 @@ pub mod motion_editor;
 pub mod audio;
 pub mod i18n;
 pub mod scripting;
+pub mod dock_manager;
 
 // Re-export time types
 pub use time::{FrameTime, FpsPreset, FrameLabel, FrameComment};
@@ -41,6 +42,9 @@ pub use audio::{AudioId, AudioSource, AudioLayer, AudioSyncMode, AudioEngine, Au
 
 // Re-export scripting types
 pub use scripting::{ScriptContext, ScriptStage, ScriptDisplayObject, ScriptEvent, ScriptManager};
+
+// Re-export dock manager
+pub use dock_manager::{DockManager, TabType, FlashTabViewer};
 
 /// Mock interface for Rive integration
 pub trait RiveEngine: Send + Sync {
