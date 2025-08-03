@@ -16,6 +16,7 @@ pub use track_simple::Track;
 pub mod playhead_egui;
 pub mod ruler_egui;
 pub mod timeline_egui;
+pub mod timeline_egui_fixed;
 pub mod layer;
 pub mod frame;
 pub mod track_simple;
