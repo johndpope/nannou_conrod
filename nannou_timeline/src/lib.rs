@@ -20,6 +20,7 @@ pub mod frame;
 pub mod track_simple;
 pub mod ui;
 pub mod time;
+pub mod easing;
 
 // Re-export time types
 pub use time::{FrameTime, FpsPreset, FrameLabel};

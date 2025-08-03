@@ -290,3 +290,114 @@ fn test_snap_guides() {
     timeline.update_snap_guides(52.0);
     assert!(timeline.state.snap_guides.is_empty());
 }
+
+#[test]
+fn test_keyframe_selection_basic() {
+    use nannou_timeline::{Timeline, KeyframeId, LayerId};
+    
+    let mut timeline = Timeline::new();
+    let layer_id = LayerId::new("test_layer");
+    let keyframe_id = KeyframeId::new();
+    
+    // Test initial state
+    assert!(!timeline.state.keyframe_selection.is_selected(layer_id.clone(), 5));
+    assert!(timeline.state.keyframe_selection.selected.is_empty());
+    
+    // Test adding keyframe
+    timeline.state.keyframe_selection.add(layer_id.clone(), 5, keyframe_id.clone());
+    assert!(timeline.state.keyframe_selection.is_selected(layer_id.clone(), 5));
+    assert_eq!(timeline.state.keyframe_selection.selected.len(), 1);
+    
+    // Test removing keyframe
+    timeline.state.keyframe_selection.remove(layer_id.clone(), 5);
+    assert!(!timeline.state.keyframe_selection.is_selected(layer_id.clone(), 5));
+    assert!(timeline.state.keyframe_selection.selected.is_empty());
+}
+
+#[test]
+fn test_keyframe_selection_multiple() {
+    use nannou_timeline::{Timeline, KeyframeId, LayerId};
+    
+    let mut timeline = Timeline::new();
+    let layer1 = LayerId::new("layer1");
+    let layer2 = LayerId::new("layer2");
+    let keyframe1 = KeyframeId::new();
+    let keyframe2 = KeyframeId::new();
+    let keyframe3 = KeyframeId::new();
+    
+    // Add multiple keyframes
+    timeline.state.keyframe_selection.add(layer1.clone(), 5, keyframe1);
+    timeline.state.keyframe_selection.add(layer1.clone(), 10, keyframe2);
+    timeline.state.keyframe_selection.add(layer2.clone(), 8, keyframe3);
+    
+    assert_eq!(timeline.state.keyframe_selection.selected.len(), 3);
+    assert!(timeline.state.keyframe_selection.is_selected(layer1.clone(), 5));
+    assert!(timeline.state.keyframe_selection.is_selected(layer1.clone(), 10));
+    assert!(timeline.state.keyframe_selection.is_selected(layer2.clone(), 8));
+    
+    // Test clear
+    timeline.state.keyframe_selection.clear();
+    assert!(timeline.state.keyframe_selection.selected.is_empty());
+    assert!(!timeline.state.keyframe_selection.is_selected(layer1, 5));
+}
+
+#[test]
+fn test_keyframe_drag_state() {
+    use nannou_timeline::{Timeline, KeyframeId, LayerId, DragState};
+    use std::collections::HashMap;
+    
+    let mut timeline = Timeline::new();
+    let layer_id = LayerId::new("test_layer");
+    let keyframe_id = KeyframeId::new();
+    
+    // Add a keyframe
+    timeline.state.keyframe_selection.add(layer_id.clone(), 10, keyframe_id.clone());
+    
+    // Test drag state initialization
+    assert!(timeline.state.keyframe_selection.drag_state.is_none());
+    
+    let mut original_positions = HashMap::new();
+    original_positions.insert(keyframe_id, (layer_id, 10));
+    
+    let drag_state = DragState {
+        original_positions,
+        frame_offset: 0,
+        start_pos: egui::Pos2::new(100.0, 50.0),
+    };
+    
+    timeline.state.keyframe_selection.drag_state = Some(drag_state);
+    assert!(timeline.state.keyframe_selection.drag_state.is_some());
+    
+    // Test clearing drag state
+    timeline.state.keyframe_selection.clear();
+    assert!(timeline.state.keyframe_selection.drag_state.is_none());
+}
+
+#[test]
+fn test_mock_engine_keyframe_methods() {
+    use nannou_timeline::ui::MockRiveEngine;
+    use nannou_timeline::{RiveEngine, LayerId};
+    
+    let mut engine = MockRiveEngine::new();
+    let layer_id = LayerId::new("test_layer");
+    
+    // Test new keyframe manipulation methods
+    engine.move_keyframe(layer_id.clone(), 5, 10);
+    
+    let copied_data = engine.copy_keyframe(layer_id.clone(), 5);
+    assert!(copied_data.is_some());
+    
+    if let Some(data) = copied_data {
+        engine.paste_keyframe(layer_id.clone(), 15, data);
+    }
+    
+    engine.delete_keyframe(layer_id.clone(), 5);
+    
+    // Test property methods
+    engine.set_property(layer_id.clone(), 10, "visible", true);
+    let visible = engine.get_property(layer_id.clone(), 10, "visible");
+    assert!(visible);
+    
+    let locked = engine.get_property(layer_id, 10, "locked");
+    assert!(!locked);
+}
