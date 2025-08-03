@@ -830,6 +830,21 @@ impl Timeline {
 
     /// Draw the frame grid with proper scrolling
     fn draw_frame_grid_fixed(&mut self, ui: &mut Ui, rect: Rect, engine: &mut Box<dyn RiveEngine>) {
+        // Draw a background to see where the frame grid area is
+        ui.painter().rect_filled(
+            rect,
+            0.0,
+            Color32::from_gray(40), // Slightly lighter gray
+        );
+        
+        // Draw a border to debug the area
+        ui.painter().rect_stroke(
+            rect,
+            0.0,
+            Stroke::new(1.0, Color32::GREEN),
+            egui::epaint::StrokeKind::Outside,
+        );
+        
         // Properly scope the ScrollArea within the given rect
         ui.scope_builder(UiBuilder::new().max_rect(rect), |ui| {
             ScrollArea::both()
@@ -851,6 +866,9 @@ impl Timeline {
                     
                     // Set the content size for scrolling
                     ui.set_min_size(vec2(total_width, total_height));
+                    
+                    // Debug: Draw a test to ensure ScrollArea is working
+                    ui.label(format!("Layers: {}, Frames: {}", layers.len(), total_frames));
                     
                     // Get viewport for optimization
                     let viewport = ui.clip_rect();
