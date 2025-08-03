@@ -5,11 +5,15 @@ use nannou_timeline::{
     timeline_egui::Timeline,
     ui::MockRiveEngine, RiveEngine, LayerId,
     layer::LayerType,
+    scripting::{ScriptContext, templates},
 };
 use std::sync::{Arc, Mutex};
 use std::process::Command;
 use std::panic;
 use std::sync::atomic::{AtomicBool, Ordering};
+
+mod rustflash_integration;
+use rustflash_integration::RustFlashIntegration;
 
 // Global crash state
 static CRASH_OCCURRED: AtomicBool = AtomicBool::new(false);
@@ -214,6 +218,12 @@ struct TimelineApp {
     // Tools panel state
     tool_state: ToolState,
     tools_panel_width: f32,
+    // Script editor state
+    script_visible: bool,
+    script_content: String,
+    script_context: Option<ScriptContext>,
+    script_error: Option<String>,
+    script_panel_height: f32,
 }
 
 #[derive(Clone)]
@@ -514,7 +524,12 @@ impl Default for TimelineApp {
         
         let mut app = Self {
             timeline,
-            engine: Box::new(LoggingRiveEngine::new(engine_logs.clone())),
+            // Use RustFlash integration if available, otherwise fall back to mock
+            engine: if std::env::var("USE_RUSTFLASH").is_ok() {
+                Box::new(RustFlashIntegration::new())
+            } else {
+                Box::new(LoggingRiveEngine::new(engine_logs.clone()))
+            },
             timeline_height: 200.0,
             library_width: 300.0,
             console_height: 150.0,
@@ -553,11 +568,18 @@ impl Default for TimelineApp {
                 text_font_family: "Arial".to_string(),
             },
             tools_panel_width: 60.0,
+            // Script editor
+            script_visible: false,
+            script_content: templates::LOOP_ANIMATION.to_string(),
+            script_context: None,
+            script_error: None,
+            script_panel_height: 200.0,
         };
         app.log(LogLevel::Info, "Timeline application started");
         app.log(LogLevel::Info, "🎮 Keyboard shortcuts:");
         app.log(LogLevel::Info, "  • F12: Toggle debug console");
         app.log(LogLevel::Info, "  • F2: Take screenshot");
+        app.log(LogLevel::Info, "  • F9: Toggle script editor");
         app.log(LogLevel::Info, "💡 Hover over timeline elements to see tooltips");
         app.log(LogLevel::Info, "💡 Right-click on layers and frames for context menus");
         app.log(LogLevel::Info, "💡 Click and drag stage items to move them");
@@ -592,6 +614,19 @@ impl eframe::App for TimelineApp {
             self.take_screenshot(ctx);
         }
         
+        // Handle F9 to toggle script editor
+        if ctx.input(|i| i.key_pressed(egui::Key::F9)) {
+            self.script_visible = !self.script_visible;
+            self.log(LogLevel::Info, format!("Script editor {}", if self.script_visible { "shown" } else { "hidden" }));
+            
+            // Initialize script context if needed
+            if self.script_context.is_none() {
+                let _engine_arc = Arc::new(Mutex::new(self.engine.as_ref() as &dyn RiveEngine));
+                // Note: This won't work with the current architecture, we'd need a refactor
+                // For now, we'll just show the editor without execution capability
+            }
+        }
+        
         // Handle tool keyboard shortcuts
         self.handle_tool_shortcuts(ctx);
         
@@ -601,39 +636,54 @@ impl eframe::App for TimelineApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             let available_rect = ui.available_rect_before_wrap();
             
-            // Adjust for console if visible
+            // Adjust for console and script editor if visible
             let console_space = if self.console_visible { self.console_height } else { 0.0 };
+            let script_space = if self.script_visible { self.script_panel_height } else { 0.0 };
+            let bottom_panels_height = console_space + script_space;
             
             // Calculate regions with resizable sizes
             let tools_rect = egui::Rect::from_min_size(
                 available_rect.min,
-                egui::vec2(self.tools_panel_width, available_rect.height() - self.timeline_height - console_space),
+                egui::vec2(self.tools_panel_width, available_rect.height() - self.timeline_height - bottom_panels_height),
             );
             
             let library_rect = egui::Rect::from_min_size(
                 egui::pos2(available_rect.max.x - self.library_width, available_rect.min.y),
-                egui::vec2(self.library_width, available_rect.height() - self.timeline_height - console_space),
+                egui::vec2(self.library_width, available_rect.height() - self.timeline_height - bottom_panels_height),
             );
             
             let timeline_rect = egui::Rect::from_min_size(
-                egui::pos2(available_rect.min.x, available_rect.max.y - self.timeline_height - console_space),
+                egui::pos2(available_rect.min.x, available_rect.max.y - self.timeline_height - bottom_panels_height),
                 egui::vec2(available_rect.width(), self.timeline_height),
             );
             
             let properties_rect = egui::Rect::from_min_size(
-                egui::pos2(available_rect.min.x + self.tools_panel_width, available_rect.max.y - self.timeline_height - console_space - self.properties_height),
+                egui::pos2(available_rect.min.x + self.tools_panel_width, available_rect.max.y - self.timeline_height - bottom_panels_height - self.properties_height),
                 egui::vec2(available_rect.width() - self.library_width - self.tools_panel_width, self.properties_height),
             );
             
             let stage_rect = egui::Rect::from_min_size(
                 egui::pos2(available_rect.min.x + self.tools_panel_width, available_rect.min.y),
-                egui::vec2(available_rect.width() - self.library_width - self.tools_panel_width, available_rect.height() - self.timeline_height - console_space - self.properties_height),
+                egui::vec2(available_rect.width() - self.library_width - self.tools_panel_width, available_rect.height() - self.timeline_height - bottom_panels_height - self.properties_height),
             );
             
+            let mut bottom_y = available_rect.max.y;
+            
             let console_rect = if self.console_visible {
+                bottom_y -= console_space;
                 Some(egui::Rect::from_min_size(
-                    egui::pos2(available_rect.min.x, available_rect.max.y - console_space),
+                    egui::pos2(available_rect.min.x, bottom_y),
                     egui::vec2(available_rect.width(), console_space),
+                ))
+            } else {
+                None
+            };
+            
+            let script_rect = if self.script_visible {
+                bottom_y -= script_space;
+                Some(egui::Rect::from_min_size(
+                    egui::pos2(available_rect.min.x, bottom_y),
+                    egui::vec2(available_rect.width(), script_space),
                 ))
             } else {
                 None
@@ -696,6 +746,17 @@ impl eframe::App for TimelineApp {
             ui.painter().rect_filled(corner_rect, 0.0, egui::Color32::GRAY);
             
             // Draw console if visible
+            if let Some(script_rect) = script_rect {
+                self.draw_script_editor(ui, script_rect);
+                
+                // Script editor splitter
+                let script_splitter_rect = egui::Rect::from_min_size(
+                    egui::pos2(script_rect.min.x, script_rect.min.y),
+                    egui::vec2(script_rect.width(), self.splitter_thickness),
+                );
+                self.handle_script_splitter(ui, script_splitter_rect);
+            }
+            
             if let Some(console_rect) = console_rect {
                 self.draw_console(ui, console_rect);
                 
@@ -1002,6 +1063,157 @@ impl TimelineApp {
                 let available_height = ui.available_height();
                 self.console_height = (available_height - pointer_pos.y + rect.height() / 2.0)
                     .clamp(50.0, available_height - 300.0);
+            }
+        }
+        
+        if response.hovered() {
+            ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeVertical);
+        }
+    }
+    
+    fn draw_script_editor(&mut self, ui: &mut egui::Ui, rect: egui::Rect) {
+        ui.scope_builder(UiBuilder::new().max_rect(rect), |ui| {
+            // Background
+            ui.painter().rect_filled(rect, 0.0, egui::Color32::from_gray(25));
+            
+            // Border
+            let border_stroke = egui::Stroke::new(1.0, egui::Color32::from_gray(60));
+            ui.painter().rect_stroke(rect, 0.0, border_stroke, egui::epaint::StrokeKind::Outside);
+            
+            // Script editor header
+            let header_rect = egui::Rect::from_min_size(rect.min, egui::vec2(rect.width(), 30.0));
+            ui.scope_builder(UiBuilder::new().max_rect(header_rect), |ui| {
+                ui.horizontal(|ui| {
+                    ui.label("📜 Script Editor");
+                    ui.separator();
+                    
+                    if ui.button("▶ Run").clicked() {
+                        self.log(LogLevel::Action, "Executing script...");
+                        // For demo purposes, just log the script
+                        self.log(LogLevel::Info, format!("Script content: {}", self.script_content.lines().next().unwrap_or("(empty)")));
+                        self.script_error = None;
+                    }
+                    
+                    if ui.button("⏹ Stop").clicked() {
+                        self.log(LogLevel::Action, "Script execution stopped");
+                    }
+                    
+                    if ui.button("🗑 Clear").clicked() {
+                        self.script_content.clear();
+                        self.script_error = None;
+                        self.log(LogLevel::Action, "Script editor cleared");
+                    }
+                    
+                    ui.separator();
+                    
+                    // Script templates dropdown
+                    ComboBox::from_label("Templates")
+                        .selected_text("Select template...")
+                        .show_ui(ui, |ui| {
+                            if ui.selectable_label(false, "Loop Animation").clicked() {
+                                self.script_content = templates::LOOP_ANIMATION.to_string();
+                                self.log(LogLevel::Info, "Loaded loop animation template");
+                            }
+                            if ui.selectable_label(false, "Stop at Frame").clicked() {
+                                self.script_content = templates::STOP_AT_FRAME.to_string();
+                                self.log(LogLevel::Info, "Loaded stop at frame template");
+                            }
+                            if ui.selectable_label(false, "Animate Object").clicked() {
+                                self.script_content = templates::ANIMATE_OBJECT.to_string();
+                                self.log(LogLevel::Info, "Loaded animate object template");
+                            }
+                            if ui.selectable_label(false, "Create Object").clicked() {
+                                self.script_content = templates::CREATE_OBJECT.to_string();
+                                self.log(LogLevel::Info, "Loaded create object template");
+                            }
+                        });
+                    
+                    // Error indicator
+                    if let Some(error) = &self.script_error {
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            ui.colored_label(egui::Color32::RED, format!("❌ Error: {}", error));
+                        });
+                    }
+                });
+            });
+            
+            // Script content area
+            let content_rect = egui::Rect::from_min_size(
+                rect.min + egui::vec2(0.0, 30.0),
+                egui::vec2(rect.width(), rect.height() - 30.0),
+            );
+            
+            ui.scope_builder(UiBuilder::new().max_rect(content_rect), |ui| {
+                egui::ScrollArea::both()
+                    .auto_shrink([false, false])
+                    .show(ui, |ui| {
+                        // Script editor with syntax highlighting (basic)
+                        let mut layouter = |ui: &egui::Ui, text_buffer: &dyn egui::TextBuffer, _wrap_width: f32| {
+                            let mut job = egui::text::LayoutJob::default();
+                            let string = text_buffer.as_str();
+                            
+                            // Basic syntax highlighting
+                            for line in string.lines() {
+                                if line.trim().starts_with("//") {
+                                    // Comments in green
+                                    job.append(line, 0.0, egui::TextFormat {
+                                        color: egui::Color32::from_rgb(120, 200, 120),
+                                        ..Default::default()
+                                    });
+                                } else if line.contains("timeline.") || line.contains("stage.") {
+                                    // API calls in blue
+                                    job.append(line, 0.0, egui::TextFormat {
+                                        color: egui::Color32::from_rgb(120, 160, 255),
+                                        ..Default::default()
+                                    });
+                                } else if line.contains("if") || line.contains("let") || line.contains("fn") {
+                                    // Keywords in orange
+                                    job.append(line, 0.0, egui::TextFormat {
+                                        color: egui::Color32::from_rgb(255, 180, 100),
+                                        ..Default::default()
+                                    });
+                                } else {
+                                    // Default text
+                                    job.append(line, 0.0, egui::TextFormat::default());
+                                }
+                                job.append("\n", 0.0, egui::TextFormat::default());
+                            }
+                            
+                            job.wrap.max_width = f32::INFINITY;
+                            ui.fonts(|f| f.layout_job(job))
+                        };
+                        
+                        let response = ui.add(
+                            egui::TextEdit::multiline(&mut self.script_content)
+                                .code_editor()
+                                .desired_width(f32::INFINITY)
+                                .desired_rows(20)
+                                .layouter(&mut layouter)
+                        );
+                        
+                        if response.changed() {
+                            self.script_error = None;
+                        }
+                    });
+            });
+        });
+    }
+    
+    fn handle_script_splitter(&mut self, ui: &mut egui::Ui, rect: egui::Rect) {
+        let response = ui.allocate_rect(rect, egui::Sense::click_and_drag());
+        
+        let color = if response.hovered() {
+            egui::Color32::from_gray(100)
+        } else {
+            egui::Color32::from_gray(70)
+        };
+        ui.painter().rect_filled(rect, 0.0, color);
+        
+        if response.dragged() {
+            if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
+                let available_height = ui.available_height();
+                self.script_panel_height = (available_height - pointer_pos.y + rect.height() / 2.0)
+                    .clamp(100.0, available_height - 300.0);
             }
         }
         

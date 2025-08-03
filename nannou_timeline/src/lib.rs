@@ -25,6 +25,7 @@ pub mod easing;
 pub mod motion_editor;
 pub mod audio;
 pub mod i18n;
+pub mod scripting;
 
 // Re-export time types
 pub use time::{FrameTime, FpsPreset, FrameLabel, FrameComment};
@@ -37,6 +38,9 @@ pub use motion_editor::MotionEditor;
 
 // Re-export audio types
 pub use audio::{AudioId, AudioSource, AudioLayer, AudioSyncMode, AudioEngine, AudioError, WaveformData, VolumeEnvelope};
+
+// Re-export scripting types
+pub use scripting::{ScriptContext, ScriptStage, ScriptDisplayObject, ScriptEvent, ScriptManager};
 
 /// Mock interface for Rive integration
 pub trait RiveEngine: Send + Sync {
