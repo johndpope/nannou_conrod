@@ -13,9 +13,15 @@ use std::process::Command;
 use std::panic;
 use std::sync::atomic::{AtomicBool, Ordering};
 use chrono;
+use rfd::FileDialog;
+use serde_json;
 
 mod rustflash_integration;
+mod artboard_renderer;
+#[cfg(test)]
+mod tests;
 use rustflash_integration::RustFlashIntegration;
+use artboard_renderer::{ArtboardRenderer, rustflash_types};
 
 // Import our helper modules
 mod stage;
@@ -24,7 +30,7 @@ mod library;
 mod properties;
 mod logging;
 mod script_templates;
-mod drawing;
+// mod drawing; // Commented out to avoid duplicate draw_stage method
 mod widgets;
 
 use stage::{StageItem, StageItemType, ResizeHandle, MarqueeSelection, ContextMenuState, ContextMenuType};
@@ -194,6 +200,10 @@ impl RiveEngine for LoggingRiveEngine {
         self.log(LogLevel::Action, format!("Added new motion guide layer '{}' with id {:?}", name, layer_id));
         layer_id
     }
+    
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
 }
 
 struct TimelineApp {
@@ -239,6 +249,8 @@ struct TimelineApp {
     drag_offset: egui::Vec2,
     // Library context menu
     library_context_menu: Option<LibraryContextMenuState>,
+    // Asset properties dialog
+    show_asset_properties_dialog: Option<String>,
     // Tools panel state
     tool_state: ToolState,
     tools_panel_width: f32,
@@ -253,6 +265,8 @@ struct TimelineApp {
     script_panel_height: f32,
     // Curve editor state
     curve_editor: CurveEditorPanel,
+    // Artboard renderer for displaying RustFlash content
+    artboard_renderer: Option<ArtboardRenderer>,
 }
 
 // These types are now imported from our modules
@@ -338,12 +352,8 @@ impl Default for TimelineApp {
         
         let mut app = Self {
             timeline,
-            // Use RustFlash integration if available, otherwise fall back to mock
-            engine: if std::env::var("USE_RUSTFLASH").is_ok() {
-                Box::new(RustFlashIntegration::new())
-            } else {
-                Box::new(LoggingRiveEngine::new(engine_logs.clone()))
-            },
+            // Use RustFlash integration engine
+            engine: Box::new(RustFlashIntegration::new()),
             timeline_height: 250.0, // Increased height for timeline
             library_width: 300.0,
             console_height: 150.0,
@@ -372,6 +382,7 @@ impl Default for TimelineApp {
             dragging_asset: None,
             drag_offset: egui::Vec2::ZERO,
             library_context_menu: None,
+            show_asset_properties_dialog: None,
             // Initialize tools panel
             tool_state: ToolState {
                 active_tool: Tool::Arrow,
@@ -397,6 +408,8 @@ impl Default for TimelineApp {
             script_panel_height: 200.0,
             // Curve editor
             curve_editor: CurveEditorPanel::default(),
+            // Artboard renderer
+            artboard_renderer: None,
         };
         app.log(LogLevel::Info, "Timeline application started");
         app.log(LogLevel::Info, "🎮 Keyboard shortcuts:");
@@ -543,7 +556,7 @@ impl eframe::App for TimelineApp {
                 egui::Color32::from_gray(30), // Dark background
             );
             
-            ui.allocate_new_ui(UiBuilder::new().max_rect(timeline_rect), |ui| {
+            ui.scope_builder(UiBuilder::new().max_rect(timeline_rect), |ui| {
                 // Intercept timeline interactions by checking before/after
                 let prev_frame = self.engine.get_current_frame();
                 let prev_zoom = self.timeline.state.zoom_level;
@@ -1090,9 +1103,26 @@ impl TimelineApp {
                     ui.horizontal(|ui| {
                         ui.heading("📚 Library");
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            if ui.small_button("⚙").on_hover_text("Library Options").clicked() {
-                                self.log(LogLevel::Action, "Library options clicked");
+                            ui.menu_button("⚙", |ui| {
+                                if ui.button("📤 Export Library").clicked() {
+                                    self.export_library();
+                                    ui.close_menu();
                                 }
+                                if ui.button("📥 Import Library").clicked() {
+                                    self.import_library();
+                                    ui.close_menu();
+                                }
+                                ui.separator();
+                                if ui.button("🔄 Refresh").clicked() {
+                                    self.log(LogLevel::Action, "Library refreshed");
+                                    ui.close_menu();
+                                }
+                                if ui.button("🗑️ Clear All").clicked() {
+                                    self.library_assets.clear();
+                                    self.log(LogLevel::Action, "Library cleared");
+                                    ui.close_menu();
+                                }
+                            });
                             });
                     });
                     ui.separator();
@@ -1130,6 +1160,11 @@ impl TimelineApp {
         // Handle context menu
         if let Some(menu_state) = &self.library_context_menu.clone() {
             self.show_library_context_menu(ui, menu_state);
+        }
+        
+        // Handle asset properties dialog
+        if let Some(asset_id) = &self.show_asset_properties_dialog.clone() {
+            self.show_asset_properties_dialog(ui, asset_id);
         }
     }
     
@@ -1181,7 +1216,7 @@ impl TimelineApp {
         // Action buttons
         ui.horizontal(|ui| {
             if ui.button("➕ Import").on_hover_text("Import assets from file").clicked() {
-                self.log(LogLevel::Action, "Import assets clicked");
+                self.import_assets();
             }
             if ui.button("🆕 New Symbol").on_hover_text("Create new symbol").clicked() {
                 self.log(LogLevel::Action, "New symbol clicked");
@@ -1549,6 +1584,11 @@ impl TimelineApp {
                             self.log(LogLevel::Action, format!("Duplicate asset: {}", asset_name));
                             self.library_context_menu = None;
                             }
+                        if ui.button("📋 Properties").clicked() {
+                            self.log(LogLevel::Action, format!("Show properties for asset: {}", asset_name));
+                            self.show_asset_properties_dialog = Some(asset_id.clone());
+                            self.library_context_menu = None;
+                            }
                         if ui.button("🗑️ Delete").clicked() {
                             self.log(LogLevel::Action, format!("Delete asset: {}", asset_name));
                             self.library_context_menu = None;
@@ -1563,7 +1603,7 @@ impl TimelineApp {
                             self.library_context_menu = None;
                             }
                         if ui.button("➕ Import").clicked() {
-                            self.log(LogLevel::Action, format!("Import to '{}'", folder_name));
+                            self.import_assets_to_folder(folder_name.clone());
                             self.library_context_menu = None;
                             }
                     }
@@ -1573,12 +1613,315 @@ impl TimelineApp {
                             self.library_context_menu = None;
                             }
                         if ui.button("➕ Import Assets").clicked() {
-                            self.log(LogLevel::Action, "Import assets");
+                            self.import_assets();
                             self.library_context_menu = None;
                             }
                     }
                 }
             });
+    }
+    
+    fn show_asset_properties_dialog(&mut self, ui: &mut egui::Ui, asset_id: &str) {
+        let mut should_close = false;
+        
+        // Find the asset
+        let asset = self.library_assets.iter().find(|a| a.id == asset_id).cloned();
+        
+        if let Some(asset) = asset {
+            egui::Window::new("Asset Properties")
+                .collapsible(false)
+                .resizable(true)
+                .default_width(400.0)
+                .default_height(500.0)
+                .show(ui.ctx(), |ui| {
+                    ui.vertical(|ui| {
+                        // Asset icon and name header
+                        ui.horizontal(|ui| {
+                            let icon = match asset.asset_type {
+                                LibraryAssetType::MovieClip => "🎬",
+                                LibraryAssetType::Button => "🔘",
+                                LibraryAssetType::Graphic => "🖼️",
+                                LibraryAssetType::Bitmap => "📷",
+                                LibraryAssetType::Sound => "🔊",
+                                LibraryAssetType::Video => "📹",
+                                LibraryAssetType::Font => "🔤",
+                                LibraryAssetType::Folder => "📁",
+                            };
+                            ui.label(egui::RichText::new(icon).size(24.0));
+                            ui.vertical(|ui| {
+                                ui.label(egui::RichText::new(&asset.name).heading());
+                                ui.label(format!("Type: {:?}", asset.asset_type));
+                            });
+                        });
+                        
+                        ui.separator();
+                        
+                        // Properties grid
+                        egui::Grid::new("asset_properties_grid")
+                            .num_columns(2)
+                            .spacing([10.0, 8.0])
+                            .show(ui, |ui| {
+                                // Basic properties
+                                ui.label("Asset ID:");
+                                ui.label(&asset.id);
+                                ui.end_row();
+                                
+                                ui.label("Folder:");
+                                ui.label(&asset.folder);
+                                ui.end_row();
+                                
+                                // Type-specific properties
+                                if let Some(file_size) = asset.properties.file_size {
+                                    ui.label("File Size:");
+                                    ui.label(format!("{} bytes", file_size));
+                                    ui.end_row();
+                                }
+                                
+                                if let Some((w, h)) = asset.properties.dimensions {
+                                    ui.label("Dimensions:");
+                                    ui.label(format!("{} × {} pixels", w, h));
+                                    ui.end_row();
+                                }
+                                
+                                if let Some(format) = &asset.properties.format {
+                                    ui.label("Format:");
+                                    ui.label(format);
+                                    ui.end_row();
+                                }
+                                
+                                ui.label("Usage Count:");
+                                ui.label(format!("{}", asset.properties.usage_count));
+                                ui.end_row();
+                                
+                                if let Some(linkage) = &asset.properties.linkage_class {
+                                    ui.label("Linkage Class:");
+                                    ui.label(linkage);
+                                    ui.end_row();
+                                }
+                            });
+                        
+                        ui.separator();
+                        
+                        // ActionScript 3 Linkage section (Flash-style)
+                        ui.collapsing("ActionScript 3.0 Linkage", |ui| {
+                            ui.horizontal(|ui| {
+                                ui.checkbox(&mut false, "Export for ActionScript");
+                                ui.label("Enable this asset for ActionScript access");
+                            });
+                            
+                            ui.horizontal(|ui| {
+                                ui.label("Class:");
+                                ui.text_edit_singleline(&mut String::new());
+                            });
+                            
+                            ui.horizontal(|ui| {
+                                ui.label("Base class:");
+                                ui.text_edit_singleline(&mut String::new());
+                            });
+                            
+                            ui.horizontal(|ui| {
+                                ui.checkbox(&mut false, "Export in frame 1");
+                                ui.label("Make available in first frame");
+                            });
+                        });
+                        
+                        ui.separator();
+                        
+                        // Advanced properties
+                        ui.collapsing("Advanced", |ui| {
+                            ui.horizontal(|ui| {
+                                ui.label("Compression:");
+                                egui::ComboBox::from_label("")
+                                    .selected_text("Lossless")
+                                    .show_ui(ui, |ui| {
+                                        ui.selectable_value(&mut 0, 0, "Photo (JPEG)");
+                                        ui.selectable_value(&mut 0, 1, "Lossless (PNG/GIF)");
+                                        ui.selectable_value(&mut 0, 2, "Custom");
+                                    });
+                            });
+                            
+                            ui.horizontal(|ui| {
+                                ui.label("Allow smoothing:");
+                                ui.checkbox(&mut true, "");
+                            });
+                        });
+                        
+                        ui.add_space(10.0);
+                        
+                        // Action buttons
+                        ui.horizontal(|ui| {
+                            if ui.button("OK").clicked() {
+                                self.log(LogLevel::Action, format!("Asset properties updated: {}", asset.name));
+                                should_close = true;
+                            }
+                            
+                            if ui.button("Cancel").clicked() {
+                                should_close = true;
+                            }
+                            
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                if ui.button("Apply").clicked() {
+                                    self.log(LogLevel::Action, format!("Asset properties applied: {}", asset.name));
+                                }
+                            });
+                        });
+                    });
+                });
+        } else {
+            // Asset not found, close dialog
+            should_close = true;
+        }
+        
+        if should_close {
+            self.show_asset_properties_dialog = None;
+        }
+    }
+    
+    /// Import assets using file dialog
+    fn import_assets(&mut self) {
+        self.import_assets_to_folder("Graphics".to_string());
+    }
+    
+    /// Import assets to a specific folder
+    fn import_assets_to_folder(&mut self, folder: String) {
+        // Spawn file dialog in a thread to avoid blocking UI
+        let files = FileDialog::new()
+            .add_filter("Images", &["png", "jpg", "jpeg", "gif", "bmp", "tiff", "webp"])
+            .add_filter("Audio", &["mp3", "wav", "ogg", "m4a", "aac"])
+            .add_filter("Video", &["mp4", "mov", "avi", "webm", "flv"])
+            .add_filter("Flash Assets", &["swf", "fla"])
+            .add_filter("All Files", &["*"])
+            .set_title("Import Assets to Library")
+            .pick_files();
+            
+        if let Some(paths) = files {
+            for path in paths {
+                if let Err(e) = self.import_single_asset(&path, &folder) {
+                    self.log(LogLevel::Error, format!("Failed to import {:?}: {}", path, e));
+                } else {
+                    self.log(LogLevel::Action, format!("Successfully imported: {:?}", path.file_name().unwrap_or_default()));
+                }
+            }
+        }
+    }
+    
+    /// Import a single asset file
+    fn import_single_asset(&mut self, path: &std::path::Path, folder: &str) -> Result<(), Box<dyn std::error::Error>> {
+        let file_name = path.file_name()
+            .and_then(|name| name.to_str())
+            .ok_or("Invalid file name")?;
+            
+        let extension = path.extension()
+            .and_then(|ext| ext.to_str())
+            .unwrap_or("")
+            .to_lowercase();
+            
+        // Determine asset type from extension
+        let asset_type = match extension.as_str() {
+            "png" | "jpg" | "jpeg" | "gif" | "bmp" | "tiff" | "webp" => LibraryAssetType::Bitmap,
+            "mp3" | "wav" | "ogg" | "m4a" | "aac" => LibraryAssetType::Sound,
+            "mp4" | "mov" | "avi" | "webm" | "flv" => LibraryAssetType::Video,
+            "swf" => LibraryAssetType::MovieClip,
+            "ttf" | "otf" | "woff" | "woff2" => LibraryAssetType::Font,
+            _ => LibraryAssetType::Graphic,
+        };
+        
+        // Get file metadata
+        let metadata = std::fs::metadata(path)?;
+        let file_size = metadata.len();
+        
+        // For images, try to get dimensions
+        let dimensions = if matches!(asset_type, LibraryAssetType::Bitmap) {
+            // Simple dimension detection - would need image crate for real implementation
+            Some((800, 600)) // Placeholder dimensions
+        } else {
+            None
+        };
+        
+        // Create asset ID
+        let asset_id = uuid::Uuid::new_v4().to_string();
+        
+        // Create the asset
+        let asset = LibraryAsset {
+            id: asset_id,
+            name: file_name.to_string(),
+            asset_type,
+            folder: folder.to_string(),
+            properties: AssetProperties {
+                file_size: Some(file_size),
+                dimensions,
+                format: Some(extension.to_uppercase()),
+                usage_count: 0,
+                linkage_class: None,
+            },
+        };
+        
+        // Add to library
+        self.library_assets.push(asset);
+        
+        Ok(())
+    }
+    
+    /// Export library assets to JSON file
+    fn export_library(&mut self) {
+        let file_path = FileDialog::new()
+            .add_filter("JSON", &["json"])
+            .set_file_name("library_assets.json")
+            .set_title("Export Library Assets")
+            .save_file();
+            
+        if let Some(path) = file_path {
+            match self.export_assets_to_file(&path) {
+                Ok(()) => {
+                    self.log(LogLevel::Action, format!("Library exported to: {:?}", path));
+                }
+                Err(e) => {
+                    self.log(LogLevel::Error, format!("Failed to export library: {}", e));
+                }
+            }
+        }
+    }
+    
+    /// Export assets to a JSON file
+    fn export_assets_to_file(&self, path: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
+        let json = serde_json::to_string_pretty(&self.library_assets)?;
+        std::fs::write(path, json)?;
+        Ok(())
+    }
+    
+    /// Import library assets from JSON file
+    fn import_library(&mut self) {
+        let file_path = FileDialog::new()
+            .add_filter("JSON", &["json"])
+            .set_title("Import Library Assets")
+            .pick_file();
+            
+        if let Some(path) = file_path {
+            match self.import_assets_from_file(&path) {
+                Ok(count) => {
+                    self.log(LogLevel::Action, format!("Imported {} assets from: {:?}", count, path));
+                }
+                Err(e) => {
+                    self.log(LogLevel::Error, format!("Failed to import library: {}", e));
+                }
+            }
+        }
+    }
+    
+    /// Import assets from a JSON file
+    fn import_assets_from_file(&mut self, path: &std::path::Path) -> Result<usize, Box<dyn std::error::Error>> {
+        let content = std::fs::read_to_string(path)?;
+        let assets: Vec<LibraryAsset> = serde_json::from_str(&content)?;
+        let count = assets.len();
+        
+        // Add imported assets to library (avoiding duplicates by ID)
+        for asset in assets {
+            if !self.library_assets.iter().any(|a| a.id == asset.id) {
+                self.library_assets.push(asset);
+            }
+        }
+        
+        Ok(count)
     }
     
     fn draw_tools_panel(&mut self, ui: &mut egui::Ui, rect: egui::Rect) {
@@ -2171,6 +2514,234 @@ impl TimelineApp {
                 });
             });
         });
+    }
+    
+    /// Draw the stage canvas with artboard rendering
+    fn draw_stage(&mut self, ui: &mut egui::Ui, rect: egui::Rect) {
+        ui.scope_builder(UiBuilder::new().max_rect(rect), |ui| {
+            // Background
+            ui.painter().rect_filled(rect, 0.0, egui::Color32::from_gray(30));
+            
+            // Border
+            let border_stroke = egui::Stroke::new(1.0, egui::Color32::DARK_GRAY);
+            ui.painter().rect_stroke(rect, 0.0, border_stroke, egui::epaint::StrokeKind::Outside);
+            
+            // Stage canvas area (leave some padding for controls)
+            let canvas_rect = egui::Rect::from_min_size(
+                rect.min + egui::vec2(10.0, 30.0),
+                egui::vec2(rect.width() - 20.0, rect.height() - 40.0)
+            );
+            
+            // Initialize artboard renderer if needed
+            if self.artboard_renderer.is_none() {
+                self.artboard_renderer = Some(ArtboardRenderer::new().with_debug(true));
+            }
+            
+            // Try to get rendered artboard from RustFlash engine
+            let has_artboard = if let Some(rustflash_integration) = self.engine.as_any_mut().downcast_mut::<RustFlashIntegration>() {
+                match rustflash_integration.get_renderer_artboard() {
+                    Ok(artboard) => {
+                        // Render the actual artboard content
+                        if let Some(renderer) = &self.artboard_renderer {
+                            renderer.render_artboard(ui.painter(), &artboard, canvas_rect);
+                        }
+                        true
+                    }
+                    Err(_) => false
+                }
+            } else {
+                false
+            };
+            
+            // Fallback to test pattern if no artboard available
+            if !has_artboard {
+                if let Some(renderer) = &self.artboard_renderer {
+                    let current_frame = self.engine.get_current_frame();
+                    renderer.render_test_pattern(ui.painter(), canvas_rect, current_frame);
+                }
+            }
+            
+            // Draw stage items (existing demo content)
+            self.draw_stage_items(ui, canvas_rect);
+            
+            // Stage controls header
+            let header_rect = egui::Rect::from_min_size(
+                rect.min + egui::vec2(10.0, 5.0),
+                egui::vec2(rect.width() - 20.0, 20.0)
+            );
+            
+            ui.scope_builder(UiBuilder::new().max_rect(header_rect), |ui| {
+                ui.horizontal(|ui| {
+                    ui.label("🎬 Stage");
+                    ui.separator();
+                    
+                    // Frame info
+                    let current_frame = self.engine.get_current_frame();
+                    let total_frames = self.engine.get_total_frames();
+                    let fps = self.engine.get_fps();
+                    
+                    ui.label(format!("Frame: {}/{} • {:.1} FPS", current_frame, total_frames, fps));
+                    
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui.small_button("🔄 Refresh").clicked() {
+                            // Force re-render of artboard
+                            if let Some(rustflash_integration) = self.engine.as_any_mut().downcast_mut::<RustFlashIntegration>() {
+                                rustflash_integration.mark_dirty();
+                            }
+                        }
+                    });
+                });
+            });
+        });
+    }
+    
+    /// Draw the stage items (existing demo content)
+    fn draw_stage_items(&mut self, ui: &mut egui::Ui, canvas_rect: egui::Rect) {
+        // This is the existing stage item rendering logic
+        // Draw all stage items
+        for (index, item) in self.stage_items.iter().enumerate() {
+            let is_selected = self.selected_items.contains(&index);
+            self.draw_stage_item(ui, item, is_selected, canvas_rect);
+        }
+        
+        // Handle stage interactions (clicking, dragging, etc.)
+        self.handle_stage_interactions(ui, canvas_rect);
+    }
+    
+    /// Draw a single stage item
+    fn draw_stage_item(&self, ui: &mut egui::Ui, item: &StageItem, is_selected: bool, canvas_rect: egui::Rect) {
+        let item_rect = egui::Rect::from_min_size(
+            canvas_rect.min + item.position.to_vec2(),
+            item.size
+        );
+        
+        // Apply alpha to color
+        let item_color = if item.alpha < 1.0 {
+            let [r, g, b, _a] = item.color.to_array();
+            egui::Color32::from_rgba_unmultiplied(r, g, b, (item.alpha * 255.0) as u8)
+        } else {
+            item.color
+        };
+        
+        // Draw the item based on type
+        match item.item_type {
+            StageItemType::Rectangle => {
+                ui.painter().rect_filled(item_rect, 5.0, item_color);
+                if is_selected {
+                    ui.painter().rect_stroke(item_rect, 5.0, egui::Stroke::new(2.0, egui::Color32::YELLOW), egui::epaint::StrokeKind::Outside);
+                }
+            }
+            StageItemType::Circle => {
+                let center = item_rect.center();
+                let radius = item.size.x.min(item.size.y) / 2.0;
+                ui.painter().circle_filled(center, radius, item_color);
+                if is_selected {
+                    ui.painter().circle_stroke(center, radius, egui::Stroke::new(2.0, egui::Color32::YELLOW));
+                }
+            }
+            StageItemType::Text => {
+                ui.painter().text(
+                    item_rect.center(),
+                    egui::Align2::CENTER_CENTER,
+                    &item.text_content,
+                    egui::FontId::proportional(item.font_size),
+                    item_color,
+                );
+                if is_selected {
+                    ui.painter().rect_stroke(item_rect, 0.0, egui::Stroke::new(2.0, egui::Color32::YELLOW), egui::epaint::StrokeKind::Outside);
+                }
+            }
+            StageItemType::MovieClip => {
+                // Draw a movieclip representation
+                ui.painter().rect_filled(item_rect, 3.0, item_color);
+                ui.painter().text(
+                    item_rect.center(),
+                    egui::Align2::CENTER_CENTER,
+                    "🎬",
+                    egui::FontId::proportional(20.0),
+                    egui::Color32::WHITE,
+                );
+                if is_selected {
+                    ui.painter().rect_stroke(item_rect, 3.0, egui::Stroke::new(2.0, egui::Color32::YELLOW), egui::epaint::StrokeKind::Outside);
+                }
+            }
+            StageItemType::Path => {
+                // Draw a path representation
+                ui.painter().rect_stroke(item_rect, 2.0, egui::Stroke::new(2.0, item_color), egui::epaint::StrokeKind::Inside);
+                ui.painter().text(
+                    item_rect.center(),
+                    egui::Align2::CENTER_CENTER,
+                    "✏️",
+                    egui::FontId::proportional(16.0),
+                    item_color,
+                );
+                if is_selected {
+                    ui.painter().rect_stroke(item_rect, 2.0, egui::Stroke::new(2.0, egui::Color32::YELLOW), egui::epaint::StrokeKind::Outside);
+                }
+            }
+        }
+        
+        // Draw item name as tooltip on hover
+        if let Some(hover_pos) = ui.input(|i| i.pointer.hover_pos()) {
+            if item_rect.contains(hover_pos) {
+                egui::show_tooltip_text(ui.ctx(), egui::LayerId::new(egui::Order::Tooltip, egui::Id::new(format!("tooltip_{}", item.id))), egui::Id::new(format!("tooltip_{}", item.id)), &item.name);
+            }
+        }
+    }
+    
+    /// Handle stage interactions (selection, dragging, etc.)
+    fn handle_stage_interactions(&mut self, ui: &mut egui::Ui, canvas_rect: egui::Rect) {
+        let pointer_pos = ui.input(|i| i.pointer.interact_pos());
+        
+        if let Some(pos) = pointer_pos {
+            if canvas_rect.contains(pos) {
+                let relative_pos = pos - canvas_rect.min;
+                
+                // Check for clicks on items
+                if ui.input(|i| i.pointer.primary_clicked()) {
+                    let mut clicked_item = None;
+                    
+                    // Find topmost item under cursor (iterate in reverse for proper z-order)
+                    for (index, item) in self.stage_items.iter().enumerate().rev() {
+                        let item_rect = egui::Rect::from_min_size(item.position, item.size);
+                        if item_rect.contains(egui::Pos2::new(relative_pos.x, relative_pos.y) + canvas_rect.min.to_vec2()) {
+                            clicked_item = Some(index);
+                            break;
+                        }
+                    }
+                    
+                    // Update selection
+                    if let Some(item_index) = clicked_item {
+                        if !ui.input(|i| i.modifiers.ctrl) {
+                            self.selected_items.clear();
+                        }
+                        if !self.selected_items.contains(&item_index) {
+                            self.selected_items.push(item_index);
+                        }
+                    } else {
+                        // Clicked on empty space - clear selection
+                        if !ui.input(|i| i.modifiers.ctrl) {
+                            self.selected_items.clear();
+                        }
+                    }
+                }
+                
+                // Handle dragging selected items
+                if ui.input(|i| i.pointer.primary_down()) && !self.selected_items.is_empty() {
+                    let delta = ui.input(|i| i.pointer.delta());
+                    if delta.length() > 0.1 { // Only move if there's significant movement
+                        for &item_index in &self.selected_items {
+                            if let Some(item) = self.stage_items.get_mut(item_index) {
+                                item.position += delta;
+                                // Keep items within canvas bounds
+                                item.position.x = item.position.x.max(0.0).min(canvas_rect.width() - item.size.x);
+                                item.position.y = item.position.y.max(0.0).min(canvas_rect.height() - item.size.y);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

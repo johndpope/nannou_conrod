@@ -1,6 +1,7 @@
 //! Library panel types and functionality
 
 use egui::Pos2;
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum LibraryTab {
@@ -9,7 +10,7 @@ pub enum LibraryTab {
     ActionScript,
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
 pub enum LibraryAssetType {
     MovieClip,
     Button,
@@ -21,7 +22,7 @@ pub enum LibraryAssetType {
     Folder,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct LibraryAsset {
     pub id: String,
     pub name: String,
@@ -30,7 +31,7 @@ pub struct LibraryAsset {
     pub properties: AssetProperties,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct AssetProperties {
     pub file_size: Option<u64>,
     pub dimensions: Option<(u32, u32)>,

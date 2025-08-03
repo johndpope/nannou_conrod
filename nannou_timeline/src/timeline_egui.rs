@@ -809,16 +809,16 @@ impl Timeline {
             Color32::from_gray(40), // Slightly lighter gray
         );
         
-        // Draw a border to debug the area
+        // Draw a prominent border to debug the area
         ui.painter().rect_stroke(
             rect,
             0.0,
-            Stroke::new(1.0, Color32::GREEN),
-            egui::epaint::StrokeKind::Outside,
+            Stroke::new(3.0, Color32::RED),
+            egui::StrokeKind::Outside,
         );
         
-        // Use allocate_new_ui to properly constrain the ScrollArea
-        ui.allocate_new_ui(UiBuilder::new().max_rect(rect), |ui| {
+        // Use scope_builder to properly constrain the ScrollArea
+        ui.scope_builder(UiBuilder::new().max_rect(rect), |ui| {
             ScrollArea::both()
                 .id_salt("timeline_frame_grid")
                 .auto_shrink([false, false])
@@ -842,18 +842,18 @@ impl Timeline {
                     // Debug: Draw a test to ensure ScrollArea is working
                     ui.label(format!("Layers: {}, Frames: {}, Size: {}x{}", layers.len(), total_frames, total_width as i32, total_height as i32));
                     
-                    // Draw a simple test pattern to verify coordinate system
+                    // Draw a prominent test pattern to verify coordinate system
                     ui.painter().rect_filled(
-                        Rect::from_min_size(pos2(10.0, 10.0), vec2(100.0, 50.0)),
+                        Rect::from_min_size(pos2(10.0, 10.0), vec2(200.0, 100.0)),
                         0.0,
-                        Color32::YELLOW,
+                        Color32::ORANGE,
                     );
                     ui.painter().text(
-                        pos2(20.0, 20.0),
+                        pos2(30.0, 30.0),
                         egui::Align2::LEFT_TOP,
-                        "Test",
-                        egui::FontId::default(),
-                        Color32::BLACK,
+                        "FRAME GRID TEST",
+                        egui::FontId::proportional(20.0),
+                        Color32::WHITE,
                     );
                     
                     // Get viewport for optimization

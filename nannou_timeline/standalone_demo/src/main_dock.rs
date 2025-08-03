@@ -14,8 +14,8 @@ use std::panic;
 use std::sync::atomic::{AtomicBool, Ordering};
 use chrono;
 
-mod rustflash_integration;
-use rustflash_integration::RustFlashIntegration;
+// mod rustflash_integration;
+// use rustflash_integration::RustFlashIntegration;
 
 // Import our helper modules
 mod stage;
@@ -182,6 +182,10 @@ impl RiveEngine for LoggingRiveEngine {
         let id = self.inner.add_motion_guide_layer(name.clone());
         self.log(LogLevel::Action, format!("Add motion guide layer '{}'", name));
         id
+    }
+    
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
     }
 }
 

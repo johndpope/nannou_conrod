@@ -208,6 +208,10 @@ impl crate::RiveEngine for MockRiveEngine {
         self.layers.push(new_layer);
         layer_id
     }
+    
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
 }
 
 /// Mock audio engine for testing and demo

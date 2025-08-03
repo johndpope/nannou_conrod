@@ -106,6 +106,9 @@ pub trait RiveEngine: Send + Sync {
     fn duplicate_layer(&mut self, layer_id: LayerId) -> LayerId;
     fn add_folder_layer(&mut self, name: String) -> LayerId;
     fn add_motion_guide_layer(&mut self, name: String) -> LayerId;
+    
+    // Downcasting support for engine-specific functionality
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
 }
 
 /// Timeline configuration

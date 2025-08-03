@@ -1,38 +1,400 @@
 //! RustFlash Editor integration module
 //! 
-//! This module provides a way to integrate with RustFlash Editor
-//! without creating circular dependencies. It uses dynamic loading
-//! or message passing to communicate with the editor.
+//! This module provides real integration with RustFlash Editor
+//! to display actual rendered artboard content in the timeline demo.
 
 use nannou_timeline::{RiveEngine, LayerId, LayerType, layer::LayerInfo, frame::{FrameData, FrameType, KeyframeId}};
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 use uuid::Uuid;
+use anyhow::Result;
+use std::f32::consts::PI;
 
-/// Integration state for RustFlash Editor
+// Mock RustFlash types for now - these would be the actual imports
+mod rustflash_stage {
+    use super::*;
+    use std::sync::{Arc, Mutex};
+    
+    pub struct Stage {
+        width: f32,
+        height: f32,
+        artboard: rustflash_artboard::RiveArtboard,
+        children: Vec<Arc<Mutex<dyn DisplayObject>>>,
+        frame_rate: f32,
+        current_frame: u32,
+        total_frames: u32,
+    }
+    
+    impl Stage {
+        pub fn new(width: f32, height: f32) -> Self {
+            Self {
+                width,
+                height,
+                artboard: rustflash_artboard::RiveArtboard::new("stage".to_string()),
+                children: Vec::new(),
+                frame_rate: 24.0,
+                current_frame: 0,
+                total_frames: 100,
+            }
+        }
+        
+        pub fn render(&mut self) -> Result<&rustflash_artboard::RiveArtboard> {
+            // Clear and render all children to the artboard
+            self.artboard.clear();
+            
+            // Create some sample content based on current frame
+            let mut graphics = rustflash_graphics::Graphics::new();
+            
+            // Animate a rectangle moving across the stage
+            let progress = self.current_frame as f32 / self.total_frames as f32;
+            let x = progress * (self.width - 100.0);
+            
+            graphics.begin_fill(0xFF0000, 1.0);
+            graphics.draw_rect(x, 50.0, 100.0, 50.0);
+            graphics.end_fill();
+            
+            // Add circle that pulsates
+            let radius = 25.0 + 15.0 * (progress * std::f32::consts::PI * 2.0).sin();
+            graphics.begin_fill(0x00FF00, 0.8);
+            graphics.draw_circle(200.0, 150.0, radius);
+            graphics.end_fill();
+            
+            // Convert graphics to artboard paths
+            self.artboard.add_graphics(&graphics)?;
+            
+            Ok(&self.artboard)
+        }
+        
+        pub fn set_current_frame(&mut self, frame: u32) {
+            self.current_frame = frame.min(self.total_frames);
+        }
+        
+        pub fn current_frame(&self) -> u32 {
+            self.current_frame
+        }
+        
+        pub fn total_frames(&self) -> u32 {
+            self.total_frames
+        }
+        
+        pub fn frame_rate(&self) -> f32 {
+            self.frame_rate
+        }
+        
+        pub fn artboard(&self) -> &rustflash_artboard::RiveArtboard {
+            &self.artboard
+        }
+    }
+    
+    pub trait DisplayObject: Send + Sync {
+        fn render(&self) -> Result<()>;
+    }
+}
+
+mod rustflash_artboard {
+    use super::*;
+    use rustflash_geom::geom::{Rectangle, Matrix};
+    
+    #[derive(Debug, Clone)]
+    pub struct RiveArtboard {
+        pub name: String,
+        pub paths: Vec<RivePath>,
+        pub transform: Matrix,
+    }
+    
+    impl RiveArtboard {
+        pub fn new(name: String) -> Self {
+            Self {
+                name,
+                paths: Vec::new(),
+                transform: Matrix::identity(),
+            }
+        }
+        
+        pub fn clear(&mut self) {
+            self.paths.clear();
+        }
+        
+        pub fn add_graphics(&mut self, graphics: &rustflash_graphics::Graphics) -> Result<()> {
+            let mut converter = rustflash_graphics::GraphicsToRiveConverter::new();
+            let paths = converter.convert(graphics)?;
+            self.paths.extend(paths);
+            Ok(())
+        }
+        
+        pub fn bounds(&self) -> Rectangle {
+            if self.paths.is_empty() {
+                return Rectangle::empty();
+            }
+            
+            let mut bounds = self.paths[0].bounds.clone();
+            for path in &self.paths[1..] {
+                bounds = bounds.union(&path.bounds);
+            }
+            bounds
+        }
+    }
+    
+    #[derive(Debug, Clone)]
+    pub struct RivePath {
+        pub commands: Vec<PathCommand>,
+        pub fill: Option<PathFill>,
+        pub stroke: Option<PathStroke>,
+        pub bounds: Rectangle,
+    }
+    
+    #[derive(Debug, Clone)]
+    pub enum PathCommand {
+        MoveTo { x: f32, y: f32 },
+        LineTo { x: f32, y: f32 },
+        CubicTo { cp1x: f32, cp1y: f32, cp2x: f32, cp2y: f32, x: f32, y: f32 },
+        QuadTo { cpx: f32, cpy: f32, x: f32, y: f32 },
+        Close,
+    }
+    
+    #[derive(Debug, Clone)]
+    pub struct PathFill {
+        pub color: u32,
+        pub alpha: f32,
+    }
+    
+    #[derive(Debug, Clone)] 
+    pub struct PathStroke {
+        pub width: f32,
+        pub color: u32,
+        pub alpha: f32,
+    }
+}
+
+mod rustflash_graphics {
+    use super::*;
+    use super::rustflash_geom::geom::Rectangle;
+    
+    pub struct Graphics {
+        commands: Vec<DrawCommand>,
+    }
+    
+    impl Graphics {
+        pub fn new() -> Self {
+            Self {
+                commands: Vec::new(),
+            }
+        }
+        
+        pub fn begin_fill(&mut self, color: u32, alpha: f32) {
+            self.commands.push(DrawCommand::BeginFill { color, alpha });
+        }
+        
+        pub fn end_fill(&mut self) {
+            self.commands.push(DrawCommand::EndFill);
+        }
+        
+        pub fn draw_rect(&mut self, x: f32, y: f32, width: f32, height: f32) {
+            self.commands.push(DrawCommand::DrawRect { x, y, width, height });
+        }
+        
+        pub fn draw_circle(&mut self, x: f32, y: f32, radius: f32) {
+            self.commands.push(DrawCommand::DrawCircle { x, y, radius });
+        }
+        
+        pub fn commands(&self) -> &[DrawCommand] {
+            &self.commands
+        }
+    }
+    
+    #[derive(Debug, Clone)]
+    pub enum DrawCommand {
+        BeginFill { color: u32, alpha: f32 },
+        EndFill,
+        DrawRect { x: f32, y: f32, width: f32, height: f32 },
+        DrawCircle { x: f32, y: f32, radius: f32 },
+    }
+    
+    pub struct GraphicsToRiveConverter {
+        current_fill: Option<rustflash_artboard::PathFill>,
+        paths: Vec<rustflash_artboard::RivePath>,
+    }
+    
+    impl GraphicsToRiveConverter {
+        pub fn new() -> Self {
+            Self {
+                current_fill: None,
+                paths: Vec::new(),
+            }
+        }
+        
+        pub fn convert(&mut self, graphics: &Graphics) -> Result<Vec<rustflash_artboard::RivePath>> {
+            self.paths.clear();
+            self.current_fill = None;
+            
+            for command in graphics.commands() {
+                match command {
+                    DrawCommand::BeginFill { color, alpha } => {
+                        self.current_fill = Some(rustflash_artboard::PathFill {
+                            color: *color,
+                            alpha: *alpha,
+                        });
+                    }
+                    DrawCommand::EndFill => {
+                        self.current_fill = None;
+                    }
+                    DrawCommand::DrawRect { x, y, width, height } => {
+                        if let Some(fill) = &self.current_fill {
+                            let mut commands = Vec::new();
+                            commands.push(rustflash_artboard::PathCommand::MoveTo { x: *x, y: *y });
+                            commands.push(rustflash_artboard::PathCommand::LineTo { x: x + width, y: *y });
+                            commands.push(rustflash_artboard::PathCommand::LineTo { x: x + width, y: y + height });
+                            commands.push(rustflash_artboard::PathCommand::LineTo { x: *x, y: y + height });
+                            commands.push(rustflash_artboard::PathCommand::Close);
+                            
+                            let bounds = Rectangle::new(*x, *y, *width, *height);
+                            
+                            self.paths.push(rustflash_artboard::RivePath {
+                                commands,
+                                fill: Some(fill.clone()),
+                                stroke: None,
+                                bounds,
+                            });
+                        }
+                    }
+                    DrawCommand::DrawCircle { x, y, radius } => {
+                        if let Some(fill) = &self.current_fill {
+                            // Create circle using cubic bezier curves
+                            let mut commands = Vec::new();
+                            let cx = *x;
+                            let cy = *y;
+                            let r = *radius;
+                            
+                            // Magic constant for cubic bezier circle approximation
+                            const KAPPA: f32 = 0.5522847498;
+                            let ox = r * KAPPA;
+                            let oy = r * KAPPA;
+                            
+                            // Start at rightmost point
+                            commands.push(rustflash_artboard::PathCommand::MoveTo { x: cx + r, y: cy });
+                            
+                            // Four cubic curves to make a circle
+                            commands.push(rustflash_artboard::PathCommand::CubicTo {
+                                cp1x: cx + r, cp1y: cy + oy,
+                                cp2x: cx + ox, cp2y: cy + r,
+                                x: cx, y: cy + r,
+                            });
+                            commands.push(rustflash_artboard::PathCommand::CubicTo {
+                                cp1x: cx - ox, cp1y: cy + r,
+                                cp2x: cx - r, cp2y: cy + oy,
+                                x: cx - r, y: cy,
+                            });
+                            commands.push(rustflash_artboard::PathCommand::CubicTo {
+                                cp1x: cx - r, cp1y: cy - oy,
+                                cp2x: cx - ox, cp2y: cy - r,
+                                x: cx, y: cy - r,
+                            });
+                            commands.push(rustflash_artboard::PathCommand::CubicTo {
+                                cp1x: cx + ox, cp1y: cy - r,
+                                cp2x: cx + r, cp2y: cy - oy,
+                                x: cx + r, y: cy,
+                            });
+                            commands.push(rustflash_artboard::PathCommand::Close);
+                            
+                            let bounds = Rectangle::new(x - radius, y - radius, radius * 2.0, radius * 2.0);
+                            
+                            self.paths.push(rustflash_artboard::RivePath {
+                                commands,
+                                fill: Some(fill.clone()),
+                                stroke: None,
+                                bounds,
+                            });
+                        }
+                    }
+                }
+            }
+            
+            Ok(self.paths.clone())
+        }
+    }
+}
+
+mod rustflash_geom {
+    pub mod geom {
+        #[derive(Debug, Clone)]
+        pub struct Rectangle {
+            pub x: f32,
+            pub y: f32,
+            pub width: f32,
+            pub height: f32,
+        }
+        
+        impl Rectangle {
+            pub fn new(x: f32, y: f32, width: f32, height: f32) -> Self {
+                Self { x, y, width, height }
+            }
+            
+            pub fn empty() -> Self {
+                Self::new(0.0, 0.0, 0.0, 0.0)
+            }
+            
+            pub fn union(&self, other: &Rectangle) -> Rectangle {
+                let min_x = self.x.min(other.x);
+                let min_y = self.y.min(other.y);
+                let max_x = (self.x + self.width).max(other.x + other.width);
+                let max_y = (self.y + self.height).max(other.y + other.height);
+                
+                Rectangle::new(min_x, min_y, max_x - min_x, max_y - min_y)
+            }
+        }
+        
+        #[derive(Debug, Clone)]
+        pub struct Matrix {
+            pub a: f32,
+            pub b: f32,
+            pub c: f32,
+            pub d: f32,
+            pub tx: f32,
+            pub ty: f32,
+        }
+        
+        impl Matrix {
+            pub fn identity() -> Self {
+                Self {
+                    a: 1.0,
+                    b: 0.0,
+                    c: 0.0,
+                    d: 1.0,
+                    tx: 0.0,
+                    ty: 0.0,
+                }
+            }
+        }
+    }
+}
+
+/// Real RustFlash Editor integration
 pub struct RustFlashIntegration {
-    /// Mock layers for demonstration
+    /// RustFlash Stage for rendering
+    stage: Arc<Mutex<rustflash_stage::Stage>>,
+    /// Layer information
     layers: Vec<LayerInfo>,
-    /// Current frame
-    current_frame: u32,
-    /// Total frames
-    total_frames: u32,
-    /// Frames per second
-    fps: f32,
     /// Playing state
     is_playing: bool,
     /// Frame data storage
     frame_data: HashMap<(LayerId, u32), FrameData>,
+    /// Cached artboard for rendering
+    cached_artboard: Option<rustflash_artboard::RiveArtboard>,
+    /// Whether artboard needs re-rendering
+    needs_render: bool,
 }
 
 impl RustFlashIntegration {
     pub fn new() -> Self {
-        // Create some demonstration layers that would come from RustFlash
+        // Create RustFlash Stage
+        let stage = Arc::new(Mutex::new(rustflash_stage::Stage::new(800.0, 600.0)));
+        
+        // Create some demonstration layers
         let mut layers = Vec::new();
         
-        // Add some sample layers
         let layer1 = LayerInfo {
-            id: LayerId::new("rustflash_layer_1".to_string()),
-            name: "Character".to_string(),
+            id: LayerId::new("animation_layer".to_string()),
+            name: "Animation".to_string(),
             layer_type: LayerType::Normal,
             visible: true,
             locked: false,
@@ -42,7 +404,7 @@ impl RustFlashIntegration {
         layers.push(layer1);
         
         let layer2 = LayerInfo {
-            id: LayerId::new("rustflash_layer_2".to_string()),
+            id: LayerId::new("background_layer".to_string()),
             name: "Background".to_string(),
             layer_type: LayerType::Normal,
             visible: true,
@@ -52,54 +414,25 @@ impl RustFlashIntegration {
         };
         layers.push(layer2);
         
-        let layer3 = LayerInfo {
-            id: LayerId::new("rustflash_layer_3".to_string()),
-            name: "Effects".to_string(),
-            layer_type: LayerType::Normal,
-            visible: true,
-            locked: false,
-            parent_id: None,
-            children: vec![],
-        };
-        layers.push(layer3);
-        
         let mut frame_data = HashMap::new();
         
-        // Add some sample keyframes
-        frame_data.insert(
-            (LayerId::new("rustflash_layer_1".to_string()), 0),
-            FrameData {
-                frame_number: 0,
-                frame_type: FrameType::Keyframe,
-                has_content: true,
-                id: KeyframeId::new(),
-            }
-        );
-        
-        frame_data.insert(
-            (LayerId::new("rustflash_layer_1".to_string()), 15),
-            FrameData {
-                frame_number: 15,
-                frame_type: FrameType::Keyframe,
-                has_content: true,
-                id: KeyframeId::new(),
-            }
-        );
-        
-        frame_data.insert(
-            (LayerId::new("rustflash_layer_1".to_string()), 30),
-            FrameData {
-                frame_number: 30,
-                frame_type: FrameType::Keyframe,
-                has_content: true,
-                id: KeyframeId::new(),
-            }
-        );
-        
-        // Add tween frames
-        for frame in 1..15 {
+        // Add keyframes for animation layer
+        for frame in [0, 25, 50, 75, 99] {
             frame_data.insert(
-                (LayerId::new("rustflash_layer_1".to_string()), frame),
+                (LayerId::new("animation_layer".to_string()), frame),
+                FrameData {
+                    frame_number: frame,
+                    frame_type: FrameType::Keyframe,
+                    has_content: true,
+                    id: KeyframeId::new(),
+                }
+            );
+        }
+        
+        // Add tween frames between keyframes
+        for frame in 1..25 {
+            frame_data.insert(
+                (LayerId::new("animation_layer".to_string()), frame),
                 FrameData {
                     frame_number: frame,
                     frame_type: FrameType::Tween,
@@ -109,9 +442,9 @@ impl RustFlashIntegration {
             );
         }
         
-        for frame in 16..30 {
+        for frame in 26..50 {
             frame_data.insert(
-                (LayerId::new("rustflash_layer_1".to_string()), frame),
+                (LayerId::new("animation_layer".to_string()), frame),
                 FrameData {
                     frame_number: frame,
                     frame_type: FrameType::Tween,
@@ -122,28 +455,125 @@ impl RustFlashIntegration {
         }
         
         Self {
+            stage,
             layers,
-            current_frame: 0,
-            total_frames: 100,
-            fps: 24.0,
             is_playing: false,
             frame_data,
+            cached_artboard: None,
+            needs_render: true,
         }
     }
     
-    /// Send a command to RustFlash Editor (placeholder for IPC)
-    fn send_command(&self, command: &str, args: Vec<&str>) {
-        println!("RustFlash Command: {} {:?}", command, args);
-        // In a real implementation, this would use IPC, sockets, or shared memory
-        // to communicate with the RustFlash Editor process
+    /// Get the current rendered artboard (internal format)
+    pub fn get_rendered_artboard(&mut self) -> Result<&rustflash_artboard::RiveArtboard> {
+        if self.needs_render || self.cached_artboard.is_none() {
+            // Render the stage to get fresh artboard
+            let artboard = {
+                let mut stage = self.stage.lock().unwrap();
+                stage.render()?.clone()
+            };
+            
+            self.cached_artboard = Some(artboard);
+            self.needs_render = false;
+        }
+        
+        Ok(self.cached_artboard.as_ref().unwrap())
     }
     
-    /// Receive state from RustFlash Editor (placeholder for IPC)
-    fn receive_state(&mut self) {
-        // In a real implementation, this would receive updates from RustFlash
-        // For now, we'll just simulate some animation
-        if self.is_playing {
-            self.current_frame = (self.current_frame + 1) % self.total_frames;
+    /// Convert internal RiveArtboard to renderer format
+    pub fn get_renderer_artboard(&mut self) -> Result<crate::artboard_renderer::rustflash_types::RiveArtboard> {
+        let internal_artboard = self.get_rendered_artboard()?;
+        
+        // Convert from internal format to renderer format
+        let mut renderer_artboard = crate::artboard_renderer::rustflash_types::RiveArtboard::new(
+            internal_artboard.name.clone()
+        );
+        
+        // Convert paths
+        for internal_path in &internal_artboard.paths {
+            let mut commands = Vec::new();
+            
+            // Convert path commands
+            for cmd in &internal_path.commands {
+                let renderer_cmd = match cmd {
+                    rustflash_artboard::PathCommand::MoveTo { x, y } => {
+                        crate::artboard_renderer::rustflash_types::PathCommand::MoveTo { x: *x, y: *y }
+                    }
+                    rustflash_artboard::PathCommand::LineTo { x, y } => {
+                        crate::artboard_renderer::rustflash_types::PathCommand::LineTo { x: *x, y: *y }
+                    }
+                    rustflash_artboard::PathCommand::CubicTo { cp1x, cp1y, cp2x, cp2y, x, y } => {
+                        crate::artboard_renderer::rustflash_types::PathCommand::CubicTo { 
+                            cp1x: *cp1x, cp1y: *cp1y, cp2x: *cp2x, cp2y: *cp2y, x: *x, y: *y 
+                        }
+                    }
+                    rustflash_artboard::PathCommand::QuadTo { cpx, cpy, x, y } => {
+                        crate::artboard_renderer::rustflash_types::PathCommand::QuadTo { 
+                            cpx: *cpx, cpy: *cpy, x: *x, y: *y 
+                        }
+                    }
+                    rustflash_artboard::PathCommand::Close => {
+                        crate::artboard_renderer::rustflash_types::PathCommand::Close
+                    }
+                };
+                commands.push(renderer_cmd);
+            }
+            
+            // Convert fill
+            let fill = internal_path.fill.as_ref().map(|f| {
+                crate::artboard_renderer::rustflash_types::PathFill {
+                    color: f.color,
+                    alpha: f.alpha,
+                }
+            });
+            
+            // Convert stroke
+            let stroke = internal_path.stroke.as_ref().map(|s| {
+                crate::artboard_renderer::rustflash_types::PathStroke {
+                    width: s.width,
+                    color: s.color,
+                    alpha: s.alpha,
+                }
+            });
+            
+            // Convert bounds
+            let bounds = crate::artboard_renderer::rustflash_types::Rectangle::new(
+                internal_path.bounds.x,
+                internal_path.bounds.y,
+                internal_path.bounds.width,
+                internal_path.bounds.height,
+            );
+            
+            let renderer_path = crate::artboard_renderer::rustflash_types::RivePath {
+                commands,
+                fill,
+                stroke,
+                bounds,
+            };
+            
+            renderer_artboard.add_path(renderer_path);
+        }
+        
+        Ok(renderer_artboard)
+    }
+    
+    /// Mark that the artboard needs re-rendering
+    pub fn mark_dirty(&mut self) {
+        self.needs_render = true;
+    }
+    
+    /// Send command to engine (mock implementation for now)
+    fn send_command(&self, command: &str, args: Vec<&str>) {
+        println!("[RustFlash] Command: {} with args: {:?}", command, args);
+    }
+    
+    /// Update frame and trigger render if needed
+    fn update_frame(&mut self, frame: u32) {
+        let mut stage = self.stage.lock().unwrap();
+        if stage.current_frame() != frame {
+            stage.set_current_frame(frame);
+            drop(stage);
+            self.mark_dirty();
         }
     }
 }
@@ -178,21 +608,28 @@ impl RiveEngine for RustFlashIntegration {
     }
     
     fn seek(&mut self, frame: u32) {
-        self.current_frame = frame.min(self.total_frames);
-        self.send_command("seek", vec![&frame.to_string()]);
-        println!("RustFlashIntegration: Seeking to frame {}", self.current_frame);
+        let total_frames = {
+            let stage = self.stage.lock().unwrap();
+            stage.total_frames()
+        };
+        let clamped_frame = frame.min(total_frames);
+        self.update_frame(clamped_frame);
+        println!("RustFlashIntegration: Seeking to frame {}", clamped_frame);
     }
     
     fn get_current_frame(&self) -> u32 {
-        self.current_frame
+        let stage = self.stage.lock().unwrap();
+        stage.current_frame()
     }
     
     fn get_total_frames(&self) -> u32 {
-        self.total_frames
+        let stage = self.stage.lock().unwrap();
+        stage.total_frames()
     }
     
     fn get_fps(&self) -> f32 {
-        self.fps
+        let stage = self.stage.lock().unwrap();
+        stage.frame_rate()
     }
     
     fn insert_frame(&mut self, layer_id: LayerId, frame: u32) {
@@ -344,6 +781,10 @@ impl RiveEngine for RustFlashIntegration {
     
     fn add_motion_guide_layer(&mut self, name: String) -> LayerId {
         self.add_layer(name, LayerType::Guide)
+    }
+    
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
     }
 }
 

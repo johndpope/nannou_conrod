@@ -12,8 +12,8 @@ use egui::{self, Pos2, Vec2, Color32, Rect, Stroke, Sense, FontId, Align2, UiBui
 impl TimelineApp {
     pub fn draw_stage(&mut self, ui: &mut egui::Ui, rect: Rect) {
         ui.scope_builder(UiBuilder::new().max_rect(rect), |ui| {
-            // Background
-            ui.painter().rect_filled(rect, 0.0, Color32::from_gray(30));
+            // First render the RustFlash artboard content
+            self.render_rustflash_artboard(ui, rect);
             
             // Border
             let border_stroke = Stroke::new(1.0, Color32::from_gray(60));
@@ -21,30 +21,6 @@ impl TimelineApp {
             ui.painter().line_segment([rect.right_top(), rect.right_bottom()], border_stroke);
             ui.painter().line_segment([rect.right_bottom(), rect.left_bottom()], border_stroke);
             ui.painter().line_segment([rect.left_bottom(), rect.left_top()], border_stroke);
-            
-            // Grid pattern for visual reference
-            let grid_size = 50.0;
-            let grid_color = Color32::from_gray(35);
-            
-            // Vertical lines
-            let mut x = rect.left() + grid_size;
-            while x < rect.right() {
-                ui.painter().line_segment(
-                    [Pos2::new(x, rect.top()), Pos2::new(x, rect.bottom())],
-                    Stroke::new(0.5, grid_color),
-                );
-                x += grid_size;
-            }
-            
-            // Horizontal lines
-            let mut y = rect.top() + grid_size;
-            while y < rect.bottom() {
-                ui.painter().line_segment(
-                    [Pos2::new(rect.left(), y), Pos2::new(rect.right(), y)],
-                    Stroke::new(0.5, grid_color),
-                );
-                y += grid_size;
-            }
             
             // Draw stage items
             let mut clicked_item = None;
@@ -820,5 +796,53 @@ impl TimelineApp {
         };
         self.stage_items.push(new_brush_stroke.clone());
         self.log(LogLevel::Action, format!("Created {} with Brush tool", new_brush_stroke.name));
+    }
+    
+    /// Render RustFlash artboard content to the stage
+    fn render_rustflash_artboard(&mut self, ui: &mut egui::Ui, rect: Rect) {
+        // TODO: This functionality is implemented in main.rs draw_stage method
+        // Comment out for now since it references non-existent fields
+        
+        // // Get current frame from timeline
+        // let current_frame = self.timeline.current_frame;
+        
+        // // Try to get artboard from RustFlash integration
+        // if let Some(integration) = self.engine.as_any_mut().downcast_mut::<crate::rustflash_integration::RustFlashIntegration>() {
+        //     // Update the engine to current frame
+        //     integration.seek(current_frame);
+            
+        //     // Get the rendered artboard
+        //     match integration.get_rendered_artboard() {
+        //         Ok(artboard) => {
+        //             // Render artboard using our renderer
+        //             self.artboard_renderer.render_artboard(ui.painter(), artboard, rect);
+                    
+        //             // Log rendering info occasionally
+        //             if current_frame % 10 == 0 {
+        //                 self.log(crate::logging::LogLevel::Info, 
+        //                     format!("Rendered frame {} with {} paths", current_frame, artboard.paths.len()));
+        //             }
+        //         }
+        //         Err(e) => {
+        //             // Fallback to test pattern on error
+        //             self.artboard_renderer.render_test_pattern(ui.painter(), rect, current_frame);
+        //             self.log(crate::logging::LogLevel::Warning, 
+        //                 format!("Failed to render artboard: {}, using test pattern", e));
+        //         }
+        //     }
+        // } else {
+        //     // Fallback: render test pattern if engine is not RustFlash integration
+        //     self.artboard_renderer.render_test_pattern(ui.painter(), rect, current_frame);
+        // }
+        
+        // Simple placeholder for now
+        ui.painter().rect_filled(rect, 0.0, egui::Color32::from_gray(40));
+        ui.painter().text(
+            rect.center(),
+            egui::Align2::CENTER_CENTER,
+            "Stage Canvas",
+            egui::FontId::default(),
+            egui::Color32::WHITE,
+        );
     }
 }
