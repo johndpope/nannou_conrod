@@ -27,6 +27,8 @@ pub mod audio;
 pub mod i18n;
 pub mod scripting;
 pub mod dock_manager;
+pub mod curve_editor;
+pub mod rive_integration;
 
 // Re-export time types
 pub use time::{FrameTime, FpsPreset, FrameLabel, FrameComment};
@@ -45,6 +47,18 @@ pub use scripting::{ScriptContext, ScriptStage, ScriptDisplayObject, ScriptEvent
 
 // Re-export dock manager
 pub use dock_manager::{DockManager, TabType, FlashTabViewer};
+
+// Re-export curve editor
+pub use curve_editor::{CurveEditor, CurveEditorPanel};
+
+// Re-export rive integration
+pub use rive_integration::{
+    RiveController, TimelineEventHandler, RiveDataProvider, RiveEngine as NewRiveEngine,
+    KeyframeInfo, KeyframeData, KeyframeType, TweenType, TweenId, TweenInfo, TweenData,
+    EasingFunction, PropertyValue, Color, Transform, LayerHierarchyNode, 
+    AnimationInfo, AnimationBounds, RiveConfig, QualitySettings, ShadowQuality, RiveError,
+    LegacyRiveEngineAdapter, RiveFrameData
+};
 
 /// Mock interface for Rive integration
 pub trait RiveEngine: Send + Sync {

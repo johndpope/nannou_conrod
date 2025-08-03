@@ -6,6 +6,7 @@ use nannou_timeline::{
     ui::MockRiveEngine, RiveEngine, LayerId,
     layer::LayerType,
     scripting::{ScriptContext, templates},
+    CurveEditorPanel,
 };
 use std::sync::{Arc, Mutex};
 use std::process::Command;
@@ -224,6 +225,8 @@ struct TimelineApp {
     script_context: Option<ScriptContext>,
     script_error: Option<String>,
     script_panel_height: f32,
+    // Curve editor state
+    curve_editor: CurveEditorPanel,
 }
 
 #[derive(Clone)]
@@ -574,12 +577,15 @@ impl Default for TimelineApp {
             script_context: None,
             script_error: None,
             script_panel_height: 200.0,
+            // Curve editor
+            curve_editor: CurveEditorPanel::default(),
         };
         app.log(LogLevel::Info, "Timeline application started");
         app.log(LogLevel::Info, "🎮 Keyboard shortcuts:");
         app.log(LogLevel::Info, "  • F12: Toggle debug console");
         app.log(LogLevel::Info, "  • F2: Take screenshot");
         app.log(LogLevel::Info, "  • F9: Toggle script editor");
+        app.log(LogLevel::Info, "  • F10: Toggle curve editor");
         app.log(LogLevel::Info, "💡 Hover over timeline elements to see tooltips");
         app.log(LogLevel::Info, "💡 Right-click on layers and frames for context menus");
         app.log(LogLevel::Info, "💡 Click and drag stage items to move them");
@@ -627,11 +633,20 @@ impl eframe::App for TimelineApp {
             }
         }
         
+        // Handle F10 to toggle curve editor
+        if ctx.input(|i| i.key_pressed(egui::Key::F10)) {
+            self.curve_editor.open = !self.curve_editor.open;
+            self.log(LogLevel::Info, format!("Curve editor {}", if self.curve_editor.open { "opened" } else { "closed" }));
+        }
+        
         // Handle tool keyboard shortcuts
         self.handle_tool_shortcuts(ctx);
         
         // Show crash dialog if a panic occurred
         self.show_crash_dialog(ctx);
+        
+        // Show curve editor panel if open
+        self.curve_editor.show(ctx);
         
         egui::CentralPanel::default().show(ctx, |ui| {
             let available_rect = ui.available_rect_before_wrap();

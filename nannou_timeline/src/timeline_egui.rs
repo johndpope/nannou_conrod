@@ -1587,7 +1587,7 @@ impl Timeline {
     }
     
     /// Snap position to grid
-    fn snap_position(&self, pos: f32, modifiers: &Modifiers) -> f32 {
+    pub fn snap_position(&self, pos: f32, modifiers: &Modifiers) -> f32 {
         if modifiers.shift || !self.config.snap.enabled {
             return pos;
         }
@@ -1605,6 +1605,27 @@ impl Timeline {
         }
         
         pos
+    }
+    
+    /// Update snap guides for visual feedback
+    pub fn update_snap_guides(&mut self, pos: f32) {
+        self.state.snap_guides.clear();
+        
+        if !self.config.snap.enabled || !self.config.snap.show_guides {
+            return;
+        }
+        
+        let frame_width = self.config.frame_width * self.state.zoom_level;
+        let frame_pos = pos / frame_width;
+        
+        if self.config.snap.snap_to_frames {
+            let nearest_frame = frame_pos.round();
+            let snapped_pos = nearest_frame * frame_width;
+            
+            if (pos - snapped_pos).abs() < self.config.snap.threshold_pixels {
+                self.state.snap_guides.push(snapped_pos);
+            }
+        }
     }
     
     // Navigation helpers
