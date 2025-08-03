@@ -88,6 +88,7 @@ pub struct FrameData {
     pub frame_number: u32,
     pub frame_type: FrameType,
     pub has_content: bool,
+    pub id: KeyframeId,
 }
 
 impl Default for FrameData {
@@ -96,6 +97,7 @@ impl Default for FrameData {
             frame_number: 0,
             frame_type: FrameType::Empty,
             has_content: false,
+            id: KeyframeId::new(),
         }
     }
 }
@@ -113,6 +115,7 @@ pub fn create_mock_frame_data(layer_id: &LayerId, frame: u32) -> FrameData {
         frame_number: frame,
         frame_type,
         has_content: !matches!(frame_type, FrameType::Empty),
+        id: KeyframeId::new(),
     }
 }
 

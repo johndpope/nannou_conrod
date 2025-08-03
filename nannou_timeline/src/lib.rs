@@ -7,7 +7,7 @@ use egui::Color32;
 
 pub use playhead_egui::Playhead;
 pub use ruler_egui::Ruler;
-pub use timeline_egui::{Timeline, TimelineState};
+pub use timeline_egui::{Timeline, TimelineState, KeyframeSelection, DragState, KeyframeClipboardItem};
 pub use layer::{Layer, LayerId, LayerType};
 pub use frame::{Frame, FrameType, KeyframeId};
 pub use track_simple::Track;
@@ -46,6 +46,16 @@ pub trait RiveEngine: Send + Sync {
     // Tween operations
     fn create_motion_tween(&mut self, layer_id: LayerId, frame: u32);
     fn create_shape_tween(&mut self, layer_id: LayerId, frame: u32);
+    
+    // Keyframe manipulation operations
+    fn move_keyframe(&mut self, layer_id: LayerId, from_frame: u32, to_frame: u32);
+    fn copy_keyframe(&mut self, layer_id: LayerId, frame: u32) -> Option<frame::FrameData>;
+    fn paste_keyframe(&mut self, layer_id: LayerId, frame: u32, data: frame::FrameData);
+    fn delete_keyframe(&mut self, layer_id: LayerId, frame: u32);
+    
+    // Property manipulation
+    fn set_property(&mut self, layer_id: LayerId, frame: u32, property: &str, value: bool);
+    fn get_property(&self, layer_id: LayerId, frame: u32, property: &str) -> bool;
 }
 
 /// Timeline configuration

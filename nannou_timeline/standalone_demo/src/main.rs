@@ -90,6 +90,35 @@ impl RiveEngine for LoggingRiveEngine {
         self.log(LogLevel::Action, format!("Create shape tween at {} on layer {:?}", frame, layer_id));
         self.inner.create_shape_tween(layer_id, frame)
     }
+    
+    fn move_keyframe(&mut self, layer_id: LayerId, from_frame: u32, to_frame: u32) {
+        self.log(LogLevel::Action, format!("Move keyframe from {} to {} on layer {:?}", from_frame, to_frame, layer_id));
+        self.inner.move_keyframe(layer_id, from_frame, to_frame)
+    }
+    
+    fn copy_keyframe(&mut self, layer_id: LayerId, frame: u32) -> Option<nannou_timeline::frame::FrameData> {
+        self.log(LogLevel::Action, format!("Copy keyframe at {} on layer {:?}", frame, layer_id));
+        self.inner.copy_keyframe(layer_id, frame)
+    }
+    
+    fn paste_keyframe(&mut self, layer_id: LayerId, frame: u32, data: nannou_timeline::frame::FrameData) {
+        self.log(LogLevel::Action, format!("Paste keyframe at {} on layer {:?}", frame, layer_id));
+        self.inner.paste_keyframe(layer_id, frame, data)
+    }
+    
+    fn delete_keyframe(&mut self, layer_id: LayerId, frame: u32) {
+        self.log(LogLevel::Action, format!("Delete keyframe at {} on layer {:?}", frame, layer_id));
+        self.inner.delete_keyframe(layer_id, frame)
+    }
+    
+    fn set_property(&mut self, layer_id: LayerId, frame: u32, property: &str, value: bool) {
+        self.log(LogLevel::Action, format!("Set property '{}' to {} at {} on layer {:?}", property, value, frame, layer_id));
+        self.inner.set_property(layer_id, frame, property, value)
+    }
+    
+    fn get_property(&self, layer_id: LayerId, frame: u32, property: &str) -> bool {
+        self.inner.get_property(layer_id, frame, property)
+    }
 }
 
 fn main() -> Result<(), eframe::Error> {

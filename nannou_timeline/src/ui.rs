@@ -116,4 +116,42 @@ impl crate::RiveEngine for MockRiveEngine {
         println!("MockRiveEngine: Creating shape tween at {} on layer {:?}", frame, layer_id);
         // In a real implementation, this would create a shape tween between keyframes
     }
+    
+    // New keyframe manipulation methods
+    fn move_keyframe(&mut self, layer_id: crate::LayerId, from_frame: u32, to_frame: u32) {
+        println!("MockRiveEngine: Moving keyframe from frame {} to frame {} on layer {:?}", from_frame, to_frame, layer_id);
+        // In a real implementation, this would move keyframe data in the timeline
+    }
+    
+    fn copy_keyframe(&mut self, layer_id: crate::LayerId, frame: u32) -> Option<crate::frame::FrameData> {
+        println!("MockRiveEngine: Copying keyframe at frame {} on layer {:?}", frame, layer_id);
+        // Return mock frame data for copy operation
+        Some(crate::frame::create_mock_frame_data(&layer_id, frame))
+    }
+    
+    fn paste_keyframe(&mut self, layer_id: crate::LayerId, frame: u32, data: crate::frame::FrameData) {
+        println!("MockRiveEngine: Pasting keyframe at frame {} on layer {:?} with data {:?}", frame, layer_id, data);
+        // In a real implementation, this would paste the frame data
+    }
+    
+    fn delete_keyframe(&mut self, layer_id: crate::LayerId, frame: u32) {
+        println!("MockRiveEngine: Deleting keyframe at frame {} on layer {:?}", frame, layer_id);
+        // In a real implementation, this would remove the keyframe
+    }
+    
+    // Property manipulation methods
+    fn set_property(&mut self, layer_id: crate::LayerId, frame: u32, property: &str, value: bool) {
+        println!("MockRiveEngine: Setting property '{}' to {} at frame {} on layer {:?}", property, value, frame, layer_id);
+        // In a real implementation, this would set layer properties at specific frames
+    }
+    
+    fn get_property(&self, layer_id: crate::LayerId, frame: u32, property: &str) -> bool {
+        println!("MockRiveEngine: Getting property '{}' at frame {} on layer {:?}", property, frame, layer_id);
+        // Return mock property value
+        match property {
+            "visible" => true,
+            "locked" => false,
+            _ => false,
+        }
+    }
 }

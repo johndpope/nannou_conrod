@@ -1,8 +1,72 @@
 //! Main Timeline widget implementation using egui
 
 use egui::{*, self};
-use crate::{TimelineConfig, RiveEngine, LayerId};
+use crate::{TimelineConfig, RiveEngine, LayerId, KeyframeId};
 use std::collections::HashMap;
+
+/// Keyframe selection state for interactive manipulation
+#[derive(Clone, Debug, Default)]
+pub struct KeyframeSelection {
+    /// Currently selected keyframes (layer_id, frame) -> keyframe_id
+    pub selected: HashMap<(LayerId, u32), KeyframeId>,
+    /// Drag operation state
+    pub drag_state: Option<DragState>,
+    /// Copied keyframes for paste operations
+    pub clipboard: Vec<KeyframeClipboardItem>,
+}
+
+/// State tracking an active drag operation
+#[derive(Clone, Debug)]
+pub struct DragState {
+    /// Original positions of all selected keyframes
+    pub original_positions: HashMap<KeyframeId, (LayerId, u32)>,
+    /// Current drag offset in frames
+    pub frame_offset: i32,
+    /// Mouse position where drag started
+    pub start_pos: egui::Pos2,
+}
+
+/// Clipboard item for copy/paste operations
+#[derive(Clone, Debug)]
+pub struct KeyframeClipboardItem {
+    pub layer_id: LayerId,
+    pub relative_frame: u32,
+    pub data: crate::frame::FrameData,
+}
+
+impl KeyframeSelection {
+    pub fn new() -> Self {
+        Self::default()
+    }
+    
+    /// Clear all selections
+    pub fn clear(&mut self) {
+        self.selected.clear();
+        self.drag_state = None;
+    }
+    
+    /// Add a keyframe to selection
+    pub fn add(&mut self, layer_id: LayerId, frame: u32, keyframe_id: KeyframeId) {
+        self.selected.insert((layer_id, frame), keyframe_id);
+    }
+    
+    /// Remove a keyframe from selection
+    pub fn remove(&mut self, layer_id: LayerId, frame: u32) {
+        self.selected.remove(&(layer_id, frame));
+    }
+    
+    /// Check if a keyframe is selected
+    pub fn is_selected(&self, layer_id: LayerId, frame: u32) -> bool {
+        self.selected.contains_key(&(layer_id, frame))
+    }
+    
+    /// Get selected keyframes as list
+    pub fn get_selected(&self) -> Vec<(LayerId, u32, KeyframeId)> {
+        self.selected.iter()
+            .map(|((layer_id, frame), keyframe_id)| (layer_id.clone(), *frame, keyframe_id.clone()))
+            .collect()
+    }
+}
 
 /// Main timeline widget that displays layers, frames, and playback controls
 pub struct Timeline {
@@ -33,6 +97,8 @@ pub struct TimelineState {
     pub context_menu: Option<ContextMenuState>,
     /// Active snap guides (frame positions)
     pub snap_guides: Vec<f32>,
+    /// Keyframe selection and manipulation state
+    pub keyframe_selection: KeyframeSelection,
 }
 
 impl Default for TimelineState {
@@ -48,6 +114,7 @@ impl Default for TimelineState {
             track_heights: HashMap::new(),
             context_menu: None,
             snap_guides: Vec::new(),
+            keyframe_selection: KeyframeSelection::new(),
         }
     }
 }
@@ -327,7 +394,7 @@ impl Timeline {
     }
 
     /// Draw the frame grid
-    fn draw_frame_grid(&mut self, ui: &mut Ui, rect: Rect, engine: &Box<dyn RiveEngine>) {
+    fn draw_frame_grid(&mut self, ui: &mut Ui, rect: Rect, engine: &mut Box<dyn RiveEngine>) {
         // Use ScrollArea for both horizontal and vertical scrolling
         egui::ScrollArea::both()
             .id_source("timeline_scroll")
@@ -426,10 +493,28 @@ impl Timeline {
 
                         // Draw keyframe indicator
                         if matches!(frame_data.frame_type, crate::frame::FrameType::Keyframe) {
+                            let is_selected = self.state.keyframe_selection.is_selected(layer.id.clone(), frame);
+                            
+                            // Draw selection highlight if selected
+                            if is_selected {
+                                ui.painter().circle_stroke(
+                                    frame_rect.center(),
+                                    5.0,
+                                    Stroke::new(2.0, egui::Color32::from_rgb(70, 130, 255)),
+                                );
+                            }
+                            
+                            // Draw keyframe circle
+                            let keyframe_color = if is_selected {
+                                egui::Color32::from_rgb(100, 150, 255)
+                            } else {
+                                self.config.style.text_color
+                            };
+                            
                             ui.painter().circle_filled(
                                 frame_rect.center(),
                                 3.0,
-                                self.config.style.text_color,
+                                keyframe_color,
                             );
                         }
                     }
@@ -471,28 +556,24 @@ impl Timeline {
             }
         }
         
-        // Handle clicks
+        // Handle keyframe selection clicks
         if response.clicked() {
             if let Some(pos) = response.interact_pointer_pos() {
-                let frame_width = self.config.frame_width * self.state.zoom_level;
-                let clicked_frame = ((pos.x - rect.min.x + self.state.scroll_x) / frame_width) as u32;
-                
-                // Find which layer was clicked
-                let layers = engine.get_layers();
-                let mut y_offset = self.state.scroll_y;
-                for layer in &layers {
-                    let layer_height = self.state.track_heights
-                        .get(&layer.id)
-                        .copied()
-                        .unwrap_or(self.config.default_track_height);
-                    
-                    if pos.y >= rect.min.y + y_offset && pos.y < rect.min.y + y_offset + layer_height {
-                        println!("Frame {} clicked on layer {}", clicked_frame, layer.name);
-                        break;
-                    }
-                    y_offset += layer_height;
-                }
+                let modifiers = ui.input(|i| i.modifiers);
+                self.handle_keyframe_click(pos, rect, &modifiers, engine);
             }
+        }
+        
+        // Handle keyframe dragging
+        if response.dragged() {
+            if let Some(pos) = response.interact_pointer_pos() {
+                self.handle_keyframe_drag(pos, rect, response.drag_delta(), engine);
+            }
+        }
+        
+        // Handle drag end
+        if response.drag_released() {
+            self.handle_keyframe_drag_end(engine);
         }
         
         // Handle right-click for context menu
@@ -885,4 +966,123 @@ pub struct ContextMenuState {
     pub position: Pos2,
     pub frame: u32,
     pub layer_id: LayerId,
+}
+
+// Implementation methods for Timeline keyframe interaction
+impl Timeline {
+    /// Handle keyframe click for selection
+    fn handle_keyframe_click(&mut self, pos: Pos2, rect: Rect, modifiers: &egui::Modifiers, engine: &Box<dyn RiveEngine>) {
+        let frame_width = self.config.frame_width * self.state.zoom_level;
+        let clicked_frame = ((pos.x - rect.min.x + self.state.scroll_x) / frame_width) as u32;
+        
+        // Find which layer was clicked
+        let layers = engine.get_layers();
+        let mut y_offset = self.state.scroll_y;
+        let mut clicked_layer_id = None;
+        
+        for layer in &layers {
+            let layer_height = self.state.track_heights
+                .get(&layer.id)
+                .copied()
+                .unwrap_or(self.config.default_track_height);
+            
+            if pos.y >= rect.min.y + y_offset && pos.y < rect.min.y + y_offset + layer_height {
+                clicked_layer_id = Some(layer.id.clone());
+                break;
+            }
+            y_offset += layer_height;
+        }
+        
+        if let Some(layer_id) = clicked_layer_id {
+            let frame_data = engine.get_frame_data(layer_id.clone(), clicked_frame);
+            
+            // Only handle clicks on keyframes
+            if matches!(frame_data.frame_type, crate::frame::FrameType::Keyframe) {
+                let keyframe_id = frame_data.id;
+                
+                // Handle different selection modes
+                if modifiers.ctrl || modifiers.command {
+                    // Toggle selection with Ctrl/Cmd
+                    if self.state.keyframe_selection.is_selected(layer_id.clone(), clicked_frame) {
+                        self.state.keyframe_selection.remove(layer_id.clone(), clicked_frame);
+                        println!("Deselected keyframe at frame {} on layer {:?}", clicked_frame, layer_id);
+                    } else {
+                        self.state.keyframe_selection.add(layer_id.clone(), clicked_frame, keyframe_id);
+                        println!("Added keyframe to selection at frame {} on layer {:?}", clicked_frame, layer_id);
+                    }
+                } else if modifiers.shift {
+                    // Range selection with Shift (TODO: implement range selection)
+                    self.state.keyframe_selection.add(layer_id.clone(), clicked_frame, keyframe_id);
+                    println!("Range select keyframe at frame {} on layer {:?}", clicked_frame, layer_id);
+                } else {
+                    // Single selection
+                    self.state.keyframe_selection.clear();
+                    self.state.keyframe_selection.add(layer_id.clone(), clicked_frame, keyframe_id);
+                    println!("Selected keyframe at frame {} on layer {:?}", clicked_frame, layer_id);
+                }
+            } else {
+                // Clear selection if clicking on empty frame
+                if !modifiers.ctrl && !modifiers.command {
+                    self.state.keyframe_selection.clear();
+                    println!("Cleared keyframe selection");
+                }
+            }
+        }
+    }
+    
+    /// Handle keyframe dragging
+    fn handle_keyframe_drag(&mut self, pos: Pos2, _rect: Rect, _delta: egui::Vec2, _engine: &mut Box<dyn RiveEngine>) {
+        if self.state.keyframe_selection.selected.is_empty() {
+            return;
+        }
+        
+        let frame_width = self.config.frame_width * self.state.zoom_level;
+        
+        // Initialize drag state if not already dragging
+        if self.state.keyframe_selection.drag_state.is_none() {
+            let mut original_positions = HashMap::new();
+            for ((layer_id, frame), keyframe_id) in self.state.keyframe_selection.selected.iter() {
+                original_positions.insert(keyframe_id.clone(), (layer_id.clone(), *frame));
+            }
+            
+            self.state.keyframe_selection.drag_state = Some(DragState {
+                original_positions,
+                frame_offset: 0,
+                start_pos: pos,
+            });
+        }
+        
+        if let Some(ref mut drag_state) = self.state.keyframe_selection.drag_state {
+            // Calculate frame offset from drag
+            let total_delta_x = pos.x - drag_state.start_pos.x;
+            let new_frame_offset = (total_delta_x / frame_width).round() as i32;
+            
+            if new_frame_offset != drag_state.frame_offset {
+                drag_state.frame_offset = new_frame_offset;
+                println!("Dragging keyframes by {} frames", new_frame_offset);
+            }
+        }
+    }
+    
+    /// Handle end of keyframe drag operation
+    fn handle_keyframe_drag_end(&mut self, engine: &mut Box<dyn RiveEngine>) {
+        if let Some(drag_state) = self.state.keyframe_selection.drag_state.take() {
+            if drag_state.frame_offset != 0 {
+                // Apply the drag operation to move keyframes
+                for (keyframe_id, (layer_id, original_frame)) in drag_state.original_positions {
+                    let new_frame = (original_frame as i32 + drag_state.frame_offset).max(0) as u32;
+                    
+                    println!("Moving keyframe {:?} from frame {} to frame {} on layer {:?}", 
+                        keyframe_id, original_frame, new_frame, layer_id);
+                    
+                    // Move the keyframe in the engine
+                    engine.move_keyframe(layer_id.clone(), original_frame, new_frame);
+                    
+                    // Update selection to new position
+                    self.state.keyframe_selection.remove(layer_id.clone(), original_frame);
+                    self.state.keyframe_selection.add(layer_id, new_frame, keyframe_id);
+                }
+            }
+        }
+    }
 }
