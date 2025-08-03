@@ -1,0 +1,12 @@
+[package]
+name = "timeline-demo"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+nannou_timeline = { path = ".." }
+eframe = "0.24"
+egui = "0.24"
+chrono = "0.4"
+
+[workspace]
