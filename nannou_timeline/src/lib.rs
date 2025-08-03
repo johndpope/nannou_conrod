@@ -8,6 +8,7 @@ use egui::Color32;
 pub use playhead_egui::Playhead;
 pub use ruler_egui::Ruler;
 pub use timeline_egui::{Timeline, TimelineState, KeyframeSelection, DragState, KeyframeClipboardItem};
+pub use ui::{MockRiveEngine, MockAudioEngine};
 pub use layer::{Layer, LayerId, LayerType};
 pub use frame::{Frame, FrameType, KeyframeId};
 pub use track_simple::Track;
@@ -22,6 +23,7 @@ pub mod ui;
 pub mod time;
 pub mod easing;
 pub mod motion_editor;
+pub mod audio;
 
 // Re-export time types
 pub use time::{FrameTime, FpsPreset, FrameLabel};
@@ -31,6 +33,9 @@ pub use easing::{BezierCurve, BezierPoint, EasingPreset, PropertyId};
 
 // Re-export motion editor
 pub use motion_editor::MotionEditor;
+
+// Re-export audio types
+pub use audio::{AudioId, AudioSource, AudioLayer, AudioSyncMode, AudioEngine, AudioError, WaveformData, VolumeEnvelope};
 
 /// Mock interface for Rive integration
 pub trait RiveEngine: Send + Sync {

@@ -19,6 +19,7 @@ pub enum LayerType {
     Mask,
     Guide,
     Folder,
+    Audio,
 }
 
 /// Information about a layer
@@ -52,6 +53,13 @@ impl LayerInfo {
     pub fn new_folder(name: impl Into<String>) -> Self {
         let mut layer = Self::new(name);
         layer.layer_type = LayerType::Folder;
+        layer
+    }
+    
+    /// Create an audio layer
+    pub fn new_audio(name: impl Into<String>) -> Self {
+        let mut layer = Self::new(name);
+        layer.layer_type = LayerType::Audio;
         layer
     }
 }
@@ -133,6 +141,24 @@ pub fn create_mock_layers() -> Vec<LayerInfo> {
             visible: true,
             locked: true,
             parent_id: Some(LayerId::new("layer3")),
+            children: vec![],
+        },
+        LayerInfo {
+            id: LayerId::new("layer6"),
+            name: "Background Music".to_string(),
+            layer_type: LayerType::Audio,
+            visible: true,
+            locked: false,
+            parent_id: None,
+            children: vec![],
+        },
+        LayerInfo {
+            id: LayerId::new("layer7"),
+            name: "Sound Effects".to_string(),
+            layer_type: LayerType::Audio,
+            visible: true,
+            locked: false,
+            parent_id: None,
             children: vec![],
         },
     ]

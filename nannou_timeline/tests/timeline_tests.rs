@@ -32,9 +32,15 @@ fn test_mock_rive_engine() {
     
     // Test layer retrieval
     let layers = engine.get_layers();
-    assert_eq!(layers.len(), 5);
+    assert_eq!(layers.len(), 7); // Updated to include 2 audio layers
     assert_eq!(layers[0].name, "Background");
     assert_eq!(layers[2].name, "Effects");
+    assert_eq!(layers[5].name, "Background Music");
+    assert_eq!(layers[6].name, "Sound Effects");
+    
+    // Test audio layer types
+    assert!(matches!(layers[5].layer_type, nannou_timeline::LayerType::Audio));
+    assert!(matches!(layers[6].layer_type, nannou_timeline::LayerType::Audio));
     
     // Test playback controls
     assert_eq!(engine.get_current_frame(), 0);
@@ -400,4 +406,146 @@ fn test_mock_engine_keyframe_methods() {
     
     let locked = engine.get_property(layer_id, 10, "locked");
     assert!(!locked);
+}
+
+#[cfg(test)]
+mod audio_tests {
+    use nannou_timeline::{AudioSource, AudioLayer, AudioSyncMode, VolumeEnvelope, MockAudioEngine, AudioEngine};
+    use std::path::PathBuf;
+    
+    #[test]
+    fn test_audio_source_creation() {
+        let source = AudioSource::new(PathBuf::from("test_audio.wav"));
+        assert_eq!(source.filename, "test_audio.wav");
+        assert_eq!(source.duration, 0.0);
+        assert!(!source.loaded);
+    }
+    
+    #[test]
+    fn test_audio_layer_creation() {
+        let source = AudioSource::new(PathBuf::from("music.mp3"));
+        let layer = AudioLayer::new(source, 10);
+        
+        assert_eq!(layer.start_frame, 10);
+        assert_eq!(layer.volume, 1.0);
+        assert_eq!(layer.sync_mode, AudioSyncMode::Event);
+        assert!(!layer.loop_audio);
+    }
+    
+    #[test]
+    fn test_audio_layer_frame_range() {
+        let mut source = AudioSource::new(PathBuf::from("test.wav"));
+        source.duration = 5.0; // 5 seconds
+        
+        let layer = AudioLayer::new(source, 10);
+        let frame_range = layer.frame_range(24.0); // 24 fps
+        
+        assert_eq!(frame_range.start, 10);
+        assert_eq!(frame_range.end, 10 + 120); // 5 seconds * 24 fps = 120 frames
+    }
+    
+    #[test]
+    fn test_audio_layer_trimming() {
+        let mut source = AudioSource::new(PathBuf::from("test.wav"));
+        source.duration = 10.0;
+        
+        let mut layer = AudioLayer::new(source, 0);
+        layer.trim_start = 2.0;
+        layer.trim_end = 1.0;
+        
+        assert_eq!(layer.effective_duration(), 7.0); // 10 - 2 - 1 = 7 seconds
+        
+        let frame_range = layer.frame_range(30.0); // 30 fps
+        assert_eq!(frame_range.end - frame_range.start, 210); // 7 seconds * 30 fps
+    }
+    
+    #[test]
+    fn test_volume_envelope() {
+        let mut envelope = VolumeEnvelope::new();
+        
+        // Test initial state
+        assert_eq!(envelope.points.len(), 1);
+        assert_eq!(envelope.volume_at_frame(0), 1.0);
+        
+        // Add points
+        envelope.set_point(10, 0.5);
+        envelope.set_point(20, 0.0);
+        envelope.set_point(30, 0.8);
+        
+        assert_eq!(envelope.points.len(), 4);
+        
+        // Test interpolation
+        assert_eq!(envelope.volume_at_frame(0), 1.0);
+        assert_eq!(envelope.volume_at_frame(10), 0.5);
+        assert_eq!(envelope.volume_at_frame(15), 0.25); // Interpolated between 0.5 and 0.0
+        assert_eq!(envelope.volume_at_frame(30), 0.8);
+    }
+    
+    #[test]
+    fn test_mock_audio_engine() {
+        let mut engine = MockAudioEngine::new();
+        
+        // Test audio loading
+        let result = engine.load_audio(&PathBuf::from("test_music.mp3"));
+        assert!(result.is_ok());
+        
+        let source = result.unwrap();
+        assert!(source.loaded);
+        assert_eq!(source.filename, "test_music.mp3");
+        assert_eq!(source.duration, 30.0); // Mock music duration
+        
+        // Test waveform generation
+        let waveform_result = engine.generate_waveform(&source.id, 24.0);
+        assert!(waveform_result.is_ok());
+        
+        let waveform = waveform_result.unwrap();
+        assert!(waveform.complete);
+        assert_eq!(waveform.fps, 24.0);
+        assert!(!waveform.peaks.is_empty());
+        
+        // Test playback
+        let play_result = engine.play_segment(&source.id, 0.0, 2.0, 1.0);
+        assert!(play_result.is_ok());
+        assert!(engine.is_playing(&source.id));
+        
+        // Test stop
+        let stop_result = engine.stop_audio(&source.id);
+        assert!(stop_result.is_ok());
+        assert!(!engine.is_playing(&source.id));
+    }
+    
+    #[test]
+    fn test_unsupported_audio_format() {
+        let mut engine = MockAudioEngine::new();
+        let result = engine.load_audio(&PathBuf::from("test.flac"));
+        
+        match result {
+            Err(nannou_timeline::AudioError::UnsupportedFormat) => {},
+            _ => panic!("Expected UnsupportedFormat error"),
+        }
+    }
+    
+    #[test]
+    fn test_audio_time_calculation() {
+        let mut source = AudioSource::new(PathBuf::from("test.wav"));
+        source.duration = 8.0;
+        
+        let mut layer = AudioLayer::new(source, 10);
+        layer.trim_start = 1.0;
+        layer.trim_end = 1.0;
+        
+        // Frame 10 (start) should be at audio time 1.0 (trim_start)
+        assert_eq!(layer.audio_time_at_frame(10, 24.0), Some(1.0));
+        
+        // Frame 20 should be at audio time 1.0 + (10/24) = ~1.417
+        let time_20 = layer.audio_time_at_frame(20, 24.0).unwrap();
+        assert!((time_20 - 1.417).abs() < 0.01);
+        
+        // Frame before start should return None
+        assert_eq!(layer.audio_time_at_frame(5, 24.0), None);
+        
+        // Frame past effective end should return None
+        let end_frame = 10 + ((8.0 - 1.0 - 1.0) * 24.0) as u32; // 6 seconds * 24 fps
+        assert_eq!(layer.audio_time_at_frame(end_frame + 10, 24.0), None);
+    }
 }

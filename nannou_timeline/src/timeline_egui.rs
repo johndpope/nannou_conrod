@@ -479,49 +479,54 @@ impl Timeline {
                         );
                     }
 
-                    // Draw frames
-                    for frame in visible_start_frame..=visible_end_frame {
-                        let frame_data = engine.get_frame_data(layer.id.clone(), frame);
-                        let x = frame as f32 * frame_width;
-                
-                        let frame_rect = Rect::from_min_size(
-                            pos2(x, y_offset),
-                            vec2(frame_width - 1.0, layer_height - 1.0),
-                        );
+                    // Check if this is an audio layer for special rendering
+                    if matches!(layer.layer_type, crate::LayerType::Audio) {
+                        self.draw_audio_waveform(ui, layer, y_offset, layer_height, visible_start_frame..=visible_end_frame, frame_width);
+                    } else {
+                        // Draw frames for non-audio layers
+                        for frame in visible_start_frame..=visible_end_frame {
+                            let frame_data = engine.get_frame_data(layer.id.clone(), frame);
+                            let x = frame as f32 * frame_width;
+                    
+                            let frame_rect = Rect::from_min_size(
+                                pos2(x, y_offset),
+                                vec2(frame_width - 1.0, layer_height - 1.0),
+                            );
 
-                        let color = match frame_data.frame_type {
-                            crate::frame::FrameType::Empty => self.config.style.frame_empty,
-                            crate::frame::FrameType::Keyframe => self.config.style.frame_keyframe,
-                            crate::frame::FrameType::Tween => self.config.style.frame_tween,
-                        };
+                            let color = match frame_data.frame_type {
+                                crate::frame::FrameType::Empty => self.config.style.frame_empty,
+                                crate::frame::FrameType::Keyframe => self.config.style.frame_keyframe,
+                                crate::frame::FrameType::Tween => self.config.style.frame_tween,
+                            };
 
-                        ui.painter().rect_filled(frame_rect, 2.0, color);
+                            ui.painter().rect_filled(frame_rect, 2.0, color);
 
-                        // Draw keyframe indicator
-                        if matches!(frame_data.frame_type, crate::frame::FrameType::Keyframe) {
-                            let is_selected = self.state.keyframe_selection.is_selected(layer.id.clone(), frame);
-                            
-                            // Draw selection highlight if selected
-                            if is_selected {
-                                ui.painter().circle_stroke(
+                            // Draw keyframe indicator
+                            if matches!(frame_data.frame_type, crate::frame::FrameType::Keyframe) {
+                                let is_selected = self.state.keyframe_selection.is_selected(layer.id.clone(), frame);
+                                
+                                // Draw selection highlight if selected
+                                if is_selected {
+                                    ui.painter().circle_stroke(
+                                        frame_rect.center(),
+                                        5.0,
+                                        Stroke::new(2.0, egui::Color32::from_rgb(70, 130, 255)),
+                                    );
+                                }
+                                
+                                // Draw keyframe circle
+                                let keyframe_color = if is_selected {
+                                    egui::Color32::from_rgb(100, 150, 255)
+                                } else {
+                                    self.config.style.text_color
+                                };
+                                
+                                ui.painter().circle_filled(
                                     frame_rect.center(),
-                                    5.0,
-                                    Stroke::new(2.0, egui::Color32::from_rgb(70, 130, 255)),
+                                    3.0,
+                                    keyframe_color,
                                 );
                             }
-                            
-                            // Draw keyframe circle
-                            let keyframe_color = if is_selected {
-                                egui::Color32::from_rgb(100, 150, 255)
-                            } else {
-                                self.config.style.text_color
-                            };
-                            
-                            ui.painter().circle_filled(
-                                frame_rect.center(),
-                                3.0,
-                                keyframe_color,
-                            );
                         }
                     }
 
@@ -1098,6 +1103,71 @@ impl Timeline {
                     self.state.keyframe_selection.add(layer_id, new_frame, keyframe_id);
                 }
             }
+        }
+    }
+    
+    /// Draw audio waveform for an audio layer
+    fn draw_audio_waveform(&self, ui: &mut Ui, layer: &crate::layer::LayerInfo, y_offset: f32, layer_height: f32, frame_range: std::ops::RangeInclusive<u32>, frame_width: f32) {
+        // Mock waveform data for demo
+        let waveform_color = egui::Color32::from_rgb(100, 200, 255);
+        let center_y = y_offset + layer_height / 2.0;
+        let amplitude_scale = layer_height * 0.4; // Use 40% of layer height for waveform
+        
+        // Draw background for audio layer
+        let layer_rect = Rect::from_min_size(
+            pos2(*frame_range.start() as f32 * frame_width, y_offset),
+            vec2((*frame_range.end() - *frame_range.start()) as f32 * frame_width, layer_height),
+        );
+        ui.painter().rect_filled(layer_rect, 2.0, egui::Color32::from_gray(35));
+        
+        // Generate and draw mock waveform
+        let mut waveform_points = Vec::new();
+        let sample_count = ((*frame_range.end() - *frame_range.start()) as f32 * frame_width / 2.0) as usize; // Sample every 2 pixels
+        
+        for i in 0..sample_count {
+            let x = *frame_range.start() as f32 * frame_width + (i as f32 * 2.0);
+            let time = i as f32 * 0.1; // Mock time progression
+            
+            // Generate mock audio signal (sine wave with noise and envelope)
+            let base_frequency = if layer.name.contains("Music") { 220.0 } else { 440.0 };
+            let envelope = 1.0 - (time * 0.05).min(1.0); // Fade out envelope
+            let signal = envelope * (
+                0.6 * (2.0 * std::f32::consts::PI * base_frequency * time * 0.01).sin() +
+                0.3 * (2.0 * std::f32::consts::PI * base_frequency * 2.0 * time * 0.01).sin() +
+                0.1 * (time * 17.3).sin() // Noise component
+            );
+            
+            let amplitude = signal.abs() * amplitude_scale;
+            let y_min = center_y - amplitude;
+            let y_max = center_y + amplitude;
+            
+            waveform_points.push((pos2(x, y_min), pos2(x, y_max)));
+        }
+        
+        // Draw waveform as vertical lines
+        for (top, bottom) in waveform_points {
+            ui.painter().line_segment([top, bottom], Stroke::new(1.0, waveform_color));
+        }
+        
+        // Draw center line
+        ui.painter().line_segment(
+            [pos2(*frame_range.start() as f32 * frame_width, center_y), 
+             pos2(*frame_range.end() as f32 * frame_width, center_y)],
+            Stroke::new(0.5, waveform_color.gamma_multiply(0.3)),
+        );
+        
+        // Draw audio region border
+        ui.painter().rect_stroke(layer_rect, 2.0, Stroke::new(1.0, waveform_color.gamma_multiply(0.7)));
+        
+        // Draw audio label
+        if layer_rect.width() > 100.0 {
+            ui.painter().text(
+                layer_rect.min + vec2(5.0, 5.0),
+                Align2::LEFT_TOP,
+                format!("♪ {}", layer.name),
+                FontId::monospace(12.0),
+                waveform_color,
+            );
         }
     }
 }
