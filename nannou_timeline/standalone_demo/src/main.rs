@@ -1,6 +1,6 @@
 //! Standalone demo of the Flash-inspired timeline widget
 
-use eframe::egui;
+use eframe::egui::{self, UiBuilder};
 use nannou_timeline::{Timeline, ui::MockRiveEngine, RiveEngine, LayerId};
 use std::sync::{Arc, Mutex};
 
@@ -132,7 +132,7 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "Timeline Demo",
         options,
-        Box::new(|_cc| Box::new(TimelineApp::default())),
+        Box::new(|_cc| Ok(Box::new(TimelineApp::default()))),
     )
 }
 
@@ -247,7 +247,7 @@ impl eframe::App for TimelineApp {
             self.draw_library(ui, library_rect);
             
             // Draw timeline (bottom) - capture any println! from timeline
-            ui.allocate_ui_at_rect(timeline_rect, |ui| {
+            ui.scope_builder(UiBuilder::new().max_rect(timeline_rect), |ui| {
                 // Intercept timeline interactions by checking before/after
                 let prev_frame = self.engine.get_current_frame();
                 let prev_zoom = self.timeline.state.zoom_level;
@@ -323,16 +323,20 @@ impl TimelineApp {
     }
     
     fn draw_console(&mut self, ui: &mut egui::Ui, rect: egui::Rect) {
-        ui.allocate_ui_at_rect(rect, |ui| {
+        ui.scope_builder(UiBuilder::new().max_rect(rect), |ui| {
             // Background
             ui.painter().rect_filled(rect, 0.0, egui::Color32::from_gray(20));
             
             // Border
-            ui.painter().rect_stroke(rect, 0.0, egui::Stroke::new(1.0, egui::Color32::from_gray(60)));
+            let border_stroke = egui::Stroke::new(1.0, egui::Color32::from_gray(60));
+            ui.painter().line_segment([rect.left_top(), rect.right_top()], border_stroke);
+            ui.painter().line_segment([rect.right_top(), rect.right_bottom()], border_stroke);
+            ui.painter().line_segment([rect.right_bottom(), rect.left_bottom()], border_stroke);
+            ui.painter().line_segment([rect.left_bottom(), rect.left_top()], border_stroke);
             
             // Console header
             let header_rect = egui::Rect::from_min_size(rect.min, egui::vec2(rect.width(), 25.0));
-            ui.allocate_ui_at_rect(header_rect, |ui| {
+            ui.scope_builder(UiBuilder::new().max_rect(header_rect), |ui| {
                 ui.horizontal(|ui| {
                     ui.label("🖥️ Developer Console");
                     ui.separator();
@@ -353,7 +357,7 @@ impl TimelineApp {
                 egui::vec2(rect.width(), rect.height() - 25.0),
             );
             
-            ui.allocate_ui_at_rect(content_rect, |ui| {
+            ui.scope_builder(UiBuilder::new().max_rect(content_rect), |ui| {
                 egui::ScrollArea::vertical()
                     .auto_shrink([false, false])
                     .stick_to_bottom(self.auto_scroll)
@@ -400,12 +404,16 @@ impl TimelineApp {
     }
     
     fn draw_stage(&mut self, ui: &mut egui::Ui, rect: egui::Rect) {
-        ui.allocate_ui_at_rect(rect, |ui| {
+        ui.scope_builder(UiBuilder::new().max_rect(rect), |ui| {
             // Background
             ui.painter().rect_filled(rect, 0.0, egui::Color32::from_gray(30));
             
             // Border
-            ui.painter().rect_stroke(rect, 0.0, egui::Stroke::new(1.0, egui::Color32::from_gray(60)));
+            let border_stroke = egui::Stroke::new(1.0, egui::Color32::from_gray(60));
+            ui.painter().line_segment([rect.left_top(), rect.right_top()], border_stroke);
+            ui.painter().line_segment([rect.right_top(), rect.right_bottom()], border_stroke);
+            ui.painter().line_segment([rect.right_bottom(), rect.left_bottom()], border_stroke);
+            ui.painter().line_segment([rect.left_bottom(), rect.left_top()], border_stroke);
             
             // Center content
             let center = rect.center();
@@ -461,16 +469,20 @@ impl TimelineApp {
     }
     
     fn draw_library(&mut self, ui: &mut egui::Ui, rect: egui::Rect) {
-        ui.allocate_ui_at_rect(rect, |ui| {
+        ui.scope_builder(UiBuilder::new().max_rect(rect), |ui| {
             // Background
             ui.painter().rect_filled(rect, 0.0, egui::Color32::from_gray(40));
             
             // Border
-            ui.painter().rect_stroke(rect, 0.0, egui::Stroke::new(1.0, egui::Color32::from_gray(60)));
+            let border_stroke = egui::Stroke::new(1.0, egui::Color32::from_gray(60));
+            ui.painter().line_segment([rect.left_top(), rect.right_top()], border_stroke);
+            ui.painter().line_segment([rect.right_top(), rect.right_bottom()], border_stroke);
+            ui.painter().line_segment([rect.right_bottom(), rect.left_bottom()], border_stroke);
+            ui.painter().line_segment([rect.left_bottom(), rect.left_top()], border_stroke);
             
             // Content with padding
             let padded_rect = rect.shrink(10.0);
-            ui.allocate_ui_at_rect(padded_rect, |ui| {
+            ui.scope_builder(UiBuilder::new().max_rect(padded_rect), |ui| {
                 ui.vertical(|ui| {
                     ui.heading("📚 Library");
                     ui.separator();

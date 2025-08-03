@@ -403,7 +403,7 @@ impl Timeline {
     fn draw_frame_grid(&mut self, ui: &mut Ui, rect: Rect, engine: &mut Box<dyn RiveEngine>) {
         // Use ScrollArea for both horizontal and vertical scrolling
         egui::ScrollArea::both()
-            .id_source("timeline_scroll")
+            .id_salt("timeline_scroll")
             .auto_shrink([false, false])
             .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysVisible)
             .show_viewport(ui, |ui, viewport| {
@@ -541,7 +541,7 @@ impl Timeline {
         // Handle mouse wheel scrolling
         if let Some(hover_pos) = response.hover_pos() {
             if rect.contains(hover_pos) {
-                let scroll_delta = ui.input(|i| i.scroll_delta);
+                let scroll_delta = ui.input(|i| i.raw_scroll_delta);
                 
                 // Horizontal scroll with shift or horizontal wheel
                 if ui.input(|i| i.modifiers.shift) || scroll_delta.x != 0.0 {
@@ -583,7 +583,7 @@ impl Timeline {
         }
         
         // Handle drag end
-        if response.drag_released() {
+        if response.drag_stopped() {
             self.handle_keyframe_drag_end(engine);
         }
         
@@ -636,7 +636,7 @@ impl Timeline {
             Stroke::new(1.0, self.config.style.border_color),
         );
 
-        ui.allocate_ui_at_rect(rect, |ui| {
+        ui.scope_builder(egui::UiBuilder::new().max_rect(rect), |ui| {
             ui.horizontal_centered(|ui| {
                 ui.add_space(10.0);
 
@@ -672,7 +672,7 @@ impl Timeline {
 
                 // FPS selector
                 ui.label("FPS:");
-                egui::ComboBox::from_id_source("fps_selector")
+                egui::ComboBox::from_id_salt("fps_selector")
                     .selected_text(self.config.fps.label())
                     .show_ui(ui, |ui| {
                         for preset in crate::FpsPreset::all_presets() {
@@ -899,7 +899,7 @@ impl Timeline {
     fn draw_context_menu(&mut self, ui: &mut Ui, menu_state: &ContextMenuState, engine: &mut Box<dyn RiveEngine>) {
         let mut close_menu = false;
         
-        egui::Area::new("frame_context_menu")
+        egui::Area::new("frame_context_menu".into())
             .fixed_pos(menu_state.position)
             .order(egui::Order::Foreground)
             .show(ui.ctx(), |ui| {
@@ -1157,7 +1157,11 @@ impl Timeline {
         );
         
         // Draw audio region border
-        ui.painter().rect_stroke(layer_rect, 2.0, Stroke::new(1.0, waveform_color.gamma_multiply(0.7)));
+        let border_stroke = Stroke::new(1.0, waveform_color.gamma_multiply(0.7));
+        ui.painter().line_segment([layer_rect.left_top(), layer_rect.right_top()], border_stroke);
+        ui.painter().line_segment([layer_rect.right_top(), layer_rect.right_bottom()], border_stroke);
+        ui.painter().line_segment([layer_rect.right_bottom(), layer_rect.left_bottom()], border_stroke);
+        ui.painter().line_segment([layer_rect.left_bottom(), layer_rect.left_top()], border_stroke);
         
         // Draw audio label
         if layer_rect.width() > 100.0 {

@@ -5,8 +5,8 @@ edition = "2021"
 
 [dependencies]
 nannou_timeline = { path = ".." }
-eframe = "0.24"
-egui = "0.24"
+eframe = "0.32"
+egui = "0.32"
 chrono = "0.4"
 
 [workspace]
