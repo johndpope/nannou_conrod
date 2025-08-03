@@ -24,6 +24,7 @@ pub mod time;
 pub mod easing;
 pub mod motion_editor;
 pub mod audio;
+pub mod window_manager;
 pub mod i18n;
 
 // Re-export time types
@@ -37,6 +38,9 @@ pub use motion_editor::MotionEditor;
 
 // Re-export audio types
 pub use audio::{AudioId, AudioSource, AudioLayer, AudioSyncMode, AudioEngine, AudioError, WaveformData, VolumeEnvelope};
+
+// Re-export window manager
+pub use window_manager::{WindowManager, Panel, PanelId, DockState, DockPosition};
 
 /// Mock interface for Rive integration
 pub trait RiveEngine: Send + Sync {

@@ -5,6 +5,7 @@ use nannou_timeline::{
     timeline_egui::Timeline,
     ui::MockRiveEngine, RiveEngine, LayerId,
     layer::LayerType,
+    window_manager::{WindowManager, PanelId, Panel, DockState, DockPosition},
 };
 use std::sync::{Arc, Mutex};
 use std::process::Command;
@@ -177,7 +178,10 @@ impl RiveEngine for LoggingRiveEngine {
 struct TimelineApp {
     timeline: Timeline,
     engine: Box<dyn RiveEngine>,
-    // State for resizable panels
+    // Window management system
+    window_manager: WindowManager,
+    use_window_manager: bool,
+    // State for resizable panels (legacy mode)
     timeline_height: f32,
     library_width: f32,
     console_height: f32,
@@ -265,6 +269,9 @@ impl Default for TimelineApp {
     fn default() -> Self {
         let engine_logs = Arc::new(Mutex::new(Vec::new()));
         
+        // Create window manager
+        let window_manager = WindowManager::new();
+        
         // Create some initial stage items
         let stage_items = vec![
             StageItem {
@@ -324,6 +331,8 @@ impl Default for TimelineApp {
         let mut app = Self {
             timeline: Timeline::new(),
             engine: Box::new(LoggingRiveEngine::new(engine_logs.clone())),
+            window_manager,
+            use_window_manager: false, // Start with legacy mode, press W to toggle
             timeline_height: 200.0,
             library_width: 300.0,
             console_height: 150.0,
@@ -344,10 +353,12 @@ impl Default for TimelineApp {
         app.log(LogLevel::Info, "🎮 Keyboard shortcuts:");
         app.log(LogLevel::Info, "  • F12: Toggle debug console");
         app.log(LogLevel::Info, "  • F2: Take screenshot");
+        app.log(LogLevel::Info, "  • W: Toggle window manager mode");
         app.log(LogLevel::Info, "💡 Hover over timeline elements to see tooltips");
         app.log(LogLevel::Info, "💡 Right-click on layers and frames for context menus");
         app.log(LogLevel::Info, "💡 Click and drag stage items to move them");
         app.log(LogLevel::Info, "💡 Right-click stage items for context menu");
+        app.log(LogLevel::Info, "🪟 Window Manager: Press W to enable docking mode");
         app
     }
 }
@@ -378,9 +389,25 @@ impl eframe::App for TimelineApp {
             self.take_screenshot(ctx);
         }
         
+        // Handle W to toggle window manager
+        if ctx.input(|i| i.key_pressed(egui::Key::W)) {
+            self.use_window_manager = !self.use_window_manager;
+            self.log(LogLevel::Info, format!("Window Manager {}", if self.use_window_manager { "enabled" } else { "disabled" }));
+            if self.use_window_manager {
+                self.log(LogLevel::Info, "Ctrl+D: Toggle dock preview | Ctrl+G: Toggle snap guides | Ctrl+S: Save workspace");
+            }
+        }
+        
         // Show crash dialog if a panic occurred
         self.show_crash_dialog(ctx);
         
+        // Use window manager if enabled
+        if self.use_window_manager {
+            self.window_manager.draw(ctx);
+            return;
+        }
+        
+        // Legacy panel layout
         egui::CentralPanel::default().show(ctx, |ui| {
             let available_rect = ui.available_rect_before_wrap();
             
