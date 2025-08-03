@@ -207,3 +207,86 @@ fn test_timeline_scrolling_and_zoom() {
     assert_eq!(timeline.state.scroll_x, 100.0);
     assert_eq!(timeline.state.scroll_y, 50.0);
 }
+
+#[test]
+fn test_snap_to_grid_functionality() {
+    use nannou_timeline::Timeline;
+    let mut timeline = Timeline::new();
+    
+    // Test default snap config
+    assert!(timeline.config.snap.enabled);
+    assert!(timeline.config.snap.snap_to_frames);
+    assert_eq!(timeline.config.snap.threshold_pixels, 8.0);
+    
+    // Test snap position calculation
+    let modifiers = egui::Modifiers::default();
+    
+    // Should snap to nearest frame
+    let pos = 52.0; // Close to frame 5 (at 50.0)
+    let snapped = timeline.snap_position(pos, &modifiers);
+    assert_eq!(snapped, 50.0);
+    
+    // Should snap if within threshold (frame_width=10, so frames at 0, 10, 20, 30, 40, 50, 60, 70...)
+    let pos = 65.0; // Should snap to frame 7 at 70.0 since it's within threshold (5px away)
+    let snapped = timeline.snap_position(pos, &modifiers);
+    assert_eq!(snapped, 70.0);
+    
+    // Should not snap if too far from any frame (threshold is 8px)
+    let pos = 75.0; // Between frame 7 (70) and frame 8 (80), 5px from both - should snap to 80
+    let snapped = timeline.snap_position(pos, &modifiers);
+    assert_eq!(snapped, 80.0);
+    
+    // Test case that's truly outside threshold
+    let pos = 84.0; // 4px from frame 8 (80), 6px from frame 9 (90) - should snap to 80
+    let snapped = timeline.snap_position(pos, &modifiers);
+    assert_eq!(snapped, 80.0);
+    
+    // Position that rounds to next frame
+    let pos = 99.0; // 9.9 frames, rounds to 10, snaps to frame 10 at 100.0
+    let snapped = timeline.snap_position(pos, &modifiers);
+    assert_eq!(snapped, 100.0);
+    
+    // Position exactly between frames but within threshold
+    let pos = 85.0; // 5px from both frame 8 (80) and frame 9 (90) - snaps to 90 (round up)
+    let snapped = timeline.snap_position(pos, &modifiers);
+    assert_eq!(snapped, 90.0);
+    
+    // Create a test case that should NOT snap (outside threshold)
+    // Need to set threshold smaller first
+    timeline.config.snap.threshold_pixels = 2.0; // Make threshold very small
+    let pos = 85.0; // Now 5px from nearest frame, outside 2px threshold
+    let snapped = timeline.snap_position(pos, &modifiers);
+    assert_eq!(snapped, 85.0); // Should not snap
+    
+    // Should not snap when disabled
+    timeline.config.snap.enabled = false;
+    let pos = 52.0;
+    let snapped = timeline.snap_position(pos, &modifiers);
+    assert_eq!(snapped, 52.0);
+    
+    // Should not snap with Shift modifier
+    timeline.config.snap.enabled = true;
+    let mut shift_modifiers = egui::Modifiers::default();
+    shift_modifiers.shift = true;
+    let snapped = timeline.snap_position(52.0, &shift_modifiers);
+    assert_eq!(snapped, 52.0);
+}
+
+#[test]
+fn test_snap_guides() {
+    use nannou_timeline::Timeline;
+    let mut timeline = Timeline::new();
+    
+    // Test snap guides initialization
+    assert!(timeline.state.snap_guides.is_empty());
+    
+    // Test guide updates
+    timeline.update_snap_guides(52.0);
+    assert_eq!(timeline.state.snap_guides.len(), 1);
+    assert_eq!(timeline.state.snap_guides[0], 50.0);
+    
+    // Test guides are cleared when disabled
+    timeline.config.snap.enabled = false;
+    timeline.update_snap_guides(52.0);
+    assert!(timeline.state.snap_guides.is_empty());
+}
