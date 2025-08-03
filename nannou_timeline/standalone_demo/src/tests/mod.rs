@@ -6,5 +6,11 @@
 #[cfg(test)]
 mod simple_tests;
 
+#[cfg(test)]
+mod renderer_output_test;
+
+#[cfg(test)]
+mod visual_regression_test;
+
 // Simple tests that can be run easily
 pub use simple_tests::*;
