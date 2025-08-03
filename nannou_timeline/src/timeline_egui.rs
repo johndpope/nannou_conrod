@@ -146,6 +146,8 @@ pub struct LayerPanelState {
     pub drop_target_index: Option<usize>,
     /// Layer being renamed (layer_id, new_name)
     pub renaming_layer: Option<(LayerId, String)>,
+    /// Newly created layer that should be focused and renamed
+    pub newly_created_layer: Option<LayerId>,
 }
 
 impl Default for TimelineState {
@@ -660,6 +662,16 @@ impl Timeline {
                                         if response.gained_focus() || !response.has_focus() {
                                             response.request_focus();
                                         }
+                                        
+                                        // If this is a newly created layer, scroll to it
+                                        if let Some(newly_created_id) = &self.state.layer_panel_state.newly_created_layer {
+                                            if newly_created_id == &layer.id {
+                                                // Scroll to this layer
+                                                ui.scroll_to_rect(layer_rect, Some(Align::Center));
+                                                // Clear the newly created flag after scrolling
+                                                self.state.layer_panel_state.newly_created_layer = None;
+                                            }
+                                        }
                                     } else {
                                         // Show normal label for other layers
                                         if ui.selectable_label(is_selected, &layer.name).clicked() {
@@ -744,6 +756,14 @@ impl Timeline {
                                 }
                             });
                             
+                            // Add horizontal separator line beneath each layer
+                            let separator_rect = ui.available_rect_before_wrap();
+                            let separator_y = separator_rect.min.y;
+                            ui.painter().line_segment(
+                                [pos2(separator_rect.min.x + 10.0, separator_y), pos2(separator_rect.max.x - 10.0, separator_y)],
+                                Stroke::new(0.5, Color32::from_gray(60)),
+                            );
+                            
                             ui.add_space(2.0);
                         }
                         
@@ -767,12 +787,24 @@ impl Timeline {
                     // Add layer
                     if ui.button("➕").on_hover_text(self.get_tooltip("timeline.layer.new_layer")).clicked() {
                         let layer_id = engine.add_layer("New Layer".to_string(), crate::layer::LayerType::Normal);
+                        // Set this layer for auto-focus and renaming
+                        self.state.layer_panel_state.newly_created_layer = Some(layer_id.clone());
+                        self.state.layer_panel_state.renaming_layer = Some((layer_id.clone(), "New Layer".to_string()));
+                        // Select the newly created layer
+                        self.state.selected_layers.clear();
+                        self.state.selected_layers.push(layer_id.clone());
                         println!("Added new layer: {:?}", layer_id);
                     }
                     
                     // Add folder
                     if ui.button("📁").on_hover_text(self.get_tooltip("timeline.layer.new_folder")).clicked() {
                         let layer_id = engine.add_folder_layer("New Folder".to_string());
+                        // Set this folder for auto-focus and renaming
+                        self.state.layer_panel_state.newly_created_layer = Some(layer_id.clone());
+                        self.state.layer_panel_state.renaming_layer = Some((layer_id.clone(), "New Folder".to_string()));
+                        // Select the newly created folder
+                        self.state.selected_layers.clear();
+                        self.state.selected_layers.push(layer_id.clone());
                         println!("Added new folder layer: {:?}", layer_id);
                     }
                     
