@@ -2,7 +2,7 @@
 //! Fixed version with proper layout and no crashes
 
 use egui::{*, self};
-use crate::{TimelineConfig, RiveEngine, LayerId, KeyframeId, MotionEditor, layer::LayerType};
+use crate::{TimelineConfig, RiveEngine, LayerId, KeyframeId, MotionEditor, layer::{LayerType, LayerInfo}};
 use std::collections::HashMap;
 
 /// Keyframe selection state for interactive manipulation
@@ -673,78 +673,18 @@ impl Timeline {
                                             }
                                         }
                                     } else {
-                                        // Show normal label for other layers
-                                        if ui.selectable_label(is_selected, &layer.name).clicked() {
-                                            if ui.input(|i| i.modifiers.shift) && !self.state.selected_layers.is_empty() {
-                                                // Range select with Shift
-                                                let last_selected = self.state.selected_layers.last().unwrap();
-                                                let last_idx = layers.iter().position(|l| &l.id == last_selected).unwrap_or(0);
-                                                let current_idx = idx;
-                                                
-                                                let start = last_idx.min(current_idx);
-                                                let end = last_idx.max(current_idx);
-                                                
-                                                // Clear existing selection
-                                                self.state.selected_layers.clear();
-                                                
-                                                // Select all layers in range
-                                                for i in start..=end {
-                                                    if let Some(l) = layers.get(i) {
-                                                        self.state.selected_layers.push(l.id.clone());
-                                                    }
-                                                }
-                                            } else if ui.input(|i| i.modifiers.ctrl || i.modifiers.command) {
-                                                // Multi-select with Ctrl/Cmd
-                                                if is_selected {
-                                                    self.state.selected_layers.retain(|id| id != &layer.id);
-                                                } else {
-                                                    self.state.selected_layers.push(layer.id.clone());
-                                                }
-                                            } else {
-                                                // Single select
-                                                self.state.selected_layers.clear();
-                                                self.state.selected_layers.push(layer.id.clone());
-                                            }
-                                        }
+                                        // Show normal label for other layers  
+                                        let response = ui.selectable_label(is_selected, &layer.name);
+                                        self.handle_layer_name_interaction(ui, response, layer, idx, &layers);
                                     }
                                 } else {
-                                    // Normal label when not renaming
-                                    if ui.selectable_label(is_selected, &layer.name).clicked() {
-                                        if ui.input(|i| i.modifiers.shift) && !self.state.selected_layers.is_empty() {
-                                            // Range select with Shift
-                                            let last_selected = self.state.selected_layers.last().unwrap();
-                                            let last_idx = layers.iter().position(|l| &l.id == last_selected).unwrap_or(0);
-                                            let current_idx = idx;
-                                            
-                                            let start = last_idx.min(current_idx);
-                                            let end = last_idx.max(current_idx);
-                                            
-                                            // Clear existing selection
-                                            self.state.selected_layers.clear();
-                                            
-                                            // Select all layers in range
-                                            for i in start..=end {
-                                                if let Some(l) = layers.get(i) {
-                                                    self.state.selected_layers.push(l.id.clone());
-                                                }
-                                            }
-                                        } else if ui.input(|i| i.modifiers.ctrl || i.modifiers.command) {
-                                            // Multi-select with Ctrl/Cmd
-                                            if is_selected {
-                                                self.state.selected_layers.retain(|id| id != &layer.id);
-                                            } else {
-                                                self.state.selected_layers.push(layer.id.clone());
-                                            }
-                                        } else {
-                                            // Single select
-                                            self.state.selected_layers.clear();
-                                            self.state.selected_layers.push(layer.id.clone());
-                                        }
-                                    }
+                                    // Normal label when not renaming - handle double-click and selection
+                                    let response = ui.selectable_label(is_selected, &layer.name);
+                                    self.handle_layer_name_interaction(ui, response, layer, idx, &layers);
                                 }
                                 
-                                // Right-click context menu
-                                if ui.interact(ui.available_rect_before_wrap(), ui.id().with(("layer", idx)), Sense::click())
+                                // Right-click context menu - use layer_rect for better precision
+                                if ui.interact(layer_rect, ui.id().with(("layer_context", idx)), Sense::click())
                                     .secondary_clicked() 
                                 {
                                     if let Some(pos) = ui.input(|i| i.pointer.interact_pos()) {
@@ -2242,6 +2182,50 @@ impl Timeline {
                     }
                 });
             });
+    }
+    
+    /// Handle layer name interaction (selection, double-click to rename)
+    fn handle_layer_name_interaction(&mut self, ui: &mut egui::Ui, response: egui::Response, layer: &LayerInfo, idx: usize, layers: &Vec<LayerInfo>) {
+        // Check for double-click to start renaming
+        if response.double_clicked() {
+            self.state.layer_panel_state.renaming_layer = Some((layer.id.clone(), layer.name.clone()));
+            return;
+        }
+        
+        // Handle single click for selection
+        if response.clicked() {
+            if ui.input(|i| i.modifiers.shift) && !self.state.selected_layers.is_empty() {
+                // Range select with Shift
+                let last_selected = self.state.selected_layers.last().unwrap();
+                let last_idx = layers.iter().position(|l| &l.id == last_selected).unwrap_or(0);
+                let current_idx = idx;
+                
+                let start = last_idx.min(current_idx);
+                let end = last_idx.max(current_idx);
+                
+                // Clear existing selection
+                self.state.selected_layers.clear();
+                
+                // Select all layers in range
+                for i in start..=end {
+                    if let Some(l) = layers.get(i) {
+                        self.state.selected_layers.push(l.id.clone());
+                    }
+                }
+            } else if ui.input(|i| i.modifiers.ctrl || i.modifiers.command) {
+                // Multi-select with Ctrl/Cmd
+                let is_selected = self.state.selected_layers.contains(&layer.id);
+                if is_selected {
+                    self.state.selected_layers.retain(|id| id != &layer.id);
+                } else {
+                    self.state.selected_layers.push(layer.id.clone());
+                }
+            } else {
+                // Single select
+                self.state.selected_layers.clear();
+                self.state.selected_layers.push(layer.id.clone());
+            }
+        }
     }
 }
 
