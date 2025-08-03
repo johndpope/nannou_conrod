@@ -183,3 +183,27 @@ fn test_frame_operations() {
     // These operations should complete without panic
     assert_eq!(engine.get_current_frame(), 0);
 }
+
+#[test]
+fn test_timeline_scrolling_and_zoom() {
+    use nannou_timeline::Timeline;
+    let mut timeline = Timeline::new();
+    
+    // Test initial scroll and zoom state
+    assert_eq!(timeline.state.scroll_x, 0.0);
+    assert_eq!(timeline.state.scroll_y, 0.0);
+    assert_eq!(timeline.state.zoom_level, 1.0);
+    
+    // Test zoom limits
+    timeline.state.zoom_level = 0.05;
+    assert!(timeline.state.zoom_level >= 0.05);
+    
+    timeline.state.zoom_level = 10.0;
+    assert!(timeline.state.zoom_level <= 10.0);
+    
+    // Test scroll positions
+    timeline.state.scroll_x = 100.0;
+    timeline.state.scroll_y = 50.0;
+    assert_eq!(timeline.state.scroll_x, 100.0);
+    assert_eq!(timeline.state.scroll_y, 50.0);
+}
