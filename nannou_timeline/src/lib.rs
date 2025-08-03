@@ -25,6 +25,7 @@ pub mod time;
 pub mod easing;
 pub mod motion_editor;
 pub mod audio;
+pub mod i18n;
 
 // Re-export time types
 pub use time::{FrameTime, FpsPreset, FrameLabel};
@@ -70,6 +71,9 @@ pub trait RiveEngine: Send + Sync {
     // Property manipulation
     fn set_property(&mut self, layer_id: LayerId, frame: u32, property: &str, value: bool);
     fn get_property(&self, layer_id: LayerId, frame: u32, property: &str) -> bool;
+    
+    // Layer operations
+    fn rename_layer(&mut self, layer_id: LayerId, new_name: String);
 }
 
 /// Timeline configuration

@@ -1,0 +1,96 @@
+{
+  "timeline": {
+    "toolbar": {
+      "first_frame": "Primer Fotograma (Inicio)",
+      "previous_frame": "Fotograma Anterior (,)",
+      "next_frame": "Siguiente Fotograma (.)",
+      "last_frame": "Último Fotograma (Fin)",
+      "onion_skinning": "Alternar Papel Cebolla",
+      "loop_playback": "Alternar Reproducción en Bucle",
+      "center_playhead": "Centrar Cabezal de Reproducción",
+      "edit_multiple_frames": "Editar Múltiples Fotogramas",
+      "frame_selection": "Selección Basada en Fotogramas"
+    },
+    "layer": {
+      "outline_mode": "Modo Contorno - Mostrar solo contornos de objetos",
+      "new_layer": "Nueva Capa",
+      "new_folder": "Nueva Carpeta",
+      "delete_layer": "Eliminar Capa(s) Seleccionada(s)",
+      "duplicate_layer": "Duplicar Capa(s) Seleccionada(s)",
+      "toggle_visibility_all": "Mostrar/Ocultar Todas las Capas",
+      "toggle_lock_all": "Bloquear/Desbloquear Todas las Capas",
+      "visibility_tooltip": "Alternar visibilidad de capa",
+      "lock_tooltip": "Alternar bloqueo de capa",
+      "type_normal": "Capa Normal",
+      "type_audio": "Capa de Audio",
+      "type_folder": "Capa de Carpeta",
+      "type_mask": "Capa de Máscara",
+      "type_guide": "Capa de Guía"
+    },
+    "controls": {
+      "stop": "Detener - Volver al fotograma 0",
+      "play_pause": "Reproducir/Pausar (Espacio)",
+      "fps_selector": "Fotogramas Por Segundo",
+      "zoom_in": "Acercar",
+      "zoom_out": "Alejar",
+      "zoom_level": "Nivel de Zoom",
+      "snap_settings": "Configuración de Ajuste",
+      "snap_to_frames": "Ajustar a fotogramas",
+      "snap_to_keyframes": "Ajustar a fotogramas clave",
+      "snap_to_markers": "Ajustar a marcadores",
+      "show_guides": "Mostrar guías",
+      "snap_distance": "Distancia de ajuste"
+    },
+    "menu": {
+      "layer": {
+        "title": "Opciones de Capa",
+        "insert_above": "Insertar Capa Arriba",
+        "insert_below": "Insertar Capa Abajo",
+        "duplicate": "Duplicar Capa",
+        "delete": "Eliminar Capa",
+        "rename": "Renombrar Capa...",
+        "properties": "Propiedades de Capa...",
+        "convert_mask": "Convertir a Máscara",
+        "convert_guide": "Convertir a Guía",
+        "show_hide_others": "Mostrar/Ocultar Otras",
+        "lock_others": "Bloquear Otras",
+        "merge_down": "Combinar Hacia Abajo",
+        "flatten": "Aplanar a Mapa de Bits"
+      },
+      "frame": {
+        "title": "Opciones de Fotograma",
+        "frame_operations": "Operaciones de Fotograma",
+        "keyframe_operations": "Operaciones de Fotograma Clave",
+        "tween_operations": "Operaciones de Interpolación",
+        "clipboard": "Portapapeles",
+        "advanced": "Avanzado",
+        "insert": "Insertar Fotograma (F5)",
+        "remove": "Eliminar Fotograma (Shift+F5)",
+        "clear_keyframe": "Borrar Fotograma Clave (Shift+F6)",
+        "insert_keyframe": "Insertar Fotograma Clave (F6)",
+        "insert_blank": "Insertar Fotograma Clave Vacío (F7)",
+        "motion_tween": "Crear Interpolación de Movimiento",
+        "shape_tween": "Crear Interpolación de Forma",
+        "classic_tween": "Crear Interpolación Clásica",
+        "copy": "Copiar Fotogramas",
+        "paste": "Pegar Fotogramas",
+        "clear": "Limpiar Fotogramas",
+        "label": "Insertar Etiqueta de Fotograma...",
+        "easing": "Editar Aceleración...",
+        "actions": "Ver Acciones de Fotograma...",
+        "select_all": "Seleccionar Todos los Fotogramas",
+        "reverse": "Invertir Fotogramas",
+        "synchronize": "Sincronizar Símbolos"
+      }
+    },
+    "tooltips": {
+      "playhead": "Haga clic y arrastre para mover el cabezal",
+      "frame_empty": "Fotograma vacío",
+      "frame_keyframe": "Fotograma clave - Contiene contenido nuevo",
+      "frame_tween": "Fotograma interpolado - Animación interpolada",
+      "layer_locked": "Capa bloqueada - No se puede editar",
+      "layer_hidden": "Capa oculta",
+      "layer_outline": "Modo contorno activo"
+    }
+  }
+}

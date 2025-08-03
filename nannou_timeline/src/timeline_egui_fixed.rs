@@ -73,6 +73,7 @@ impl KeyframeSelection {
 pub struct Timeline {
     pub config: TimelineConfig,
     pub state: TimelineState,
+    pub i18n: I18n,
 }
 
 /// Persistent state for the timeline
@@ -123,6 +124,8 @@ pub struct LayerPanelState {
     pub expanded_folders: Vec<String>,
     /// Layer being dragged for reordering
     pub dragging_layer: Option<(LayerId, f32)>,
+    /// Layer being renamed (layer_id, new_name)
+    pub renaming_layer: Option<(LayerId, String)>,
 }
 
 impl Default for TimelineState {
@@ -153,6 +156,7 @@ impl Timeline {
         Self {
             config: TimelineConfig::default(),
             state: TimelineState::default(),
+            i18n: I18n::new("en"),
         }
     }
 
@@ -161,7 +165,13 @@ impl Timeline {
         Self {
             config,
             state: TimelineState::default(),
+            i18n: I18n::new("en"),
         }
+    }
+    
+    /// Get localized tooltip text
+    fn get_tooltip(&self, key: &str) -> String {
+        self.i18n.get(key)
     }
 
     /// Show the timeline UI
@@ -256,19 +266,19 @@ impl Timeline {
                 ui.add_space(5.0);
                 
                 // Frame navigation buttons
-                if ui.button("⏮").on_hover_text("First Frame (Home)").clicked() {
+                if ui.button("⏮").on_hover_text(self.get_tooltip("timeline.toolbar.first_frame")).clicked() {
                     self.go_to_first_frame(ui.ctx());
                 }
                 
-                if ui.button("◀").on_hover_text("Previous Frame (,)").clicked() {
+                if ui.button("◀").on_hover_text(self.get_tooltip("timeline.toolbar.previous_frame")).clicked() {
                     self.go_to_previous_frame(ui.ctx());
                 }
                 
-                if ui.button("▶").on_hover_text("Next Frame (.)").clicked() {
+                if ui.button("▶").on_hover_text(self.get_tooltip("timeline.toolbar.next_frame")).clicked() {
                     self.go_to_next_frame(ui.ctx());
                 }
                 
-                if ui.button("⏭").on_hover_text("Last Frame (End)").clicked() {
+                if ui.button("⏭").on_hover_text(self.get_tooltip("timeline.toolbar.last_frame")).clicked() {
                     self.go_to_last_frame(ui.ctx());
                 }
                 
@@ -277,7 +287,7 @@ impl Timeline {
                 // Onion skinning toggle
                 let onion_label = if self.state.onion_skinning { "🧅 On" } else { "🧅 Off" };
                 if ui.selectable_label(self.state.onion_skinning, onion_label)
-                    .on_hover_text("Toggle Onion Skinning")
+                    .on_hover_text(self.get_tooltip("timeline.toolbar.onion_skinning"))
                     .clicked() 
                 {
                     self.state.onion_skinning = !self.state.onion_skinning;
@@ -288,7 +298,7 @@ impl Timeline {
                 // Loop toggle
                 let loop_label = if self.state.loop_playback { "🔁" } else { "➡️" };
                 if ui.selectable_label(self.state.loop_playback, loop_label)
-                    .on_hover_text("Toggle Loop Playback")
+                    .on_hover_text(self.get_tooltip("timeline.toolbar.loop_playback"))
                     .clicked() 
                 {
                     self.state.loop_playback = !self.state.loop_playback;
@@ -297,19 +307,19 @@ impl Timeline {
                 ui.separator();
                 
                 // Center frame button
-                if ui.button("⊡").on_hover_text("Center Playhead").clicked() {
+                if ui.button("⊡").on_hover_text(self.get_tooltip("timeline.toolbar.center_playhead")).clicked() {
                     self.center_playhead();
                 }
                 
                 ui.separator();
                 
                 // Edit multiple frames toggle
-                if ui.button("📑").on_hover_text("Edit Multiple Frames").clicked() {
+                if ui.button("📑").on_hover_text(self.get_tooltip("timeline.toolbar.edit_multiple_frames")).clicked() {
                     println!("Edit multiple frames mode");
                 }
                 
                 // Frame-based selection toggle  
-                if ui.button("⬚").on_hover_text("Frame-based Selection").clicked() {
+                if ui.button("⬚").on_hover_text(self.get_tooltip("timeline.toolbar.frame_selection")).clicked() {
                     println!("Frame-based selection mode");
                 }
             });
@@ -317,7 +327,7 @@ impl Timeline {
     }
 
     /// Draw the enhanced Flash-style layer panel
-    fn draw_enhanced_layer_panel(&mut self, ui: &mut Ui, rect: Rect, engine: &Box<dyn RiveEngine>) {
+    fn draw_enhanced_layer_panel(&mut self, ui: &mut Ui, rect: Rect, engine: &mut Box<dyn RiveEngine>) {
         ui.scope_builder(UiBuilder::new().max_rect(rect), |ui| {
             // Background
             ui.painter().rect_filled(rect, 0.0, Color32::from_gray(45));
@@ -349,7 +359,7 @@ impl Timeline {
                         let layers = engine.get_layers();
                         
                         for (idx, layer) in layers.iter().enumerate() {
-                            let layer_height = self.state.track_heights
+                            let _layer_height = self.state.track_heights
                                 .get(&layer.id)
                                 .copied()
                                 .unwrap_or(self.config.default_track_height);
@@ -377,25 +387,31 @@ impl Timeline {
                                 }
                                 
                                 // Layer type icon
-                                let type_icon = match layer.layer_type {
-                                    crate::LayerType::Animation => "🎬",
-                                    crate::LayerType::Audio => "🔊", 
-                                    crate::LayerType::Folder => "📁",
-                                    crate::LayerType::Mask => "🎭",
-                                    crate::LayerType::Guide => "📐",
+                                let (type_icon, type_tooltip) = match layer.layer_type {
+                                    crate::LayerType::Normal => ("🎬", "timeline.layer.type_normal"),
+                                    crate::LayerType::Audio => ("🔊", "timeline.layer.type_audio"), 
+                                    crate::LayerType::Folder => ("📁", "timeline.layer.type_folder"),
+                                    crate::LayerType::Mask => ("🎭", "timeline.layer.type_mask"),
+                                    crate::LayerType::Guide => ("📐", "timeline.layer.type_guide"),
                                 };
-                                ui.label(type_icon);
+                                ui.label(type_icon).on_hover_text(self.i18n.get(type_tooltip));
                                 
                                 // Eye icon (visibility)
                                 let eye_icon = if is_visible { "👁" } else { "⚫" };
-                                if ui.selectable_label(false, eye_icon).clicked() {
+                                if ui.selectable_label(false, eye_icon)
+                                    .on_hover_text(self.i18n.get("timeline.layer.visibility_tooltip"))
+                                    .clicked() 
+                                {
                                     self.state.layer_panel_state.layer_visibility
                                         .insert(layer.id.clone(), !is_visible);
                                 }
                                 
                                 // Lock icon
                                 let lock_icon = if is_locked { "🔒" } else { "🔓" };
-                                if ui.selectable_label(false, lock_icon).clicked() {
+                                if ui.selectable_label(false, lock_icon)
+                                    .on_hover_text(self.i18n.get("timeline.layer.lock_tooltip"))
+                                    .clicked() 
+                                {
                                     self.state.layer_panel_state.layer_locked
                                         .insert(layer.id.clone(), !is_locked);
                                 }
@@ -403,26 +419,67 @@ impl Timeline {
                                 // Outline icon
                                 let outline_icon = if is_outline { "⬚" } else { "⬛" };
                                 if ui.selectable_label(false, outline_icon)
-                                    .on_hover_text("Outline Mode")
+                                    .on_hover_text(self.get_tooltip("timeline.layer.outline_mode"))
                                     .clicked() 
                                 {
                                     self.state.layer_panel_state.layer_outline
                                         .insert(layer.id.clone(), !is_outline);
                                 }
                                 
-                                // Layer name (selectable)
-                                if ui.selectable_label(is_selected, &layer.name).clicked() {
-                                    if ui.input(|i| i.modifiers.ctrl || i.modifiers.command) {
-                                        // Multi-select with Ctrl/Cmd
-                                        if is_selected {
-                                            self.state.selected_layers.retain(|id| id != &layer.id);
-                                        } else {
-                                            self.state.selected_layers.push(layer.id.clone());
+                                // Layer name (selectable or editable if renaming)
+                                if let Some((renaming_id, ref mut new_name)) = &mut self.state.layer_panel_state.renaming_layer {
+                                    if renaming_id == &layer.id {
+                                        // Show text edit for renaming
+                                        let response = ui.text_edit_singleline(new_name);
+                                        
+                                        // Handle Enter to confirm or Escape to cancel
+                                        if response.lost_focus() {
+                                            if ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                                                // Apply the rename through the engine
+                                                engine.rename_layer(layer.id.clone(), new_name.clone());
+                                                self.state.layer_panel_state.renaming_layer = None;
+                                            } else if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+                                                // Cancel rename
+                                                self.state.layer_panel_state.renaming_layer = None;
+                                            }
+                                        }
+                                        
+                                        // Auto-focus the text edit
+                                        if response.gained_focus() || !response.has_focus() {
+                                            response.request_focus();
                                         }
                                     } else {
-                                        // Single select
-                                        self.state.selected_layers.clear();
-                                        self.state.selected_layers.push(layer.id.clone());
+                                        // Show normal label for other layers
+                                        if ui.selectable_label(is_selected, &layer.name).clicked() {
+                                            if ui.input(|i| i.modifiers.ctrl || i.modifiers.command) {
+                                                // Multi-select with Ctrl/Cmd
+                                                if is_selected {
+                                                    self.state.selected_layers.retain(|id| id != &layer.id);
+                                                } else {
+                                                    self.state.selected_layers.push(layer.id.clone());
+                                                }
+                                            } else {
+                                                // Single select
+                                                self.state.selected_layers.clear();
+                                                self.state.selected_layers.push(layer.id.clone());
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    // Normal label when not renaming
+                                    if ui.selectable_label(is_selected, &layer.name).clicked() {
+                                        if ui.input(|i| i.modifiers.ctrl || i.modifiers.command) {
+                                            // Multi-select with Ctrl/Cmd
+                                            if is_selected {
+                                                self.state.selected_layers.retain(|id| id != &layer.id);
+                                            } else {
+                                                self.state.selected_layers.push(layer.id.clone());
+                                            }
+                                        } else {
+                                            // Single select
+                                            self.state.selected_layers.clear();
+                                            self.state.selected_layers.push(layer.id.clone());
+                                        }
                                     }
                                 }
                                 
@@ -450,13 +507,13 @@ impl Timeline {
                     ui.add_space(5.0);
                     
                     // Add layer
-                    if ui.button("➕").on_hover_text("New Layer").clicked() {
+                    if ui.button("➕").on_hover_text(self.get_tooltip("timeline.layer.new_layer")).clicked() {
                         println!("Add new layer");
                         // TODO: Add layer to engine
                     }
                     
                     // Add folder
-                    if ui.button("📁").on_hover_text("New Folder").clicked() {
+                    if ui.button("📁").on_hover_text(self.get_tooltip("timeline.layer.new_folder")).clicked() {
                         println!("Add new folder");
                         // TODO: Add folder
                     }
@@ -464,7 +521,7 @@ impl Timeline {
                     // Delete layer
                     let can_delete = !self.state.selected_layers.is_empty();
                     if ui.add_enabled(can_delete, Button::new("🗑"))
-                        .on_hover_text("Delete Layer")
+                        .on_hover_text(self.get_tooltip("timeline.layer.delete_layer"))
                         .clicked() 
                     {
                         println!("Delete selected layers");
@@ -473,7 +530,7 @@ impl Timeline {
                     
                     // Duplicate layer
                     if ui.add_enabled(can_delete, Button::new("📋"))
-                        .on_hover_text("Duplicate Layer")
+                        .on_hover_text(self.get_tooltip("timeline.layer.duplicate_layer"))
                         .clicked() 
                     {
                         println!("Duplicate selected layers");
@@ -483,7 +540,7 @@ impl Timeline {
                     ui.separator();
                     
                     // Show/hide all layers
-                    if ui.button("👁").on_hover_text("Show/Hide All Layers").clicked() {
+                    if ui.button("👁").on_hover_text(self.get_tooltip("timeline.layer.toggle_visibility_all")).clicked() {
                         let all_visible = engine.get_layers().iter()
                             .all(|l| *self.state.layer_panel_state.layer_visibility.get(&l.id).unwrap_or(&true));
                         
@@ -494,7 +551,7 @@ impl Timeline {
                     }
                     
                     // Lock/unlock all layers
-                    if ui.button("🔒").on_hover_text("Lock/Unlock All Layers").clicked() {
+                    if ui.button("🔒").on_hover_text(self.get_tooltip("timeline.layer.toggle_lock_all")).clicked() {
                         let all_locked = engine.get_layers().iter()
                             .all(|l| *self.state.layer_panel_state.layer_locked.get(&l.id).unwrap_or(&false));
                         
@@ -618,10 +675,16 @@ impl Timeline {
                                         vec2(frame_width - 1.0, layer_height - 1.0),
                                     );
                                     
+                                    // Interactive frame area
+                                    let frame_response = ui.interact(frame_rect, ui.id().with(("frame", layer.id.clone(), frame)), Sense::hover());
+                                    
                                     // Draw frame based on type
                                     match frame_data.frame_type {
                                         crate::frame::FrameType::Empty => {
                                             // Empty frames - no fill
+                                            if frame_response.hovered() {
+                                                frame_response.on_hover_text(self.i18n.get("timeline.tooltips.frame_empty"));
+                                            }
                                         }
                                         crate::frame::FrameType::Keyframe => {
                                             // Keyframe
@@ -635,11 +698,13 @@ impl Timeline {
                                             let is_selected = self.state.keyframe_selection.is_selected(layer.id.clone(), frame);
                                             
                                             if is_selected {
-                                                ui.painter().rect_stroke(
-                                                    frame_rect.expand(1.0),
-                                                    2.0,
-                                                    Stroke::new(2.0, Color32::from_rgb(100, 150, 255)),
-                                                );
+                                                // Draw selection border with line segments (egui 0.32 workaround)
+                                                let selection_rect = frame_rect.expand(1.0);
+                                                let selection_stroke = Stroke::new(2.0, Color32::from_rgb(100, 150, 255));
+                                                ui.painter().line_segment([selection_rect.left_top(), selection_rect.right_top()], selection_stroke);
+                                                ui.painter().line_segment([selection_rect.right_top(), selection_rect.right_bottom()], selection_stroke);
+                                                ui.painter().line_segment([selection_rect.right_bottom(), selection_rect.left_bottom()], selection_stroke);
+                                                ui.painter().line_segment([selection_rect.left_bottom(), selection_rect.left_top()], selection_stroke);
                                             }
                                             
                                             ui.painter().circle_filled(
@@ -651,6 +716,10 @@ impl Timeline {
                                                     self.config.style.text_color
                                                 },
                                             );
+                                            
+                                            if frame_response.hovered() {
+                                                frame_response.on_hover_text(self.i18n.get("timeline.tooltips.frame_keyframe"));
+                                            }
                                         }
                                         crate::frame::FrameType::Tween => {
                                             // Tween frame
@@ -668,6 +737,10 @@ impl Timeline {
                                                 arrow_end - arrow_start,
                                                 Stroke::new(1.0, self.config.style.text_color),
                                             );
+                                            
+                                            if frame_response.hovered() {
+                                                frame_response.on_hover_text(self.i18n.get("timeline.tooltips.frame_tween"));
+                                            }
                                         }
                                     }
                                 }
@@ -714,14 +787,14 @@ impl Timeline {
                 ui.add_space(10.0);
                 
                 // Playback controls
-                if ui.button("⏹").on_hover_text("Stop").clicked() {
+                if ui.button("⏹").on_hover_text(self.get_tooltip("timeline.controls.stop")).clicked() {
                     self.state.is_playing = false;
                     self.state.playhead_frame = 0;
                     engine.seek(0);
                 }
                 
                 let play_text = if self.state.is_playing { "⏸" } else { "▶" };
-                if ui.button(play_text).on_hover_text("Play/Pause (Space)").clicked() {
+                if ui.button(play_text).on_hover_text(self.get_tooltip("timeline.controls.play_pause")).clicked() {
                     self.state.is_playing = !self.state.is_playing;
                     if self.state.is_playing {
                         engine.play();
@@ -739,13 +812,14 @@ impl Timeline {
                     TextEdit::singleline(&mut frame_text)
                         .desired_width(50.0)
                         .horizontal_align(Align::Center)
-                );
+                ).on_hover_text("Enter frame number to jump to");
                 if response.changed() {
                     if let Ok(frame) = frame_text.parse::<u32>() {
                         engine.seek(frame.min(engine.get_total_frames() - 1));
                     }
                 }
-                ui.label(format!("/ {}", engine.get_total_frames()));
+                ui.label(format!("/ {}", engine.get_total_frames()))
+                    .on_hover_text("Total frames in timeline");
                 
                 ui.separator();
                 
@@ -794,7 +868,7 @@ impl Timeline {
                 ui.add(
                     Slider::new(&mut self.state.zoom_level, 0.1..=5.0)
                         .show_value(false)
-                        .clamp_to_range(true)
+                        .clamping(egui::SliderClamping::Always)
                 );
                 
                 ui.separator();
@@ -1087,7 +1161,10 @@ impl Timeline {
                                 ui.separator();
                                 
                                 if ui.button("✏️ Rename Layer...").clicked() {
-                                    println!("Rename layer {:?}", layer_id);
+                                    // Start renaming - find the layer name
+                                    if let Some(layer) = engine.get_layers().iter().find(|l| &l.id == layer_id) {
+                                        self.state.layer_panel_state.renaming_layer = Some((layer_id.clone(), layer.name.clone()));
+                                    }
                                     close_menu = true;
                                 }
                                 
@@ -1283,29 +1360,29 @@ impl Timeline {
     }
     
     // Navigation helpers
-    fn go_to_first_frame(&mut self, ctx: &Context) {
+    fn go_to_first_frame(&mut self, _ctx: &Context) {
         // Will be implemented with engine
         println!("Go to first frame");
     }
     
-    fn go_to_previous_frame(&mut self, ctx: &Context) {
+    fn go_to_previous_frame(&mut self, _ctx: &Context) {
         // Will be implemented with engine
         println!("Go to previous frame");
     }
     
-    fn go_to_next_frame(&mut self, ctx: &Context) {
+    fn go_to_next_frame(&mut self, _ctx: &Context) {
         // Will be implemented with engine
         println!("Go to next frame");
     }
     
-    fn go_to_last_frame(&mut self, ctx: &Context) {
+    fn go_to_last_frame(&mut self, _ctx: &Context) {
         // Will be implemented with engine
         println!("Go to last frame");
     }
     
     fn center_playhead(&mut self) {
         // Center the playhead in the visible area
-        let frame_width = self.config.frame_width * self.state.zoom_level;
+        let _frame_width = self.config.frame_width * self.state.zoom_level;
         // This would need the visible width from the UI
         println!("Center playhead");
     }
@@ -1326,4 +1403,34 @@ pub enum ContextMenuType {
 }
 
 // Re-export the original implementation's audio waveform and other methods
-use crate::timeline_egui::Timeline as OriginalTimeline;
+// use crate::timeline_egui::Timeline as OriginalTimeline; // Unused import
+
+/// Internationalization support for timeline UI
+#[derive(Clone, Debug)]
+pub struct I18n {
+    language: String,
+    translations: HashMap<String, String>,
+}
+
+impl I18n {
+    /// Create new i18n instance with specified language
+    pub fn new(language: &str) -> Self {
+        Self {
+            language: language.to_string(),
+            translations: crate::i18n::load_translations(language),
+        }
+    }
+    
+    /// Get translated string for key
+    pub fn get(&self, key: &str) -> String {
+        self.translations.get(key)
+            .cloned()
+            .unwrap_or_else(|| key.to_string())
+    }
+    
+    /// Change language at runtime
+    pub fn set_language(&mut self, language: &str) {
+        self.language = language.to_string();
+        self.translations = crate::i18n::load_translations(language);
+    }
+}

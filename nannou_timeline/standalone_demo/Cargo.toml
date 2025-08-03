@@ -8,5 +8,6 @@ nannou_timeline = { path = ".." }
 eframe = "0.32"
 egui = "0.32"
 chrono = "0.4"
+dirs = "5.0"
 
 [workspace]

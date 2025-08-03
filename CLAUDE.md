@@ -32,6 +32,9 @@ cargo doc --no-deps
 ### Workspace Structure
 - **nannou_conrod**: Core GUI integration between conrod and nannou
 - **nannou_timeline**: Timeline widget for temporal data visualization/control
+  - Enhanced Flash CS6/Animate-style timeline implementation in `timeline_egui_fixed.rs`
+  - Internationalization (i18n) support with JSON language files
+  - Context menus, tooltips, and professional UI polish
 - **examples**: Demo applications showing usage patterns
 
 ### Key Components
@@ -49,6 +52,40 @@ The timeline crate provides:
 - Multiple track types (piano roll, toggle, bang, numeric automation)
 - Musical time structures (bars, beats)
 - Envelope-based automation curves
+
+#### Enhanced Flash-Style Timeline (`timeline_egui_fixed.rs`)
+The enhanced timeline implementation provides:
+- **Complete Flash CS6/Animate IDE interface**: Layers panel, timeline grid, playback controls
+- **Internationalization (i18n)**: Full multi-language support (English, Spanish, Japanese, Chinese)
+- **Context Menus**: Right-click menus for layers and frames with appropriate actions
+- **Tooltips**: Hover tooltips on all interactive elements
+- **Professional UI Polish**: Proper visual feedback, keyboard shortcuts, and user experience
+- **Interactive Stage/Canvas**: Full stage manipulation with drag-and-drop items
+
+To run the enhanced timeline demo:
+```bash
+cd nannou_timeline/standalone_demo
+cargo run
+```
+
+Key features:
+- **Stage Interaction**:
+  - Pre-populated stage items (rectangles, circles, text, movieclips)
+  - Click to select items, drag to move them around
+  - Right-click on stage for context menu to add new items
+  - Right-click on items for options: rename, duplicate, bring to front/back, rotate, delete
+  - Visual selection highlighting
+  - Hover tooltips showing item names
+- **Timeline Features**:
+  - Hover over any UI element to see helpful tooltips
+  - Right-click on layers or frames for context-sensitive menus
+  - Switch languages in real-time via the language selector
+  - Full Flash-style keyboard shortcuts (F5, F6, etc.)
+- **Developer Console** (F12):
+  - Real-time activity logging
+  - Language switching support
+  - Auto-scroll capability
+  - Tracks all user interactions
 
 ### Important Design Patterns
 

@@ -154,6 +154,14 @@ impl crate::RiveEngine for MockRiveEngine {
             _ => false,
         }
     }
+    
+    fn rename_layer(&mut self, layer_id: crate::LayerId, new_name: String) {
+        println!("MockRiveEngine: Renaming layer {:?} to '{}'", layer_id, new_name);
+        // Find and rename the layer
+        if let Some(layer) = self.layers.iter_mut().find(|l| l.id == layer_id) {
+            layer.name = new_name;
+        }
+    }
 }
 
 /// Mock audio engine for testing and demo

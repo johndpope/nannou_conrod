@@ -1,0 +1,96 @@
+{
+  "timeline": {
+    "toolbar": {
+      "first_frame": "First Frame (Home)",
+      "previous_frame": "Previous Frame (,)",
+      "next_frame": "Next Frame (.)",
+      "last_frame": "Last Frame (End)",
+      "onion_skinning": "Toggle Onion Skinning",
+      "loop_playback": "Toggle Loop Playback",
+      "center_playhead": "Center Playhead",
+      "edit_multiple_frames": "Edit Multiple Frames",
+      "frame_selection": "Frame-based Selection"
+    },
+    "layer": {
+      "outline_mode": "Outline Mode - Show only object outlines",
+      "new_layer": "New Layer",
+      "new_folder": "New Folder",
+      "delete_layer": "Delete Selected Layer(s)",
+      "duplicate_layer": "Duplicate Selected Layer(s)",
+      "toggle_visibility_all": "Show/Hide All Layers",
+      "toggle_lock_all": "Lock/Unlock All Layers",
+      "visibility_tooltip": "Toggle layer visibility",
+      "lock_tooltip": "Toggle layer lock",
+      "type_normal": "Normal Layer",
+      "type_audio": "Audio Layer",
+      "type_folder": "Folder Layer",
+      "type_mask": "Mask Layer",
+      "type_guide": "Guide Layer"
+    },
+    "controls": {
+      "stop": "Stop - Return to frame 0",
+      "play_pause": "Play/Pause (Space)",
+      "fps_selector": "Frames Per Second",
+      "zoom_in": "Zoom In",
+      "zoom_out": "Zoom Out",
+      "zoom_level": "Zoom Level",
+      "snap_settings": "Snap Settings",
+      "snap_to_frames": "Snap to frames",
+      "snap_to_keyframes": "Snap to keyframes",
+      "snap_to_markers": "Snap to markers",
+      "show_guides": "Show guides",
+      "snap_distance": "Snap distance"
+    },
+    "menu": {
+      "layer": {
+        "title": "Layer Options",
+        "insert_above": "Insert Layer Above",
+        "insert_below": "Insert Layer Below",
+        "duplicate": "Duplicate Layer",
+        "delete": "Delete Layer",
+        "rename": "Rename Layer...",
+        "properties": "Layer Properties...",
+        "convert_mask": "Convert to Mask",
+        "convert_guide": "Convert to Guide",
+        "show_hide_others": "Show/Hide Others",
+        "lock_others": "Lock Others",
+        "merge_down": "Merge Down",
+        "flatten": "Flatten to Bitmap"
+      },
+      "frame": {
+        "title": "Frame Options",
+        "frame_operations": "Frame Operations",
+        "keyframe_operations": "Keyframe Operations",
+        "tween_operations": "Tween Operations",
+        "clipboard": "Clipboard",
+        "advanced": "Advanced",
+        "insert": "Insert Frame (F5)",
+        "remove": "Remove Frame (Shift+F5)",
+        "clear_keyframe": "Clear Keyframe (Shift+F6)",
+        "insert_keyframe": "Insert Keyframe (F6)",
+        "insert_blank": "Insert Blank Keyframe (F7)",
+        "motion_tween": "Create Motion Tween",
+        "shape_tween": "Create Shape Tween",
+        "classic_tween": "Create Classic Tween",
+        "copy": "Copy Frames",
+        "paste": "Paste Frames",
+        "clear": "Clear Frames",
+        "label": "Insert Frame Label...",
+        "easing": "Edit Easing...",
+        "actions": "View Frame Actions...",
+        "select_all": "Select All Frames",
+        "reverse": "Reverse Frames",
+        "synchronize": "Synchronize Symbols"
+      }
+    },
+    "tooltips": {
+      "playhead": "Click and drag to move playhead",
+      "frame_empty": "Empty frame",
+      "frame_keyframe": "Keyframe - Contains new content",
+      "frame_tween": "Tween frame - Interpolated animation",
+      "layer_locked": "Layer is locked - Cannot be edited",
+      "layer_hidden": "Layer is hidden",
+      "layer_outline": "Outline mode active"
+    }
+  }
+}

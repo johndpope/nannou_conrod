@@ -1,0 +1,96 @@
+{
+  "timeline": {
+    "toolbar": {
+      "first_frame": "第一帧 (Home)",
+      "previous_frame": "上一帧 (,)",
+      "next_frame": "下一帧 (.)",
+      "last_frame": "最后一帧 (End)",
+      "onion_skinning": "切换洋葱皮",
+      "loop_playback": "切换循环播放",
+      "center_playhead": "居中播放头",
+      "edit_multiple_frames": "编辑多个帧",
+      "frame_selection": "基于帧的选择"
+    },
+    "layer": {
+      "outline_mode": "轮廓模式 - 仅显示对象轮廓",
+      "new_layer": "新建图层",
+      "new_folder": "新建文件夹",
+      "delete_layer": "删除选定的图层",
+      "duplicate_layer": "复制选定的图层",
+      "toggle_visibility_all": "显示/隐藏所有图层",
+      "toggle_lock_all": "锁定/解锁所有图层",
+      "visibility_tooltip": "切换图层可见性",
+      "lock_tooltip": "切换图层锁定",
+      "type_normal": "普通图层",
+      "type_audio": "音频图层",
+      "type_folder": "文件夹图层",
+      "type_mask": "遮罩图层",
+      "type_guide": "参考线图层"
+    },
+    "controls": {
+      "stop": "停止 - 返回到第0帧",
+      "play_pause": "播放/暂停 (空格)",
+      "fps_selector": "每秒帧数",
+      "zoom_in": "放大",
+      "zoom_out": "缩小",
+      "zoom_level": "缩放级别",
+      "snap_settings": "吸附设置",
+      "snap_to_frames": "吸附到帧",
+      "snap_to_keyframes": "吸附到关键帧",
+      "snap_to_markers": "吸附到标记",
+      "show_guides": "显示参考线",
+      "snap_distance": "吸附距离"
+    },
+    "menu": {
+      "layer": {
+        "title": "图层选项",
+        "insert_above": "在上方插入图层",
+        "insert_below": "在下方插入图层",
+        "duplicate": "复制图层",
+        "delete": "删除图层",
+        "rename": "重命名图层...",
+        "properties": "图层属性...",
+        "convert_mask": "转换为遮罩",
+        "convert_guide": "转换为参考线",
+        "show_hide_others": "显示/隐藏其他",
+        "lock_others": "锁定其他",
+        "merge_down": "向下合并",
+        "flatten": "拼合为位图"
+      },
+      "frame": {
+        "title": "帧选项",
+        "frame_operations": "帧操作",
+        "keyframe_operations": "关键帧操作",
+        "tween_operations": "补间操作",
+        "clipboard": "剪贴板",
+        "advanced": "高级",
+        "insert": "插入帧 (F5)",
+        "remove": "删除帧 (Shift+F5)",
+        "clear_keyframe": "清除关键帧 (Shift+F6)",
+        "insert_keyframe": "插入关键帧 (F6)",
+        "insert_blank": "插入空白关键帧 (F7)",
+        "motion_tween": "创建动画补间",
+        "shape_tween": "创建形状补间",
+        "classic_tween": "创建传统补间",
+        "copy": "复制帧",
+        "paste": "粘贴帧",
+        "clear": "清除帧",
+        "label": "插入帧标签...",
+        "easing": "编辑缓动...",
+        "actions": "查看帧动作...",
+        "select_all": "选择所有帧",
+        "reverse": "反转帧",
+        "synchronize": "同步元件"
+      }
+    },
+    "tooltips": {
+      "playhead": "点击并拖动以移动播放头",
+      "frame_empty": "空帧",
+      "frame_keyframe": "关键帧 - 包含新内容",
+      "frame_tween": "补间帧 - 插值动画",
+      "layer_locked": "图层已锁定 - 无法编辑",
+      "layer_hidden": "图层已隐藏",
+      "layer_outline": "轮廓模式已激活"
+    }
+  }
+}

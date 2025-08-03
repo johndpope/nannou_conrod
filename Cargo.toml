@@ -1,6 +1,5 @@
 [workspace]
 members = [
-    "nannou_conrod",
     "nannou_timeline",
 ]
 

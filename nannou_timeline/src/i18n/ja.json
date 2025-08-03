@@ -1,0 +1,96 @@
+{
+  "timeline": {
+    "toolbar": {
+      "first_frame": "最初のフレーム (Home)",
+      "previous_frame": "前のフレーム (,)",
+      "next_frame": "次のフレーム (.)",
+      "last_frame": "最後のフレーム (End)",
+      "onion_skinning": "オニオンスキンの切り替え",
+      "loop_playback": "ループ再生の切り替え",
+      "center_playhead": "再生ヘッドを中央に",
+      "edit_multiple_frames": "複数フレームの編集",
+      "frame_selection": "フレームベースの選択"
+    },
+    "layer": {
+      "outline_mode": "アウトラインモード - オブジェクトの輪郭のみ表示",
+      "new_layer": "新規レイヤー",
+      "new_folder": "新規フォルダー",
+      "delete_layer": "選択したレイヤーを削除",
+      "duplicate_layer": "選択したレイヤーを複製",
+      "toggle_visibility_all": "すべてのレイヤーの表示/非表示",
+      "toggle_lock_all": "すべてのレイヤーのロック/ロック解除",
+      "visibility_tooltip": "レイヤーの表示を切り替え",
+      "lock_tooltip": "レイヤーのロックを切り替え",
+      "type_normal": "通常レイヤー",
+      "type_audio": "オーディオレイヤー",
+      "type_folder": "フォルダーレイヤー",
+      "type_mask": "マスクレイヤー",
+      "type_guide": "ガイドレイヤー"
+    },
+    "controls": {
+      "stop": "停止 - フレーム0に戻る",
+      "play_pause": "再生/一時停止 (スペース)",
+      "fps_selector": "フレームレート",
+      "zoom_in": "ズームイン",
+      "zoom_out": "ズームアウト",
+      "zoom_level": "ズームレベル",
+      "snap_settings": "スナップ設定",
+      "snap_to_frames": "フレームにスナップ",
+      "snap_to_keyframes": "キーフレームにスナップ",
+      "snap_to_markers": "マーカーにスナップ",
+      "show_guides": "ガイドを表示",
+      "snap_distance": "スナップ距離"
+    },
+    "menu": {
+      "layer": {
+        "title": "レイヤーオプション",
+        "insert_above": "上にレイヤーを挿入",
+        "insert_below": "下にレイヤーを挿入",
+        "duplicate": "レイヤーを複製",
+        "delete": "レイヤーを削除",
+        "rename": "レイヤー名を変更...",
+        "properties": "レイヤープロパティ...",
+        "convert_mask": "マスクに変換",
+        "convert_guide": "ガイドに変換",
+        "show_hide_others": "他を表示/非表示",
+        "lock_others": "他をロック",
+        "merge_down": "下と結合",
+        "flatten": "ビットマップに統合"
+      },
+      "frame": {
+        "title": "フレームオプション",
+        "frame_operations": "フレーム操作",
+        "keyframe_operations": "キーフレーム操作",
+        "tween_operations": "トゥイーン操作",
+        "clipboard": "クリップボード",
+        "advanced": "詳細",
+        "insert": "フレームを挿入 (F5)",
+        "remove": "フレームを削除 (Shift+F5)",
+        "clear_keyframe": "キーフレームをクリア (Shift+F6)",
+        "insert_keyframe": "キーフレームを挿入 (F6)",
+        "insert_blank": "空白キーフレームを挿入 (F7)",
+        "motion_tween": "モーショントゥイーンを作成",
+        "shape_tween": "シェイプトゥイーンを作成",
+        "classic_tween": "クラシックトゥイーンを作成",
+        "copy": "フレームをコピー",
+        "paste": "フレームをペースト",
+        "clear": "フレームをクリア",
+        "label": "フレームラベルを挿入...",
+        "easing": "イージングを編集...",
+        "actions": "フレームアクションを表示...",
+        "select_all": "すべてのフレームを選択",
+        "reverse": "フレームを反転",
+        "synchronize": "シンボルを同期"
+      }
+    },
+    "tooltips": {
+      "playhead": "クリックしてドラッグで再生ヘッドを移動",
+      "frame_empty": "空のフレーム",
+      "frame_keyframe": "キーフレーム - 新しいコンテンツを含む",
+      "frame_tween": "トゥイーンフレーム - 補間アニメーション",
+      "layer_locked": "レイヤーはロックされています - 編集できません",
+      "layer_hidden": "レイヤーは非表示です",
+      "layer_outline": "アウトラインモードが有効です"
+    }
+  }
+}
