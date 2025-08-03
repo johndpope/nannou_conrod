@@ -10,4 +10,12 @@ egui = "0.32"
 chrono = "0.4"
 dirs = "5.0"
 
+[[bin]]
+name = "timeline-demo"
+path = "src/main.rs"
+
+[[bin]]
+name = "timeline-demo-dock"
+path = "src/main_dock.rs"
+
 [workspace]

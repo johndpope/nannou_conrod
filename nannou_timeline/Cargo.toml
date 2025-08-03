@@ -12,6 +12,7 @@ edition = "2021"
 
 [dependencies]
 egui = "0.32"
+egui_dock = "0.17"
 envelope = "0.8"
 itertools = "0.10"
 num = "0.4"
