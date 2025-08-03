@@ -10,7 +10,7 @@ impl TimelineApp {
     pub fn draw_resize_handles(&self, ui: &mut egui::Ui, rect: Rect) -> Option<ResizeHandle> {
         let handle_size = 8.0;
         let handle_color = Color32::from_rgb(100, 150, 255);
-        let handle_stroke = Stroke::new(1.0, Color32::WHITE);
+        let _handle_stroke = Stroke::new(1.0, Color32::WHITE);
         
         let handles = [
             (ResizeHandle::TopLeft, rect.left_top()),

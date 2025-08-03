@@ -27,9 +27,9 @@ mod script_templates;
 mod drawing;
 mod widgets;
 
-use stage::{StageItem, StageItemType, ResizeHandle, MarqueeSelection, ContextMenuState, ContextMenuType};
+use stage::{StageItem, StageItemType, ResizeHandle, MarqueeSelection, ContextMenuState};
 use tools::{Tool, ToolState};
-use library::{LibraryTab, LibraryAsset, LibraryAssetType, AssetProperties, LibraryContextMenuState, LibraryContextTarget};
+use library::{LibraryTab, LibraryAsset, LibraryAssetType, AssetProperties, LibraryContextMenuState};
 use properties::PropertyTab;
 use logging::{LogMessage, LogLevel};
 
@@ -399,16 +399,16 @@ impl Default for TimelineApp {
             auto_scroll: true,
         };
         
-        app.log(LogLevel::Info, "Timeline dock application started");
-        app.log(LogLevel::Info, "🎮 Keyboard shortcuts:");
-        app.log(LogLevel::Info, "  • F12: Toggle debug console");
-        app.log(LogLevel::Info, "  • F2: Take screenshot");
-        app.log(LogLevel::Info, "  • F9: Toggle script editor");
-        app.log(LogLevel::Info, "  • F10: Toggle curve editor");
-        app.log(LogLevel::Info, "💡 Hover over timeline elements to see tooltips");
-        app.log(LogLevel::Info, "💡 Right-click on layers and frames for context menus");
-        app.log(LogLevel::Info, "💡 Click and drag stage items to move them");
-        app.log(LogLevel::Info, "💡 Right-click stage items for context menu");
+        app.log(LogLevel::Info, "Timeline dock application started".to_string());
+        app.log(LogLevel::Info, "🎮 Keyboard shortcuts:".to_string());
+        app.log(LogLevel::Info, "  • F12: Toggle debug console".to_string());
+        app.log(LogLevel::Info, "  • F2: Take screenshot".to_string());
+        app.log(LogLevel::Info, "  • F9: Toggle script editor".to_string());
+        app.log(LogLevel::Info, "  • F10: Toggle curve editor".to_string());
+        app.log(LogLevel::Info, "💡 Hover over timeline elements to see tooltips".to_string());
+        app.log(LogLevel::Info, "💡 Right-click on layers and frames for context menus".to_string());
+        app.log(LogLevel::Info, "💡 Click and drag stage items to move them".to_string());
+        app.log(LogLevel::Info, "💡 Right-click stage items for context menu".to_string());
         app
     }
 }
