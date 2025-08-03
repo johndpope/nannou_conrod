@@ -927,18 +927,18 @@ impl TimelineApp {
                         Ok(status) if status.success() => {
                             if let Ok(mut logs) = log_sender.lock() {
                                 logs.push((LogLevel::Info, format!("📸 Screenshot saved to: {}", filepath_str)));
+                                }
                             }
-                        }
                         Ok(_) => {
                             if let Ok(mut logs) = log_sender.lock() {
                                 logs.push((LogLevel::Info, "Screenshot cancelled".to_string()));
+                                }
                             }
-                        }
                         Err(e) => {
                             if let Ok(mut logs) = log_sender.lock() {
                                 logs.push((LogLevel::Action, format!("Screenshot error: {}", e)));
+                                }
                             }
-                        }
                     }
                 });
                 
@@ -996,25 +996,25 @@ impl TimelineApp {
                                 "ja" => "日本語",
                                 "zh" => "中文",
                                 _ => "English",
-                            })
+                                })
                             .show_ui(ui, |ui| {
                                 if ui.selectable_value(&mut self.selected_language, "en".to_string(), "English").clicked() {
                                     self.timeline.i18n.set_language("en");
                                     self.log(LogLevel::Info, "Language changed to English");
-                                }
+                                    }
                                 if ui.selectable_value(&mut self.selected_language, "es".to_string(), "Español").clicked() {
                                     self.timeline.i18n.set_language("es");
                                     self.log(LogLevel::Info, "Idioma cambiado a Español");
-                                }
+                                    }
                                 if ui.selectable_value(&mut self.selected_language, "ja".to_string(), "日本語").clicked() {
                                     self.timeline.i18n.set_language("ja");
                                     self.log(LogLevel::Info, "言語を日本語に変更しました");
-                                }
+                                    }
                                 if ui.selectable_value(&mut self.selected_language, "zh".to_string(), "中文").clicked() {
                                     self.timeline.i18n.set_language("zh");
                                     self.log(LogLevel::Info, "语言已更改为中文");
-                                }
-                            });
+                                    }
+                                });
                     });
                 });
             });
@@ -1036,13 +1036,13 @@ impl TimelineApp {
                                 LogLevel::Action => egui::Color32::from_rgb(100, 200, 100),
                                 LogLevel::Warning => egui::Color32::from_rgb(255, 200, 100),
                                 LogLevel::Error => egui::Color32::from_rgb(255, 100, 100),
-                            };
+                                };
                             
                             ui.horizontal(|ui| {
                                 ui.colored_label(egui::Color32::from_gray(120), &msg.timestamp);
                                 ui.colored_label(color, &msg.message);
-                            });
-                        }
+                                });
+                            }
                     });
             });
         });
@@ -1113,26 +1113,26 @@ impl TimelineApp {
                             if ui.selectable_label(false, "Loop Animation").clicked() {
                                 self.script_content = templates::LOOP_ANIMATION.to_string();
                                 self.log(LogLevel::Info, "Loaded loop animation template");
-                            }
+                                }
                             if ui.selectable_label(false, "Stop at Frame").clicked() {
                                 self.script_content = templates::STOP_AT_FRAME.to_string();
                                 self.log(LogLevel::Info, "Loaded stop at frame template");
-                            }
+                                }
                             if ui.selectable_label(false, "Animate Object").clicked() {
                                 self.script_content = templates::ANIMATE_OBJECT.to_string();
                                 self.log(LogLevel::Info, "Loaded animate object template");
-                            }
+                                }
                             if ui.selectable_label(false, "Create Object").clicked() {
                                 self.script_content = templates::CREATE_OBJECT.to_string();
                                 self.log(LogLevel::Info, "Loaded create object template");
-                            }
-                        });
+                                }
+                            });
                     
                     // Error indicator
                     if let Some(error) = &self.script_error {
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                             ui.colored_label(egui::Color32::RED, format!("❌ Error: {}", error));
-                        });
+                            });
                     }
                 });
             });
@@ -1159,29 +1159,29 @@ impl TimelineApp {
                                     job.append(line, 0.0, egui::TextFormat {
                                         color: egui::Color32::from_rgb(120, 200, 120),
                                         ..Default::default()
-                                    });
-                                } else if line.contains("timeline.") || line.contains("stage.") {
+                                        });
+                                    } else if line.contains("timeline.") || line.contains("stage.") {
                                     // API calls in blue
                                     job.append(line, 0.0, egui::TextFormat {
                                         color: egui::Color32::from_rgb(120, 160, 255),
                                         ..Default::default()
-                                    });
-                                } else if line.contains("if") || line.contains("let") || line.contains("fn") {
+                                        });
+                                    } else if line.contains("if") || line.contains("let") || line.contains("fn") {
                                     // Keywords in orange
                                     job.append(line, 0.0, egui::TextFormat {
                                         color: egui::Color32::from_rgb(255, 180, 100),
                                         ..Default::default()
-                                    });
-                                } else {
+                                        });
+                                    } else {
                                     // Default text
                                     job.append(line, 0.0, egui::TextFormat::default());
-                                }
+                                    }
                                 job.append("\n", 0.0, egui::TextFormat::default());
-                            }
+                                }
                             
                             job.wrap.max_width = f32::INFINITY;
                             ui.fonts(|f| f.layout_job(job))
-                        };
+                            };
                         
                         let response = ui.add(
                             egui::TextEdit::multiline(&mut self.script_content)
@@ -1193,7 +1193,7 @@ impl TimelineApp {
                         
                         if response.changed() {
                             self.script_error = None;
-                        }
+                            }
                     });
             });
         });
@@ -1296,8 +1296,6 @@ impl TimelineApp {
                 // Handle clicks
                 if response.clicked() {
                     clicked_item = Some(index);
-                    // Debug log
-                    self.log(LogLevel::Action, format!("Item {} click detected", item.name));
                 }
                 
                 // Handle right-click
@@ -1312,7 +1310,7 @@ impl TimelineApp {
                         if item.rotation != 0.0 {
                             // For simplicity, we'll just draw without rotation for now
                             // Full rotation would require transform matrix
-                        }
+                            }
                         
                         let color_with_alpha = egui::Color32::from_rgba_premultiplied(
                             item.color.r(),
@@ -1331,7 +1329,7 @@ impl TimelineApp {
                             ui.painter().line_segment([r.right_top(), r.right_bottom()], stroke);
                             ui.painter().line_segment([r.right_bottom(), r.left_bottom()], stroke);
                             ui.painter().line_segment([r.left_bottom(), r.left_top()], stroke);
-                        }
+                            }
                     },
                     StageItemType::Circle => {
                         let center = item_rect.center();
@@ -1351,7 +1349,7 @@ impl TimelineApp {
                                 radius + 2.0,
                                 egui::Stroke::new(2.0, egui::Color32::LIGHT_BLUE)
                             );
-                        }
+                            }
                     },
                     StageItemType::Text => {
                         let color_with_alpha = egui::Color32::from_rgba_premultiplied(
@@ -1377,7 +1375,7 @@ impl TimelineApp {
                             ui.painter().line_segment([r.right_top(), r.right_bottom()], stroke);
                             ui.painter().line_segment([r.right_bottom(), r.left_bottom()], stroke);
                             ui.painter().line_segment([r.left_bottom(), r.left_top()], stroke);
-                        }
+                            }
                     },
                     StageItemType::MovieClip => {
                         // Draw as a rounded rectangle with icon
@@ -1405,7 +1403,7 @@ impl TimelineApp {
                             ui.painter().line_segment([r.right_top(), r.right_bottom()], stroke);
                             ui.painter().line_segment([r.right_bottom(), r.left_bottom()], stroke);
                             ui.painter().line_segment([r.left_bottom(), r.left_top()], stroke);
-                        }
+                            }
                     },
                 }
                 
@@ -1427,18 +1425,18 @@ impl TimelineApp {
                 let stage_response = ui.interact(rect, ui.id().with("stage_bg"), egui::Sense::click());
                 
                 if stage_response.clicked() {
-                if let Some(pos) = stage_response.interact_pointer_pos() {
-                    let stage_pos = pos - rect.min.to_vec2();
-                    
-                    // Handle tool-specific actions
-                    match self.tool_state.active_tool {
-                        Tool::Arrow => {
+                    if let Some(pos) = stage_response.interact_pointer_pos() {
+                        let stage_pos = pos - rect.min.to_vec2();
+                        
+                        // Handle tool-specific actions
+                        match self.tool_state.active_tool {
+                            Tool::Arrow => {
                             // Arrow tool - deselect when clicking empty space
                             self.selected_items.clear();
                             self.log(LogLevel::Action, format!("Stage clicked at ({:.1}, {:.1})", 
                                 stage_pos.x, stage_pos.y));
-                        }
-                        Tool::Rectangle => {
+                            }
+                            Tool::Rectangle => {
                             // Rectangle tool - create a rectangle
                             let new_rect = StageItem {
                                 id: format!("rect_{}", self.stage_items.len() + 1),
@@ -1452,11 +1450,11 @@ impl TimelineApp {
                                 text_content: String::new(),
                                 font_size: 16.0,
                                 font_family: "Arial".to_string(),
-                            };
+                                };
                             self.stage_items.push(new_rect.clone());
                             self.log(LogLevel::Action, format!("Created {} with Rectangle tool", new_rect.name));
-                        }
-                        Tool::Oval => {
+                            }
+                            Tool::Oval => {
                             // Oval tool - create a circle/oval
                             let new_oval = StageItem {
                                 id: format!("oval_{}", self.stage_items.len() + 1),
@@ -1470,11 +1468,11 @@ impl TimelineApp {
                                 text_content: String::new(),
                                 font_size: 16.0,
                                 font_family: "Arial".to_string(),
-                            };
+                                };
                             self.stage_items.push(new_oval.clone());
                             self.log(LogLevel::Action, format!("Created {} with Oval tool", new_oval.name));
-                        }
-                        Tool::Text => {
+                            }
+                            Tool::Text => {
                             // Text tool - create a text object
                             let new_text = StageItem {
                                 id: format!("text_{}", self.stage_items.len() + 1),
@@ -1488,15 +1486,16 @@ impl TimelineApp {
                                 text_content: "New Text".to_string(),
                                 font_size: self.tool_state.text_font_size,
                                 font_family: self.tool_state.text_font_family.clone(),
-                            };
+                                };
                             self.stage_items.push(new_text.clone());
                             self.log(LogLevel::Action, format!("Created {} with Text tool", new_text.name));
-                        }
-                        _ => {
+                            }
+                            _ => {
                             // Other tools - just log the click for now
                             self.log(LogLevel::Action, format!("{} clicked at ({:.1}, {:.1})", 
                                 self.tool_state.active_tool.get_name(), stage_pos.x, stage_pos.y));
-                        }
+                            }
+                    }
                     }
                 }
                 
@@ -1506,7 +1505,7 @@ impl TimelineApp {
                         self.context_menu = Some(ContextMenuState {
                             position: pos,
                             menu_type: ContextMenuType::Stage(pos - rect.min.to_vec2()),
-                        });
+                            });
                     }
                 }
             }
@@ -1586,8 +1585,8 @@ impl TimelineApp {
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                             if ui.small_button("⚙").on_hover_text("Library Options").clicked() {
                                 self.log(LogLevel::Action, "Library options clicked");
-                            }
-                        });
+                                }
+                            });
                     });
                     ui.separator();
                     
@@ -1596,15 +1595,15 @@ impl TimelineApp {
                         if ui.selectable_label(self.library_tab == LibraryTab::Assets, "Assets").clicked() {
                             self.library_tab = LibraryTab::Assets;
                             self.log(LogLevel::Action, "Library tab: Assets selected");
-                        }
+                            }
                         if ui.selectable_label(self.library_tab == LibraryTab::Components, "Components").clicked() {
                             self.library_tab = LibraryTab::Components;
                             self.log(LogLevel::Action, "Library tab: Components selected");
-                        }
+                            }
                         if ui.selectable_label(self.library_tab == LibraryTab::ActionScript, "AS Linkage").clicked() {
                             self.library_tab = LibraryTab::ActionScript;
                             self.log(LogLevel::Action, "Library tab: ActionScript selected");
-                        }
+                            }
                     });
                     
                     ui.separator();
@@ -1704,9 +1703,9 @@ impl TimelineApp {
                     if ui.small_button(if is_expanded { "▼" } else { "▶" }).clicked() {
                         if is_expanded {
                             folders_to_collapse.push(folder_name.to_string());
-                        } else {
+                            } else {
                             folders_to_expand.push(folder_name.to_string());
-                        }
+                            }
                         log_messages.push((LogLevel::Action, format!("Folder '{}' {}", 
                             folder_name, if is_expanded { "collapsed" } else { "expanded" })));
                     }
@@ -1723,21 +1722,21 @@ impl TimelineApp {
                             if ui.button("📁 New Folder").clicked() {
                                 log_messages.push((LogLevel::Action, format!("New folder in '{}'", folder_name)));
                                 ui.close();
-                            }
+                                }
                             if ui.button("➕ Import to Folder").clicked() {
                                 log_messages.push((LogLevel::Action, format!("Import to '{}'", folder_name)));
                                 ui.close();
-                            }
+                                }
                             ui.separator();
                             if ui.button("✏️ Rename").clicked() {
                                 log_messages.push((LogLevel::Action, format!("Rename folder '{}'", folder_name)));
                                 ui.close();
-                            }
+                                }
                             if ui.button("🗑️ Delete").clicked() {
                                 log_messages.push((LogLevel::Action, format!("Delete folder '{}'", folder_name)));
                                 ui.close();
-                            }
-                        });
+                                }
+                            });
                 });
                 
                 // Draw assets in folder if expanded
@@ -1745,7 +1744,7 @@ impl TimelineApp {
                     ui.indent(folder_id, |ui| {
                         for asset in assets {
                             self.draw_library_asset(ui, asset);
-                        }
+                            }
                     });
                 }
             }
@@ -1965,15 +1964,15 @@ impl TimelineApp {
                         if ui.button("✏️ Rename").clicked() {
                             self.log(LogLevel::Action, format!("Rename asset: {}", asset_name));
                             self.library_context_menu = None;
-                        }
+                            }
                         if ui.button("📑 Duplicate").clicked() {
                             self.log(LogLevel::Action, format!("Duplicate asset: {}", asset_name));
                             self.library_context_menu = None;
-                        }
+                            }
                         if ui.button("🗑️ Delete").clicked() {
                             self.log(LogLevel::Action, format!("Delete asset: {}", asset_name));
                             self.library_context_menu = None;
-                        }
+                            }
                     }
                     LibraryContextTarget::Folder(folder_name) => {
                         ui.label(folder_name);
@@ -1982,21 +1981,21 @@ impl TimelineApp {
                         if ui.button("📁 New Folder").clicked() {
                             self.log(LogLevel::Action, format!("New folder in '{}'", folder_name));
                             self.library_context_menu = None;
-                        }
+                            }
                         if ui.button("➕ Import").clicked() {
                             self.log(LogLevel::Action, format!("Import to '{}'", folder_name));
                             self.library_context_menu = None;
-                        }
+                            }
                     }
                     LibraryContextTarget::Background => {
                         if ui.button("📁 New Folder").clicked() {
                             self.log(LogLevel::Action, "New root folder");
                             self.library_context_menu = None;
-                        }
+                            }
                         if ui.button("➕ Import Assets").clicked() {
                             self.log(LogLevel::Action, "Import assets");
                             self.library_context_menu = None;
-                        }
+                            }
                     }
                 }
             });
@@ -2103,8 +2102,8 @@ impl TimelineApp {
                             );
                             if stroke_response.clicked() {
                                 self.log(LogLevel::Action, "Stroke color picker opened");
-                            }
-                        });
+                                }
+                            });
                         
                         // Fill color
                         ui.vertical(|ui| {
@@ -2116,8 +2115,8 @@ impl TimelineApp {
                             );
                             if fill_response.clicked() {
                                 self.log(LogLevel::Action, "Fill color picker opened");
-                            }
-                        });
+                                }
+                            });
                     });
                     
                     // Swap colors button
@@ -2251,12 +2250,12 @@ impl TimelineApp {
                                 text_content: "Default Text".to_string(),
                                 font_size: 16.0,
                                 font_family: "Arial".to_string(),
-                            };
+                                };
                             self.stage_items.push(new_item.clone());
                             self.log(LogLevel::Action, format!("Added {} at ({:.1}, {:.1})", 
                                 new_item.name, stage_pos.x, stage_pos.y));
                             self.context_menu = None;
-                        }
+                            }
                         
                         if ui.button("⭕ Add Circle").clicked() {
                             let new_item = StageItem {
@@ -2271,12 +2270,12 @@ impl TimelineApp {
                                 text_content: "Default Text".to_string(),
                                 font_size: 16.0,
                                 font_family: "Arial".to_string(),
-                            };
+                                };
                             self.stage_items.push(new_item.clone());
                             self.log(LogLevel::Action, format!("Added {} at ({:.1}, {:.1})", 
                                 new_item.name, stage_pos.x, stage_pos.y));
                             self.context_menu = None;
-                        }
+                            }
                         
                         if ui.button("📝 Add Text").clicked() {
                             let new_item = StageItem {
@@ -2291,12 +2290,12 @@ impl TimelineApp {
                                 text_content: "Default Text".to_string(),
                                 font_size: 16.0,
                                 font_family: "Arial".to_string(),
-                            };
+                                };
                             self.stage_items.push(new_item.clone());
                             self.log(LogLevel::Action, format!("Added {} at ({:.1}, {:.1})", 
                                 new_item.name, stage_pos.x, stage_pos.y));
                             self.context_menu = None;
-                        }
+                            }
                         
                         if ui.button("🎬 Add MovieClip").clicked() {
                             let new_item = StageItem {
@@ -2311,12 +2310,12 @@ impl TimelineApp {
                                 text_content: "Default Text".to_string(),
                                 font_size: 16.0,
                                 font_family: "Arial".to_string(),
-                            };
+                                };
                             self.stage_items.push(new_item.clone());
                             self.log(LogLevel::Action, format!("Added {} at ({:.1}, {:.1})", 
                                 new_item.name, stage_pos.x, stage_pos.y));
                             self.context_menu = None;
-                        }
+                            }
                         
                         ui.separator();
                         
@@ -2331,9 +2330,9 @@ impl TimelineApp {
                                 let name = new_item.name.clone();
                                 self.stage_items.push(new_item);
                                 self.log(LogLevel::Action, format!("Pasted {} in place", name));
-                            }
+                                }
                             self.context_menu = None;
-                        }
+                            }
                         
                         if ui.add_enabled(can_paste, egui::Button::new("📍 Paste at Position")).clicked() {
                             let clipboard_items = self.clipboard.clone();
@@ -2345,21 +2344,21 @@ impl TimelineApp {
                                 let name = new_item.name.clone();
                                 self.stage_items.push(new_item);
                                 self.log(LogLevel::Action, format!("Pasted {} at cursor", name));
-                            }
+                                }
                             self.context_menu = None;
-                        }
+                            }
                         
                         // Select All option
                         if ui.button("📋 Select All").clicked() {
                             self.selected_items = (0..self.stage_items.len()).collect();
                             self.log(LogLevel::Action, format!("Selected all {} items", self.stage_items.len()));
                             self.context_menu = None;
-                        }
+                            }
                         
                         ui.separator();
                         if ui.button("Cancel").clicked() {
                             self.context_menu = None;
-                        }
+                            }
                     },
                     ContextMenuType::StageItem(index) => {
                         if let Some(item) = self.stage_items.get(*index).cloned() {
@@ -2369,7 +2368,7 @@ impl TimelineApp {
                             if ui.button("✏️ Rename").clicked() {
                                 self.log(LogLevel::Action, format!("Rename {} (not implemented)", item.name));
                                 self.context_menu = None;
-                            }
+                                }
                             
                             ui.separator();
                             
@@ -2379,11 +2378,11 @@ impl TimelineApp {
                                 for &selected_index in &self.selected_items {
                                     if let Some(selected_item) = self.stage_items.get(selected_index) {
                                         self.clipboard.push(selected_item.clone());
+                                        }
                                     }
-                                }
                                 self.log(LogLevel::Action, format!("Copied {} item(s) to clipboard", self.clipboard.len()));
                                 self.context_menu = None;
-                            }
+                                }
                             
                             // Cut selected items (copy and delete)
                             if ui.button("✂️ Cut").clicked() {
@@ -2393,19 +2392,19 @@ impl TimelineApp {
                                     if let Some(selected_item) = self.stage_items.get(selected_index) {
                                         self.clipboard.push(selected_item.clone());
                                         items_to_remove.push(selected_index);
+                                        }
                                     }
-                                }
                                 // Remove items in reverse order to maintain valid indices
                                 items_to_remove.sort_by(|a, b| b.cmp(a));
                                 for index in items_to_remove {
                                     if index < self.stage_items.len() {
                                         let removed_item = self.stage_items.remove(index);
                                         self.log(LogLevel::Action, format!("Cut {} to clipboard", removed_item.name));
+                                        }
                                     }
-                                }
                                 self.selected_items.clear();
                                 self.context_menu = None;
-                            }
+                                }
                             
                             if ui.button("📋 Duplicate").clicked() {
                                 let mut new_item = item.clone();
@@ -2416,7 +2415,7 @@ impl TimelineApp {
                                 self.stage_items.push(new_item);
                                 self.log(LogLevel::Action, format!("Duplicated {}", name));
                                 self.context_menu = None;
-                            }
+                                }
                             
                             ui.separator();
                             
@@ -2428,9 +2427,9 @@ impl TimelineApp {
                                     self.selected_items.clear();
                                     self.selected_items.push(new_index);
                                     self.log(LogLevel::Action, "Brought to front");
-                                }
+                                    }
                                 self.context_menu = None;
-                            }
+                                }
                             
                             if ui.button("⬇️ Send to Back").clicked() {
                                 if *index > 0 {
@@ -2439,9 +2438,9 @@ impl TimelineApp {
                                     self.selected_items.clear();
                                     self.selected_items.push(0);
                                     self.log(LogLevel::Action, "Sent to back");
-                                }
+                                    }
                                 self.context_menu = None;
-                            }
+                                }
                             
                             ui.separator();
                             
@@ -2450,9 +2449,9 @@ impl TimelineApp {
                                     item.rotation = (item.rotation + 45.0) % 360.0;
                                     let rotation = item.rotation;
                                     self.log(LogLevel::Action, format!("Rotated to {}°", rotation));
-                                }
+                                    }
                                 self.context_menu = None;
-                            }
+                                }
                             
                             ui.separator();
                             
@@ -2461,13 +2460,13 @@ impl TimelineApp {
                                 self.log(LogLevel::Action, format!("Deleted {}", removed.name));
                                 self.selected_items.clear();
                                 self.context_menu = None;
-                            }
+                                }
                             
                             ui.separator();
                             if ui.button("Cancel").clicked() {
                                 self.context_menu = None;
+                                }
                             }
-                        }
                     },
                 }
             });
@@ -2556,7 +2555,7 @@ impl TimelineApp {
                         ui.vertical(|ui| {
                             ui.label(egui::RichText::new("Timeline Demo has stopped working").size(16.0).strong());
                             ui.label("A problem caused the program to stop working correctly.");
-                        });
+                            });
                     });
                     
                     ui.separator();
@@ -2581,7 +2580,7 @@ impl TimelineApp {
                             .max_height(200.0)
                             .show(ui, |ui| {
                                 ui.monospace(&info.backtrace);
-                            });
+                                });
                     });
                     
                     ui.separator();
@@ -2598,19 +2597,19 @@ impl TimelineApp {
                                 info.timestamp, info.location, info.message, info.backtrace
                             );
                             ui.ctx().copy_text(error_text);
-                        }
+                            }
                         
                         if ui.button("🔄 Restart Application").clicked() {
                             // Restart the application
                             if let Ok(exe) = std::env::current_exe() {
                                 Command::new(exe).spawn().ok();
-                            }
+                                }
                             std::process::exit(1);
-                        }
+                            }
                         
                         if ui.button("❌ Close Program").clicked() {
                             std::process::exit(1);
-                        }
+                            }
                     });
                 });
         }
@@ -2642,28 +2641,28 @@ impl TimelineApp {
                             "Properties"
                         ).clicked() {
                             self.selected_property_tab = PropertyTab::Properties;
-                        }
+                            }
                         
                         if ui.selectable_label(
                             self.selected_property_tab == PropertyTab::Filters, 
                             "Filters"
                         ).clicked() {
                             self.selected_property_tab = PropertyTab::Filters;
-                        }
+                            }
                         
                         if ui.selectable_label(
                             self.selected_property_tab == PropertyTab::ColorEffect, 
                             "Color Effect"
                         ).clicked() {
                             self.selected_property_tab = PropertyTab::ColorEffect;
-                        }
+                            }
                         
                         if ui.selectable_label(
                             self.selected_property_tab == PropertyTab::Display, 
                             "Display"
                         ).clicked() {
                             self.selected_property_tab = PropertyTab::Display;
-                        }
+                            }
                     });
                     
                     ui.separator();
@@ -2685,13 +2684,13 @@ impl TimelineApp {
                                         let old_x = item.position.x;
                                         if ui.add(egui::DragValue::new(&mut item.position.x).speed(1.0)).changed() {
                                             // Log later to avoid borrow conflict
-                                        }
+                                            }
                                         ui.label("Y:");
                                         let old_y = item.position.y;
                                         if ui.add(egui::DragValue::new(&mut item.position.y).speed(1.0)).changed() {
                                             // Log later to avoid borrow conflict
-                                        }
-                                    });
+                                            }
+                                        });
                                     
                                     // Size controls
                                     ui.label("Size:");
@@ -2700,13 +2699,13 @@ impl TimelineApp {
                                         let old_w = item.size.x;
                                         if ui.add(egui::DragValue::new(&mut item.size.x).speed(1.0).range(1.0..=500.0)).changed() {
                                             // Log later to avoid borrow conflict
-                                        }
+                                            }
                                         ui.label("H:");
                                         let old_h = item.size.y;
                                         if ui.add(egui::DragValue::new(&mut item.size.y).speed(1.0).range(1.0..=500.0)).changed() {
                                             // Log later to avoid borrow conflict
-                                        }
-                                    });
+                                            }
+                                        });
                                     
                                     // Rotation control
                                     ui.label("Rotation:");
@@ -2714,7 +2713,7 @@ impl TimelineApp {
                                     if ui.add(egui::DragValue::new(&mut item.rotation).speed(1.0).suffix("°")).changed() {
                                         item.rotation = item.rotation % 360.0;
                                         // Log later to avoid borrow conflict
-                                    }
+                                        }
                                     
                                     // Color control
                                     ui.label("Color:");
@@ -2730,7 +2729,7 @@ impl TimelineApp {
                                             (color[2] * 255.0) as u8,
                                         );
                                         // Log later to avoid borrow conflict
-                                    }
+                                        }
                                     
                                     // Alpha control  
                                     ui.label("Alpha (Transparency):");
@@ -2739,9 +2738,9 @@ impl TimelineApp {
                                         if ui.add(egui::Slider::new(&mut alpha_percent, 0.0..=100.0).suffix("%")).changed() {
                                             item.alpha = alpha_percent / 100.0;
                                             // Log later to avoid borrow conflict
-                                        }
+                                            }
                                         ui.label(format!("{:.0}%", alpha_percent));
-                                    });
+                                        });
                                     
                                     // Text-specific properties for text items
                                     if item.item_type == StageItemType::Text {
@@ -2752,13 +2751,13 @@ impl TimelineApp {
                                         ui.label("Text Content:");
                                         if ui.text_edit_singleline(&mut item.text_content).changed() {
                                             // Log later to avoid borrow conflict
-                                        }
+                                            }
                                         
                                         // Font size
                                         ui.label("Font Size:");
                                         if ui.add(egui::DragValue::new(&mut item.font_size).speed(1.0).range(8.0..=72.0).suffix("pt")).changed() {
                                             // Log later to avoid borrow conflict  
-                                        }
+                                            }
                                         
                                         // Font family
                                         ui.label("Font Family:");
@@ -2767,24 +2766,24 @@ impl TimelineApp {
                                             .show_ui(ui, |ui| {
                                                 if ui.selectable_value(&mut item.font_family, "Arial".to_string(), "Arial").clicked() {
                                                     // Font changed
-                                                }
+                                                    }
                                                 if ui.selectable_value(&mut item.font_family, "Times New Roman".to_string(), "Times New Roman").clicked() {
                                                     // Font changed
-                                                }
+                                                    }
                                                 if ui.selectable_value(&mut item.font_family, "Courier New".to_string(), "Courier New").clicked() {
                                                     // Font changed
-                                                }
+                                                    }
                                                 if ui.selectable_value(&mut item.font_family, "Helvetica".to_string(), "Helvetica").clicked() {
                                                     // Font changed
-                                                }
-                                            });
-                                    }
+                                                    }
+                                                });
+                                        }
                                     
                                     // Item type info
                                     ui.separator();
                                     ui.label(format!("Type: {:?}", item.item_type));
                                     ui.label(format!("ID: {}", item.id));
-                                },
+                                    },
                                 PropertyTab::Filters => {
                                     ui.label("🎨 Filters");
                                     ui.separator();
@@ -2796,7 +2795,7 @@ impl TimelineApp {
                                     ui.checkbox(&mut false, "Enable Glow");
                                     ui.label("Bevel and Emboss");
                                     ui.checkbox(&mut false, "Enable Bevel");
-                                },
+                                    },
                                 PropertyTab::ColorEffect => {
                                     ui.label("🌈 Color Effect");
                                     ui.separator();
@@ -2809,8 +2808,8 @@ impl TimelineApp {
                                             ui.selectable_value(&mut 0, 2, "Tint");
                                             ui.selectable_value(&mut 0, 3, "Alpha");
                                             ui.selectable_value(&mut 0, 4, "Advanced");
-                                        });
-                                },
+                                            });
+                                    },
                                 PropertyTab::Display => {
                                     ui.label("📺 Display");
                                     ui.separator();
@@ -2823,13 +2822,13 @@ impl TimelineApp {
                                             ui.selectable_value(&mut 0, 2, "Screen");
                                             ui.selectable_value(&mut 0, 3, "Overlay");
                                             ui.selectable_value(&mut 0, 4, "Hard Light");
-                                        });
+                                            });
                                     
                                     ui.checkbox(&mut true, "Visible");
                                     ui.checkbox(&mut false, "Cache as Bitmap");
-                                },
+                                    },
+                                }
                             }
-                        }
                     } else {
                         // No item selected
                         ui.label("No object selected");

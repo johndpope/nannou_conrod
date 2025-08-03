@@ -55,7 +55,7 @@ if [ $? -eq 0 ]; then
     echo ""
     
     # Run the demo
-    cargo run --release
+    cargo run --release --bin timeline-demo
 else
     echo -e "${RED}❌ Build failed!${NC}"
     echo "Please check the error messages above"
