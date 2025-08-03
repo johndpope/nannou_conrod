@@ -1,8 +1,7 @@
 //! Bezier curve easing editor for Flash-style animation control
 
-use egui::{Vec2, Pos2};
+use egui::Vec2;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 /// A bezier curve used for easing animation properties
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -15,11 +14,28 @@ pub struct BezierCurve {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct BezierPoint {
     /// Position in normalized space (0-1, 0-1)
-    pub position: Vec2,
+    pub position: (f32, f32),
     /// Incoming tangent handle (relative to position)
-    pub in_handle: Vec2,
+    pub in_handle: (f32, f32),
     /// Outgoing tangent handle (relative to position)  
-    pub out_handle: Vec2,
+    pub out_handle: (f32, f32),
+}
+
+impl BezierPoint {
+    /// Get position as Vec2
+    pub fn position_vec2(&self) -> Vec2 {
+        Vec2::new(self.position.0, self.position.1)
+    }
+    
+    /// Get in handle as Vec2
+    pub fn in_handle_vec2(&self) -> Vec2 {
+        Vec2::new(self.in_handle.0, self.in_handle.1)
+    }
+    
+    /// Get out handle as Vec2  
+    pub fn out_handle_vec2(&self) -> Vec2 {
+        Vec2::new(self.out_handle.0, self.out_handle.1)
+    }
 }
 
 /// Common easing presets available in the Motion Editor
@@ -65,14 +81,14 @@ impl BezierCurve {
         Self {
             points: vec![
                 BezierPoint {
-                    position: Vec2::new(0.0, 0.0),
-                    in_handle: Vec2::ZERO,
-                    out_handle: Vec2::new(0.33, 0.0),
+                    position: (0.0, 0.0),
+                    in_handle: (0.0, 0.0),
+                    out_handle: (0.33, 0.0),
                 },
                 BezierPoint {
-                    position: Vec2::new(1.0, 1.0),
-                    in_handle: Vec2::new(-0.33, 0.0),
-                    out_handle: Vec2::ZERO,
+                    position: (1.0, 1.0),
+                    in_handle: (-0.33, 0.0),
+                    out_handle: (0.0, 0.0),
                 },
             ],
         }
@@ -83,14 +99,14 @@ impl BezierCurve {
         Self {
             points: vec![
                 BezierPoint {
-                    position: Vec2::new(0.0, 0.0),
-                    in_handle: Vec2::ZERO,
-                    out_handle: Vec2::new(0.2, 0.0),
+                    position: (0.0, 0.0),
+                    in_handle: (0.0, 0.0),
+                    out_handle: (0.2, 0.0),
                 },
                 BezierPoint {
-                    position: Vec2::new(1.0, 1.0),
-                    in_handle: Vec2::new(-0.2, 0.0),
-                    out_handle: Vec2::ZERO,
+                    position: (1.0, 1.0),
+                    in_handle: (-0.2, 0.0),
+                    out_handle: (0.0, 0.0),
                 },
             ],
         }
@@ -101,14 +117,14 @@ impl BezierCurve {
         Self {
             points: vec![
                 BezierPoint {
-                    position: Vec2::new(0.0, 0.0),
-                    in_handle: Vec2::ZERO,
-                    out_handle: Vec2::new(0.0, 0.4),
+                    position: (0.0, 0.0),
+                    in_handle: (0.0, 0.0),
+                    out_handle: (0.0, 0.4),
                 },
                 BezierPoint {
-                    position: Vec2::new(1.0, 1.0),
-                    in_handle: Vec2::new(0.0, -0.4),
-                    out_handle: Vec2::ZERO,
+                    position: (1.0, 1.0),
+                    in_handle: (0.0, -0.4),
+                    out_handle: (0.0, 0.0),
                 },
             ],
         }
@@ -119,14 +135,14 @@ impl BezierCurve {
         Self {
             points: vec![
                 BezierPoint {
-                    position: Vec2::new(0.0, 0.0),
-                    in_handle: Vec2::ZERO,
-                    out_handle: Vec2::new(0.2, 0.0),
+                    position: (0.0, 0.0),
+                    in_handle: (0.0, 0.0),
+                    out_handle: (0.2, 0.0),
                 },
                 BezierPoint {
-                    position: Vec2::new(1.0, 1.0),
-                    in_handle: Vec2::new(-0.2, 0.0),
-                    out_handle: Vec2::ZERO,
+                    position: (1.0, 1.0),
+                    in_handle: (-0.2, 0.0),
+                    out_handle: (0.0, 0.0),
                 },
             ],
         }
@@ -142,10 +158,10 @@ impl BezierCurve {
         
         // For simple 2-point curves, use cubic bezier evaluation
         if self.points.len() == 2 {
-            let p0 = self.points[0].position;
-            let p1 = self.points[0].position + self.points[0].out_handle;
-            let p2 = self.points[1].position + self.points[1].in_handle;
-            let p3 = self.points[1].position;
+            let p0 = self.points[0].position_vec2();
+            let p1 = self.points[0].position_vec2() + self.points[0].out_handle_vec2();
+            let p2 = self.points[1].position_vec2() + self.points[1].in_handle_vec2();
+            let p3 = self.points[1].position_vec2();
             
             // Cubic bezier: B(t) = (1-t)³P₀ + 3(1-t)²tP₁ + 3(1-t)t²P₂ + t³P₃
             let u = 1.0 - t;

@@ -1,7 +1,7 @@
 //! Main Timeline widget implementation using egui
 
 use egui::{*, self};
-use crate::{TimelineConfig, RiveEngine, LayerId, KeyframeId};
+use crate::{TimelineConfig, RiveEngine, LayerId, KeyframeId, MotionEditor};
 use std::collections::HashMap;
 
 /// Keyframe selection state for interactive manipulation
@@ -99,6 +99,8 @@ pub struct TimelineState {
     pub snap_guides: Vec<f32>,
     /// Keyframe selection and manipulation state
     pub keyframe_selection: KeyframeSelection,
+    /// Motion Editor for easing curves
+    pub motion_editor: MotionEditor,
 }
 
 impl Default for TimelineState {
@@ -115,6 +117,7 @@ impl Default for TimelineState {
             context_menu: None,
             snap_guides: Vec::new(),
             keyframe_selection: KeyframeSelection::new(),
+            motion_editor: MotionEditor::new(),
         }
     }
 }
@@ -271,6 +274,9 @@ impl Timeline {
         
         // Draw snap guides
         self.draw_snap_guides(ui, frame_grid_rect);
+        
+        // Show Motion Editor if open
+        self.state.motion_editor.show(ui.ctx());
 
         response
     }
@@ -948,6 +954,15 @@ impl Timeline {
                         if ui.button("Insert Frame Label...").clicked() {
                             println!("Insert frame label at {} on layer {:?}", menu_state.frame, menu_state.layer_id);
                             // TODO: Open dialog for frame label
+                            close_menu = true;
+                        }
+                        
+                        ui.separator();
+                        
+                        // Edit Easing - Motion Editor
+                        if ui.button("Edit Easing...").clicked() {
+                            println!("Opening Motion Editor for frame {} on layer {:?}", menu_state.frame, menu_state.layer_id);
+                            self.state.motion_editor.open();
                             close_menu = true;
                         }
                     });

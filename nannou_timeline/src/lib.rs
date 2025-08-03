@@ -21,9 +21,16 @@ pub mod track_simple;
 pub mod ui;
 pub mod time;
 pub mod easing;
+pub mod motion_editor;
 
 // Re-export time types
 pub use time::{FrameTime, FpsPreset, FrameLabel};
+
+// Re-export easing types
+pub use easing::{BezierCurve, BezierPoint, EasingPreset, PropertyId};
+
+// Re-export motion editor
+pub use motion_editor::MotionEditor;
 
 /// Mock interface for Rive integration
 pub trait RiveEngine: Send + Sync {
