@@ -86,6 +86,12 @@ Key features:
   - Language switching support
   - Auto-scroll capability
   - Tracks all user interactions
+- **Scene Management** (Issue #31):
+  - Multi-scene navigation with Flash CS6-style tabs
+  - Scene creation, deletion, and renaming
+  - Scene switching with Ctrl+PageUp/PageDown shortcuts
+  - Scene modification tracking and visual indicators
+  - Scene properties including frame rate, stage size, background color
 
 ### Important Design Patterns
 
@@ -114,6 +120,26 @@ When modifying this codebase:
 2. Maintain compatibility with conrod 0.76 API
 3. Follow existing widget patterns when adding new UI components
 4. Update examples when adding significant features
+
+### Recent Completed Features
+
+#### Scene Management System (Issue #31) - ✅ COMPLETED
+- **Core Architecture**: Complete Scene and SceneManager data structures with CRUD operations
+- **UI Components**: Scene tabs with active highlighting, modification indicators, inline renaming
+- **Navigation**: Keyboard shortcuts (Ctrl+PageUp/PageDown, Ctrl+T) and mouse interactions
+- **Integration**: Scene tabs displayed at top of timeline interface with real-time logging
+- **Technical**: Event-driven architecture, proper egui borrowing management, serde serialization
+
+#### Timeline Layer Enhancements - ✅ COMPLETED  
+- **Visual Improvements**: Horizontal separator lines beneath each layer in timeline
+- **User Experience**: Double-click layer names to edit, right-click context menus
+- **Auto-focus**: New layers automatically scroll into view with text field focus
+- **Interaction**: Fixed layer name interaction handling and context menu positioning
+
+#### Material Design Icons Integration (Issue #43) - ✅ COMPLETED
+- **Icon System**: Integrated egui_material_icons crate for professional toolbar icons
+- **Toolbar Enhancement**: Updated all tool icons (Arrow, Brush, Rectangle, etc.) with material design
+- **Compatibility**: Resolved version compatibility issues with egui 0.32
 
 ### Bug and Defect Tracking
 
