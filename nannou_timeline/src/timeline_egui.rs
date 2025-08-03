@@ -160,6 +160,7 @@ impl Timeline {
             LayerType::Guide => "📐",      // Guide layer - ruler icon
             LayerType::MotionGuide => "🛤",  // Motion guide layer - railway track icon
             LayerType::Audio => "🔊",      // Audio layer - speaker icon
+            LayerType::Video => "🎥",      // Video layer - video camera icon
         }
     }
     
@@ -423,6 +424,7 @@ impl Timeline {
                                 let (type_icon, type_tooltip) = match layer.layer_type {
                                     crate::LayerType::Normal => ("🎬", "timeline.layer.type_normal"),
                                     crate::LayerType::Audio => ("🔊", "timeline.layer.type_audio"), 
+                                    crate::LayerType::Video => ("🎥", "timeline.layer.type_video"),
                                     crate::LayerType::Folder => ("📁", "timeline.layer.type_folder"),
                                     crate::LayerType::Mask => ("🎭", "timeline.layer.type_mask"),
                                     crate::LayerType::Guide => ("📐", "timeline.layer.type_guide"),
@@ -717,6 +719,8 @@ impl Timeline {
                             // Draw frames based on layer type
                             if matches!(layer.layer_type, crate::LayerType::Audio) {
                                 self.draw_audio_waveform(ui, layer, y_offset, layer_height, visible_start_frame..=visible_end_frame, frame_width);
+                            } else if matches!(layer.layer_type, crate::LayerType::Video) {
+                                self.draw_video_thumbnails(ui, layer, y_offset, layer_height, visible_start_frame..=visible_end_frame, frame_width);
                             } else {
                                 // Draw regular frames
                                 for frame in visible_start_frame..=visible_end_frame {
@@ -1451,6 +1455,129 @@ impl Timeline {
                 FontId::monospace(12.0),
                 Color32::WHITE, // Changed from waveform_color to white for better contrast
             );
+        }
+    }
+    
+    /// Draw video thumbnails for a video layer
+    fn draw_video_thumbnails(&self, ui: &mut Ui, layer: &crate::layer::LayerInfo, y_offset: f32, layer_height: f32, frame_range: std::ops::RangeInclusive<u32>, frame_width: f32) {
+        // Background with film strip appearance
+        let layer_rect = Rect::from_min_size(
+            pos2(*frame_range.start() as f32 * frame_width, y_offset),
+            vec2((*frame_range.end() - *frame_range.start()) as f32 * frame_width, layer_height),
+        );
+        ui.painter().rect_filled(layer_rect, 2.0, Color32::from_gray(25));
+        
+        // Film strip perforations (top and bottom edges)
+        let perforation_color = Color32::from_gray(15);
+        let perforation_size = 3.0;
+        let perforation_spacing = 8.0;
+        
+        for i in 0..((layer_rect.width() / perforation_spacing) as i32) {
+            let x = layer_rect.min.x + (i as f32) * perforation_spacing;
+            // Top perforations
+            ui.painter().circle_filled(
+                pos2(x, y_offset + 3.0),
+                perforation_size / 2.0,
+                perforation_color,
+            );
+            // Bottom perforations
+            ui.painter().circle_filled(
+                pos2(x, y_offset + layer_height - 3.0),
+                perforation_size / 2.0,
+                perforation_color,
+            );
+        }
+        
+        // Calculate thumbnail dimensions
+        let thumb_height = layer_height - 12.0; // Leave space for perforations
+        let thumb_width = thumb_height * (16.0 / 9.0); // Assume 16:9 aspect ratio
+        
+        // Draw video thumbnails
+        let mut current_x = *frame_range.start() as f32 * frame_width;
+        let thumb_y = y_offset + 6.0;
+        
+        while current_x < (*frame_range.end() as f32 * frame_width) {
+            let thumb_rect = Rect::from_min_size(
+                pos2(current_x, thumb_y),
+                vec2(thumb_width.min(frame_width), thumb_height),
+            );
+            
+            // Draw thumbnail placeholder with gradient
+            let gradient_start = Color32::from_rgb(80, 80, 120);
+            let gradient_end = Color32::from_rgb(40, 40, 80);
+            
+            // Simple gradient simulation
+            ui.painter().rect_filled(thumb_rect, 1.0, gradient_start);
+            ui.painter().rect_filled(
+                Rect::from_min_size(
+                    thumb_rect.min + vec2(0.0, thumb_rect.height() * 0.7),
+                    vec2(thumb_rect.width(), thumb_rect.height() * 0.3),
+                ),
+                0.0,
+                gradient_end,
+            );
+            
+            // Mock thumbnail content - simple geometric pattern
+            let center = thumb_rect.center();
+            let time_factor = (current_x / frame_width * 0.1) % 1.0;
+            
+            // Rotating square pattern
+            let square_size = thumb_rect.height() * 0.3;
+            let angle = time_factor * 2.0 * std::f32::consts::PI;
+            let cos_a = angle.cos();
+            let sin_a = angle.sin();
+            
+            let square_points = [
+                pos2(-square_size / 2.0, -square_size / 2.0),
+                pos2(square_size / 2.0, -square_size / 2.0),
+                pos2(square_size / 2.0, square_size / 2.0),
+                pos2(-square_size / 2.0, square_size / 2.0),
+            ];
+            
+            let rotated_points: Vec<Pos2> = square_points
+                .iter()
+                .map(|p| {
+                    let x = p.x * cos_a - p.y * sin_a;
+                    let y = p.x * sin_a + p.y * cos_a;
+                    center + vec2(x, y)
+                })
+                .collect();
+            
+            // Draw the rotated square
+            if rotated_points.len() >= 4 {
+                ui.painter().add(Shape::convex_polygon(
+                    rotated_points,
+                    Color32::from_rgb(255, 200, 100),
+                    Stroke::new(1.0, Color32::from_rgb(255, 255, 255)),
+                ));
+            }
+            
+            // Draw thumbnail border
+            ui.painter().rect_stroke(thumb_rect, 1.0, Stroke::new(1.0, Color32::from_gray(60)), egui::epaint::StrokeKind::Outside);
+            
+            current_x += thumb_width;
+        }
+        
+        // Draw video timeline overlay info
+        if layer_rect.width() > 150.0 {
+            ui.painter().text(
+                layer_rect.min + vec2(5.0, layer_height / 2.0 - 6.0),
+                Align2::LEFT_CENTER,
+                format!("🎥 {}", layer.name),
+                FontId::monospace(11.0),
+                Color32::from_rgb(255, 255, 255),
+            );
+            
+            // Show video duration/info if space allows
+            if layer_rect.width() > 250.0 {
+                ui.painter().text(
+                    layer_rect.min + vec2(5.0, layer_height / 2.0 + 6.0),
+                    Align2::LEFT_CENTER,
+                    "30fps • 1920x1080",
+                    FontId::monospace(9.0),
+                    Color32::from_rgb(180, 180, 180),
+                );
+            }
         }
     }
     

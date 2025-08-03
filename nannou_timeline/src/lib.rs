@@ -12,6 +12,7 @@ pub use ui::{MockRiveEngine, MockAudioEngine};
 pub use layer::{Layer, LayerId, LayerType};
 pub use frame::{Frame, FrameType, KeyframeId};
 pub use track_simple::Track;
+pub use video::{VideoLayer, VideoSource, VideoEmbedMode, ThumbnailCache, VideoDecoder, VideoFrame, MockVideoDecoder};
 
 pub mod playhead_egui;
 pub mod ruler_egui;
@@ -24,6 +25,7 @@ pub mod time;
 pub mod easing;
 pub mod motion_editor;
 pub mod audio;
+pub mod video;
 pub mod i18n;
 
 // Re-export time types

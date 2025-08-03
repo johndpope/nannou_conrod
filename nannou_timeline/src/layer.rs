@@ -21,6 +21,7 @@ pub enum LayerType {
     MotionGuide,
     Folder,
     Audio,
+    Video,
 }
 
 /// Information about a layer
@@ -61,6 +62,13 @@ impl LayerInfo {
     pub fn new_audio(name: impl Into<String>) -> Self {
         let mut layer = Self::new(name);
         layer.layer_type = LayerType::Audio;
+        layer
+    }
+    
+    /// Create a video layer
+    pub fn new_video(name: impl Into<String>) -> Self {
+        let mut layer = Self::new(name);
+        layer.layer_type = LayerType::Video;
         layer
     }
 }
@@ -157,6 +165,15 @@ pub fn create_mock_layers() -> Vec<LayerInfo> {
             id: LayerId::new("layer7"),
             name: "Sound Effects".to_string(),
             layer_type: LayerType::Audio,
+            visible: true,
+            locked: false,
+            parent_id: None,
+            children: vec![],
+        },
+        LayerInfo {
+            id: LayerId::new("layer8"),
+            name: "Background Video".to_string(),
+            layer_type: LayerType::Video,
             visible: true,
             locked: false,
             parent_id: None,

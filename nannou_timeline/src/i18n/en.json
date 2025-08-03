@@ -23,6 +23,7 @@
       "lock_tooltip": "Toggle layer lock",
       "type_normal": "Normal Layer",
       "type_audio": "Audio Layer",
+      "type_video": "Video Layer",
       "type_folder": "Folder Layer",
       "type_mask": "Mask Layer",
       "type_guide": "Guide Layer"
