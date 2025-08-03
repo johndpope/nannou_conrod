@@ -5,14 +5,13 @@ use nannou_timeline::{
     timeline_egui::Timeline,
     ui::MockRiveEngine, RiveEngine, LayerId,
     layer::LayerType,
-    scripting::{ScriptContext, templates},
+    scripting::ScriptContext,
     CurveEditorPanel,
 };
 use std::sync::{Arc, Mutex};
 use std::process::Command;
 use std::panic;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::collections::{HashMap, HashSet};
 use chrono;
 
 mod rustflash_integration;
@@ -436,6 +435,15 @@ impl eframe::App for TimelineApp {
         if ctx.input(|i| i.key_pressed(egui::Key::F2)) {
             self.take_screenshot(ctx);
         }
+        
+        // Handle dropped files
+        ctx.input(|i| {
+            for file in &i.raw.dropped_files {
+                if let Some(path) = &file.path {
+                    self.handle_dropped_file(path);
+                }
+            }
+        });
         
         // Handle F9 to toggle script editor
         if ctx.input(|i| i.key_pressed(egui::Key::F9)) {
@@ -1951,6 +1959,39 @@ impl TimelineApp {
     }
     
     fn draw_library_assets_tab(&mut self, ui: &mut egui::Ui) {
+        // Drop zone indicator
+        let drop_zone_response = ui.allocate_response(
+            egui::Vec2::new(ui.available_width(), 30.0),
+            egui::Sense::hover()
+        );
+        
+        let is_hovering_with_files = ui.input(|i| !i.raw.hovered_files.is_empty());
+        
+        if is_hovering_with_files {
+            ui.painter().rect_filled(
+                drop_zone_response.rect,
+                4.0,
+                egui::Color32::from_rgba_premultiplied(100, 150, 255, 50)
+            );
+            ui.painter().text(
+                drop_zone_response.rect.center(),
+                egui::Align2::CENTER_CENTER,
+                "📁 Drop files here to import",
+                egui::FontId::default(),
+                ui.style().visuals.text_color()
+            );
+        } else {
+            ui.painter().text(
+                drop_zone_response.rect.center(),
+                egui::Align2::CENTER_CENTER,
+                "📁 Drag & drop files to import",
+                egui::FontId::default(),
+                ui.style().visuals.weak_text_color()
+            );
+        }
+        
+        ui.separator();
+        
         // Search bar
         ui.horizontal(|ui| {
             ui.label("🔍");
@@ -2267,6 +2308,72 @@ impl TimelineApp {
         self.stage_items.push(new_item.clone());
         self.log(LogLevel::Action, format!("Created {} from library at ({:.1}, {:.1})", 
             new_item.name, position.x, position.y));
+    }
+    
+    fn handle_dropped_file(&mut self, path: &std::path::Path) {
+        let filename = path.file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("Unknown");
+        
+        let extension = path.extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("")
+            .to_lowercase();
+        
+        // Determine asset type based on file extension
+        let (asset_type, mime_type) = match extension.as_str() {
+            "png" | "jpg" | "jpeg" | "gif" | "bmp" => (LibraryAssetType::Bitmap, "image/*"),
+            "mp3" | "wav" | "ogg" | "aac" => (LibraryAssetType::Sound, "audio/*"),
+            "mp4" | "mov" | "avi" | "webm" => (LibraryAssetType::Video, "video/*"),
+            "ttf" | "otf" | "woff" | "woff2" => (LibraryAssetType::Font, "font/*"),
+            _ => {
+                self.log(LogLevel::Warning, format!("Unsupported file type: .{}", extension));
+                return;
+            }
+        };
+        
+        // Create a new library asset
+        let asset_id = format!("asset_{}", self.library_assets.len() + 1);
+        let file_size = path.metadata().ok().map(|m| m.len()).unwrap_or(0);
+        
+        let new_asset = match asset_type {
+            LibraryAssetType::Bitmap => {
+                // In a real implementation, we'd read the image to get dimensions
+                LibraryAsset::new_bitmap(
+                    asset_id.clone(),
+                    filename.to_string(),
+                    "Imported".to_string(),
+                    (100, 100), // Placeholder dimensions
+                    file_size
+                )
+            }
+            _ => {
+                LibraryAsset {
+                    id: asset_id.clone(),
+                    name: filename.to_string(),
+                    asset_type,
+                    folder: "Imported".to_string(),
+                    properties: AssetProperties {
+                        file_size: Some(file_size),
+                        dimensions: None,
+                        format: Some(extension.to_uppercase()),
+                        usage_count: 0,
+                        linkage_class: None,
+                    },
+                }
+            }
+        };
+        
+        self.library_assets.push(new_asset);
+        self.log(LogLevel::Action, format!("Imported {} as {} asset", filename, mime_type));
+        
+        // Optionally, auto-create an instance on the stage
+        if asset_type == LibraryAssetType::Bitmap {
+            if let Some(asset) = self.library_assets.iter().find(|a| a.id == asset_id).cloned() {
+                let stage_center = egui::Pos2::new(400.0, 300.0); // Center of typical stage
+                self.create_stage_instance_from_asset(&asset, stage_center);
+            }
+        }
     }
     
     fn show_library_context_menu(&mut self, ui: &mut egui::Ui, menu_state: &LibraryContextMenuState) {
@@ -3020,12 +3127,12 @@ impl TimelineApp {
                                     ui.label("Position:");
                                     ui.horizontal(|ui| {
                                         ui.label("X:");
-                                        let old_x = item.position.x;
+                                        let _old_x = item.position.x;
                                         if ui.add(egui::DragValue::new(&mut item.position.x).speed(1.0)).changed() {
                                             // Log later to avoid borrow conflict
                                             }
                                         ui.label("Y:");
-                                        let old_y = item.position.y;
+                                        let _old_y = item.position.y;
                                         if ui.add(egui::DragValue::new(&mut item.position.y).speed(1.0)).changed() {
                                             // Log later to avoid borrow conflict
                                             }
@@ -3035,12 +3142,12 @@ impl TimelineApp {
                                     ui.label("Size:");
                                     ui.horizontal(|ui| {
                                         ui.label("W:");
-                                        let old_w = item.size.x;
+                                        let _old_w = item.size.x;
                                         if ui.add(egui::DragValue::new(&mut item.size.x).speed(1.0).range(1.0..=500.0)).changed() {
                                             // Log later to avoid borrow conflict
                                             }
                                         ui.label("H:");
-                                        let old_h = item.size.y;
+                                        let _old_h = item.size.y;
                                         if ui.add(egui::DragValue::new(&mut item.size.y).speed(1.0).range(1.0..=500.0)).changed() {
                                             // Log later to avoid borrow conflict
                                             }
@@ -3048,7 +3155,7 @@ impl TimelineApp {
                                     
                                     // Rotation control
                                     ui.label("Rotation:");
-                                    let old_rotation = item.rotation;
+                                    let _old_rotation = item.rotation;
                                     if ui.add(egui::DragValue::new(&mut item.rotation).speed(1.0).suffix("°")).changed() {
                                         item.rotation = item.rotation % 360.0;
                                         // Log later to avoid borrow conflict
