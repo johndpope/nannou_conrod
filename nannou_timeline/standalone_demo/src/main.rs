@@ -556,7 +556,7 @@ impl Default for TimelineApp {
             } else {
                 Box::new(LoggingRiveEngine::new(engine_logs.clone()))
             },
-            timeline_height: 200.0,
+            timeline_height: 250.0, // Increased height for timeline
             library_width: 300.0,
             console_height: 150.0,
             splitter_thickness: 4.0,
@@ -691,10 +691,13 @@ impl eframe::App for TimelineApp {
                 egui::vec2(self.library_width, available_rect.height() - self.timeline_height - bottom_panels_height),
             );
             
+            // Calculate timeline position more carefully
+            let timeline_y = available_rect.max.y - self.timeline_height - bottom_panels_height;
             let timeline_rect = egui::Rect::from_min_size(
-                egui::pos2(available_rect.min.x, available_rect.max.y - self.timeline_height - bottom_panels_height),
+                egui::pos2(available_rect.min.x, timeline_y),
                 egui::vec2(available_rect.width(), self.timeline_height),
             );
+            
             
             let properties_rect = egui::Rect::from_min_size(
                 egui::pos2(available_rect.min.x + self.tools_panel_width, available_rect.max.y - self.timeline_height - bottom_panels_height - self.properties_height),
@@ -728,20 +731,16 @@ impl eframe::App for TimelineApp {
                 None
             };
             
-            // Draw tools panel (left side)
-            self.draw_tools_panel(ui, tools_rect);
+            // Draw all panels in order, ensuring proper clipping
             
-            // Draw stage/canvas (central area)
-            self.draw_stage(ui, stage_rect);
+            // 1. Draw timeline FIRST (bottom) to ensure it's not overlapped
+            ui.painter().rect_filled(
+                timeline_rect,
+                0.0,
+                egui::Color32::from_gray(30), // Dark background
+            );
             
-            // Draw library/hierarchy panel (right side)
-            self.draw_library(ui, library_rect);
-            
-            // Draw properties panel
-            self.draw_properties_panel(ui, properties_rect);
-            
-            // Draw timeline (bottom) - capture any println! from timeline
-            ui.scope_builder(UiBuilder::new().max_rect(timeline_rect), |ui| {
+            ui.allocate_new_ui(UiBuilder::new().max_rect(timeline_rect), |ui| {
                 // Intercept timeline interactions by checking before/after
                 let prev_frame = self.engine.get_current_frame();
                 let prev_zoom = self.timeline.state.zoom_level;
@@ -762,6 +761,12 @@ impl eframe::App for TimelineApp {
                     self.log(LogLevel::Action, format!("Playback {}", if self.timeline.state.is_playing { "started" } else { "stopped" }));
                 }
             });
+            
+            // 2. Then draw other panels on top
+            self.draw_tools_panel(ui, tools_rect);
+            self.draw_stage(ui, stage_rect);
+            self.draw_library(ui, library_rect);
+            self.draw_properties_panel(ui, properties_rect);
             
             // Add horizontal splitter (between stage and library)
             let h_splitter_rect = egui::Rect::from_min_size(

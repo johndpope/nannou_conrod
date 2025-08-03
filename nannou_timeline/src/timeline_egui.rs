@@ -138,16 +138,22 @@ pub struct LayerPanelState {
     pub layer_locked: HashMap<LayerId, bool>,
     /// Layer outline mode
     pub layer_outline: HashMap<LayerId, bool>,
-    /// Expanded folders
-    pub expanded_folders: Vec<String>,
-    /// Layer being dragged for reordering
+    /// Expanded folders (track by LayerId)
+    pub expanded_folders: Vec<LayerId>,
+    /// Layer being dragged for reordering (layer_id, initial_y_position)
     pub dragging_layer: Option<(LayerId, f32)>,
+    /// Drop target position during drag
+    pub drop_target_index: Option<usize>,
     /// Layer being renamed (layer_id, new_name)
     pub renaming_layer: Option<(LayerId, String)>,
 }
 
 impl Default for TimelineState {
     fn default() -> Self {
+        let mut layer_panel_state = LayerPanelState::default();
+        // Expand the Effects folder by default (layer3 in mock data)
+        layer_panel_state.expanded_folders.push(LayerId::new("layer3"));
+        
         Self {
             selected_layers: Vec::new(),
             selected_frames: HashMap::new(),
@@ -161,7 +167,7 @@ impl Default for TimelineState {
             snap_guides: Vec::new(),
             keyframe_selection: KeyframeSelection::new(),
             motion_editor: MotionEditor::new(),
-            layer_panel_state: LayerPanelState::default(),
+            layer_panel_state,
             onion_skinning: false,
             loop_playback: false,
             show_label_panel: false,
@@ -454,8 +460,12 @@ impl Timeline {
                     .show(ui, |ui| {
                         let layers = engine.get_layers();
                         
+                        // Track if we're currently dragging
+                        let mut layer_order_changed = false;
+                        let mut new_layer_order = layers.clone();
+                        
                         for (idx, layer) in layers.iter().enumerate() {
-                            let _layer_height = self.state.track_heights
+                            let layer_height = self.state.track_heights
                                 .get(&layer.id)
                                 .copied()
                                 .unwrap_or(self.config.default_track_height);
@@ -471,6 +481,91 @@ impl Timeline {
                                 .get(&layer.id)
                                 .unwrap_or(&false);
                             
+                            // Check if this is the drop target position
+                            if let Some(drop_idx) = self.state.layer_panel_state.drop_target_index {
+                                if drop_idx == idx {
+                                    // Draw insertion line
+                                    let rect = ui.available_rect_before_wrap();
+                                    let insertion_y = rect.min.y;
+                                    ui.painter().line_segment(
+                                        [pos2(rect.min.x, insertion_y), pos2(rect.max.x, insertion_y)],
+                                        Stroke::new(2.0, Color32::from_rgb(100, 200, 255)),
+                                    );
+                                    ui.add_space(3.0);
+                                }
+                            }
+                            
+                            let layer_id = ui.make_persistent_id(("layer_row", idx));
+                            let layer_rect = Rect::from_min_size(
+                                ui.cursor().min,
+                                vec2(ui.available_width(), layer_height),
+                            );
+                            
+                            // Handle drag source
+                            let response = ui.interact(layer_rect, layer_id, Sense::click_and_drag());
+                            
+                            if response.drag_started() && !is_locked {
+                                // Start dragging this layer
+                                self.state.layer_panel_state.dragging_layer = Some((layer.id.clone(), response.interact_pointer_pos().unwrap_or_default().y));
+                            }
+                            
+                            // Handle drop target
+                            if self.state.layer_panel_state.dragging_layer.is_some() {
+                                if let Some(hover_pos) = response.hover_pos() {
+                                    // Calculate which side of the layer we're hovering on
+                                    let relative_y = hover_pos.y - layer_rect.min.y;
+                                    let drop_index = if relative_y < layer_rect.height() / 2.0 {
+                                        idx
+                                    } else {
+                                        idx + 1
+                                    };
+                                    self.state.layer_panel_state.drop_target_index = Some(drop_index);
+                                }
+                            }
+                            
+                            // Check if drag ended on this position
+                            if response.drag_stopped() {
+                                if let Some((dragged_layer_id, _)) = &self.state.layer_panel_state.dragging_layer {
+                                    if let Some(drop_idx) = self.state.layer_panel_state.drop_target_index {
+                                        // Find the dragged layer's current index
+                                        if let Some(drag_idx) = new_layer_order.iter().position(|l| &l.id == dragged_layer_id) {
+                                            // Perform the reorder
+                                            let dragged_layer = new_layer_order.remove(drag_idx);
+                                            let insert_idx = if drag_idx < drop_idx { drop_idx - 1 } else { drop_idx };
+                                            new_layer_order.insert(insert_idx.min(new_layer_order.len()), dragged_layer);
+                                            layer_order_changed = true;
+                                        }
+                                    }
+                                    // Clear drag state
+                                    self.state.layer_panel_state.dragging_layer = None;
+                                    self.state.layer_panel_state.drop_target_index = None;
+                                }
+                            }
+                            
+                            // Skip this layer if it's inside a collapsed folder
+                            let mut skip_layer = false;
+                            if let Some(parent_id) = &layer.parent_id {
+                                // Check if any parent folder is collapsed
+                                let mut current_parent = Some(parent_id);
+                                while let Some(pid) = current_parent {
+                                    if let Some(parent_layer) = layers.iter().find(|l| &l.id == pid) {
+                                        if parent_layer.layer_type == LayerType::Folder && 
+                                           !self.state.layer_panel_state.expanded_folders.contains(pid) {
+                                            skip_layer = true;
+                                            break;
+                                        }
+                                        current_parent = parent_layer.parent_id.as_ref();
+                                    } else {
+                                        break;
+                                    }
+                                }
+                            }
+                            
+                            if skip_layer {
+                                continue;
+                            }
+                            
+                            // Draw the layer content
                             ui.horizontal(|ui| {
                                 // Selection background
                                 if is_selected {
@@ -480,6 +575,26 @@ impl Timeline {
                                         0.0,
                                         Color32::from_rgb(70, 130, 180),
                                     );
+                                }
+                                
+                                // Calculate indentation
+                                let indent_level = self.calculate_layer_indent_level(&layer, &layers);
+                                ui.add_space(indent_level as f32 * 16.0); // 16 pixels per indent level
+                                
+                                // Expand/collapse arrow for folders
+                                if layer.layer_type == LayerType::Folder {
+                                    let is_expanded = self.state.layer_panel_state.expanded_folders.contains(&layer.id);
+                                    let arrow_icon = if is_expanded { "▼" } else { "▶" };
+                                    if ui.button(arrow_icon)
+                                        .on_hover_text(self.get_tooltip("timeline.layer.toggle_folder"))
+                                        .clicked() 
+                                    {
+                                        if is_expanded {
+                                            self.state.layer_panel_state.expanded_folders.retain(|id| id != &layer.id);
+                                        } else {
+                                            self.state.layer_panel_state.expanded_folders.push(layer.id.clone());
+                                        }
+                                    }
                                 }
                                 
                                 // Layer type icon
@@ -546,16 +661,27 @@ impl Timeline {
                                             response.request_focus();
                                         }
                                     } else {
-                                        // Show normal label for other layers with icon and indentation
-                                        let layer_icon = Self::get_layer_type_icon(layer.layer_type);
-                                        
-                                        // Calculate indentation level based on parent hierarchy
-                                        let indent_level = self.calculate_layer_indent_level(&layer, &layers);
-                                        let indent = "  ".repeat(indent_level); // Two spaces per level
-                                        
-                                        let layer_text = format!("{}{} {}", indent, layer_icon, layer.name);
-                                        if ui.selectable_label(is_selected, layer_text).clicked() {
-                                            if ui.input(|i| i.modifiers.ctrl || i.modifiers.command) {
+                                        // Show normal label for other layers
+                                        if ui.selectable_label(is_selected, &layer.name).clicked() {
+                                            if ui.input(|i| i.modifiers.shift) && !self.state.selected_layers.is_empty() {
+                                                // Range select with Shift
+                                                let last_selected = self.state.selected_layers.last().unwrap();
+                                                let last_idx = layers.iter().position(|l| &l.id == last_selected).unwrap_or(0);
+                                                let current_idx = idx;
+                                                
+                                                let start = last_idx.min(current_idx);
+                                                let end = last_idx.max(current_idx);
+                                                
+                                                // Clear existing selection
+                                                self.state.selected_layers.clear();
+                                                
+                                                // Select all layers in range
+                                                for i in start..=end {
+                                                    if let Some(l) = layers.get(i) {
+                                                        self.state.selected_layers.push(l.id.clone());
+                                                    }
+                                                }
+                                            } else if ui.input(|i| i.modifiers.ctrl || i.modifiers.command) {
                                                 // Multi-select with Ctrl/Cmd
                                                 if is_selected {
                                                     self.state.selected_layers.retain(|id| id != &layer.id);
@@ -570,16 +696,27 @@ impl Timeline {
                                         }
                                     }
                                 } else {
-                                    // Normal label when not renaming with icon and indentation
-                                    let layer_icon = Self::get_layer_type_icon(layer.layer_type);
-                                    
-                                    // Calculate indentation level based on parent hierarchy
-                                    let indent_level = self.calculate_layer_indent_level(&layer, &layers);
-                                    let indent = "  ".repeat(indent_level); // Two spaces per level
-                                    
-                                    let layer_text = format!("{}{} {}", indent, layer_icon, layer.name);
-                                    if ui.selectable_label(is_selected, layer_text).clicked() {
-                                        if ui.input(|i| i.modifiers.ctrl || i.modifiers.command) {
+                                    // Normal label when not renaming
+                                    if ui.selectable_label(is_selected, &layer.name).clicked() {
+                                        if ui.input(|i| i.modifiers.shift) && !self.state.selected_layers.is_empty() {
+                                            // Range select with Shift
+                                            let last_selected = self.state.selected_layers.last().unwrap();
+                                            let last_idx = layers.iter().position(|l| &l.id == last_selected).unwrap_or(0);
+                                            let current_idx = idx;
+                                            
+                                            let start = last_idx.min(current_idx);
+                                            let end = last_idx.max(current_idx);
+                                            
+                                            // Clear existing selection
+                                            self.state.selected_layers.clear();
+                                            
+                                            // Select all layers in range
+                                            for i in start..=end {
+                                                if let Some(l) = layers.get(i) {
+                                                    self.state.selected_layers.push(l.id.clone());
+                                                }
+                                            }
+                                        } else if ui.input(|i| i.modifiers.ctrl || i.modifiers.command) {
                                             // Multi-select with Ctrl/Cmd
                                             if is_selected {
                                                 self.state.selected_layers.retain(|id| id != &layer.id);
@@ -608,6 +745,16 @@ impl Timeline {
                             });
                             
                             ui.add_space(2.0);
+                        }
+                        
+                        // Apply layer order changes if any
+                        if layer_order_changed {
+                            // TODO: Add a reorder_layers method to RiveEngine trait
+                            // For now, we'll just print the new order
+                            println!("New layer order:");
+                            for (i, layer) in new_layer_order.iter().enumerate() {
+                                println!("  {}: {}", i, layer.name);
+                            }
                         }
                     });
             });
@@ -1371,6 +1518,20 @@ impl Timeline {
                                 if ui.button("🗑 Delete Layer").clicked() {
                                     engine.delete_layer(layer_id.clone());
                                     println!("Deleted layer: {:?}", layer_id);
+                                    close_menu = true;
+                                }
+                                
+                                ui.separator();
+                                
+                                if ui.button("⬇️ Merge Down").clicked() {
+                                    // TODO: Implement merge down functionality
+                                    println!("Merge down layer: {:?}", layer_id);
+                                    close_menu = true;
+                                }
+                                
+                                if ui.button("📁 Convert to Folder").clicked() {
+                                    // TODO: Implement convert to folder functionality
+                                    println!("Convert layer to folder: {:?}", layer_id);
                                     close_menu = true;
                                 }
                                 
