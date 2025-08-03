@@ -31,7 +31,6 @@ impl TimelineApp {
             
             // Draw the handle
             ui.painter().rect_filled(handle_rect, 2.0, handle_color);
-            ui.painter().rect_stroke(handle_rect, 2.0, handle_stroke);
             
             // Check for hover/click
             if response.hovered() {

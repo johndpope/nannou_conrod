@@ -428,7 +428,7 @@ impl TimelineApp {
         }
     }
 
-    fn handle_library_drag_drop(&mut self, ui: &mut egui::Ui, stage_response: &egui::Response, rect: Rect) {
+    pub fn handle_library_drag_drop(&mut self, ui: &mut egui::Ui, stage_response: &egui::Response, rect: Rect) {
         if let Some(ref dragging_asset) = self.dragging_asset {
             // Visual feedback - show dragging asset under cursor
             if let Some(pointer_pos) = ui.input(|i| i.pointer.hover_pos()) {
@@ -445,7 +445,8 @@ impl TimelineApp {
             if stage_response.hovered() && ui.input(|i| i.pointer.any_released()) {
                 if let Some(drop_pos) = stage_response.interact_pointer_pos() {
                     let stage_pos = drop_pos - rect.min.to_vec2();
-                    self.create_item_from_library_asset(dragging_asset, stage_pos);
+                    let asset_clone = dragging_asset.clone();
+                    self.create_item_from_library_asset(&asset_clone, stage_pos);
                     self.dragging_asset = None;
                 }
             }
@@ -511,12 +512,55 @@ impl TimelineApp {
         if let Some((item_index, handle)) = self.active_resize_handle {
             if ui.input(|i| i.pointer.button_down(egui::PointerButton::Primary)) {
                 if let Some(pointer_pos) = ui.ctx().pointer_hover_pos() {
-                    if let Some(item) = self.stage_items.get_mut(item_index) {
-                        if let Some(start_size) = self.resize_start_size {
-                            let stage_pos = pointer_pos - rect.min.to_vec2();
-                            let item_center = self.resize_start_pos;
-                            
-                            self.apply_resize_to_item(item, handle, stage_pos, item_center, start_size);
+                    if let Some(start_size) = self.resize_start_size {
+                        let stage_pos = pointer_pos - rect.min.to_vec2();
+                        let item_center = self.resize_start_pos;
+                        
+                        // Apply resize directly here to avoid double borrow
+                        if let Some(item) = self.stage_items.get_mut(item_index) {
+                            match handle {
+                                ResizeHandle::Right => {
+                                    item.size.x = (stage_pos.x - item_center.x) * 2.0;
+                                    item.size.x = item.size.x.max(10.0);
+                                }
+                                ResizeHandle::Left => {
+                                    let new_width = (item_center.x - stage_pos.x) * 2.0;
+                                    if new_width > 10.0 {
+                                        item.size.x = new_width;
+                                        item.position.x = self.resize_start_pos.x - (new_width - start_size.x) / 2.0;
+                                    }
+                                }
+                                ResizeHandle::Bottom => {
+                                    item.size.y = (stage_pos.y - item_center.y) * 2.0;
+                                    item.size.y = item.size.y.max(10.0);
+                                }
+                                ResizeHandle::Top => {
+                                    let new_height = (item_center.y - stage_pos.y) * 2.0;
+                                    if new_height > 10.0 {
+                                        item.size.y = new_height;
+                                        item.position.y = self.resize_start_pos.y - (new_height - start_size.y) / 2.0;
+                                    }
+                                }
+                                ResizeHandle::BottomRight => {
+                                    item.size.x = (stage_pos.x - item_center.x) * 2.0;
+                                    item.size.y = (stage_pos.y - item_center.y) * 2.0;
+                                    item.size.x = item.size.x.max(10.0);
+                                    item.size.y = item.size.y.max(10.0);
+                                }
+                                ResizeHandle::TopLeft => {
+                                    let new_width = (item_center.x - stage_pos.x) * 2.0;
+                                    let new_height = (item_center.y - stage_pos.y) * 2.0;
+                                    if new_width > 10.0 && new_height > 10.0 {
+                                        item.size.x = new_width;
+                                        item.size.y = new_height;
+                                        item.position.x = self.resize_start_pos.x - (new_width - start_size.x) / 2.0;
+                                        item.position.y = self.resize_start_pos.y - (new_height - start_size.y) / 2.0;
+                                    }
+                                }
+                                _ => {
+                                    // Handle other resize handles as needed
+                                }
+                            }
                         }
                     }
                 }
@@ -530,232 +574,6 @@ impl TimelineApp {
                 self.resize_start_size = None;
             }
         }
-    }
-
-    fn apply_resize_to_item(&mut self, item: &mut StageItem, handle: ResizeHandle, stage_pos: Pos2, item_center: Pos2, start_size: Vec2) {
-        match handle {
-            ResizeHandle::Right => {
-                item.size.x = (stage_pos.x - item_center.x) * 2.0;
-                item.size.x = item.size.x.max(10.0);
-            }
-            ResizeHandle::Left => {
-                let new_width = (item_center.x - stage_pos.x) * 2.0;
-                if new_width > 10.0 {
-                    item.size.x = new_width;
-                    item.position.x = self.resize_start_pos.x - (new_width - start_size.x) / 2.0;
-                }
-            }
-            ResizeHandle::Bottom => {
-                item.size.y = (stage_pos.y - item_center.y) * 2.0;
-                item.size.y = item.size.y.max(10.0);
-            }
-            ResizeHandle::Top => {
-                let new_height = (item_center.y - stage_pos.y) * 2.0;
-                if new_height > 10.0 {
-                    item.size.y = new_height;
-                    item.position.y = self.resize_start_pos.y - (new_height - start_size.y) / 2.0;
-                }
-            }
-            ResizeHandle::BottomRight => {
-                item.size.x = (stage_pos.x - item_center.x) * 2.0;
-                item.size.y = (stage_pos.y - item_center.y) * 2.0;
-                item.size.x = item.size.x.max(10.0);
-                item.size.y = item.size.y.max(10.0);
-            }
-            ResizeHandle::TopLeft => {
-                let new_width = (item_center.x - stage_pos.x) * 2.0;
-                let new_height = (item_center.y - stage_pos.y) * 2.0;
-                if new_width > 10.0 && new_height > 10.0 {
-                    item.size = Vec2::new(new_width, new_height);
-                    item.position.x = self.resize_start_pos.x - (new_width - start_size.x) / 2.0;
-                    item.position.y = self.resize_start_pos.y - (new_height - start_size.y) / 2.0;
-                }
-            }
-            ResizeHandle::TopRight => {
-                let new_width = (stage_pos.x - item_center.x) * 2.0;
-                let new_height = (item_center.y - stage_pos.y) * 2.0;
-                if new_width > 10.0 && new_height > 10.0 {
-                    item.size = Vec2::new(new_width, new_height);
-                    item.position.y = self.resize_start_pos.y - (new_height - start_size.y) / 2.0;
-                }
-            }
-            ResizeHandle::BottomLeft => {
-                let new_width = (item_center.x - stage_pos.x) * 2.0;
-                let new_height = (stage_pos.y - item_center.y) * 2.0;
-                if new_width > 10.0 && new_height > 10.0 {
-                    item.size = Vec2::new(new_width, new_height);
-                    item.position.x = self.resize_start_pos.x - (new_width - start_size.x) / 2.0;
-                }
-            }
-        }
-    }
-
-    fn draw_marquee_selection(&self, ui: &mut egui::Ui, marquee: &MarqueeSelection) {
-        let selection_rect = marquee.get_rect();
-        
-        // Draw selection rectangle with border and semi-transparent fill
-        ui.painter().rect_filled(
-            selection_rect,
-            0.0,
-            Color32::from_rgba_premultiplied(100, 150, 255, 50), // Light blue fill
-        );
-        
-        // Draw border using line segments
-        let stroke = Stroke::new(1.0, Color32::from_rgb(100, 150, 255));
-        ui.painter().line_segment([selection_rect.left_top(), selection_rect.right_top()], stroke);
-        ui.painter().line_segment([selection_rect.right_top(), selection_rect.right_bottom()], stroke);
-        ui.painter().line_segment([selection_rect.right_bottom(), selection_rect.left_bottom()], stroke);
-        ui.painter().line_segment([selection_rect.left_bottom(), selection_rect.left_top()], stroke);
-        
-        // Draw corner indicators for better visibility
-        let corners = [
-            selection_rect.left_top(),
-            selection_rect.right_top(),
-            selection_rect.right_bottom(),
-            selection_rect.left_bottom(),
-        ];
-        
-        for corner in corners {
-            ui.painter().circle_filled(
-                corner,
-                3.0,
-                Color32::from_rgb(100, 150, 255),
-            );
-        }
-    }
-
-    // Item creation methods
-    fn create_rectangle_at(&mut self, pos: Pos2) {
-        let new_rect = StageItem {
-            id: format!("rect_{}", self.stage_items.len() + 1),
-            name: format!("Rectangle {}", self.stage_items.len() + 1),
-            item_type: StageItemType::Rectangle,
-            position: pos,
-            size: Vec2::new(100.0, 60.0),
-            color: self.tool_state.fill_color,
-            alpha: 1.0,
-            rotation: 0.0,
-            text_content: String::new(),
-            font_size: 16.0,
-            font_family: "Arial".to_string(),
-            path_points: Vec::new(),
-        };
-        self.stage_items.push(new_rect.clone());
-        self.log(LogLevel::Action, format!("Created {} with Rectangle tool", new_rect.name));
-    }
-
-    fn create_oval_at(&mut self, pos: Pos2) {
-        let new_oval = StageItem {
-            id: format!("oval_{}", self.stage_items.len() + 1),
-            name: format!("Circle {}", self.stage_items.len() + 1),
-            item_type: StageItemType::Circle,
-            position: pos,
-            size: Vec2::splat(80.0),
-            color: self.tool_state.fill_color,
-            alpha: 1.0,
-            rotation: 0.0,
-            text_content: String::new(),
-            font_size: 16.0,
-            font_family: "Arial".to_string(),
-            path_points: Vec::new(),
-        };
-        self.stage_items.push(new_oval.clone());
-        self.log(LogLevel::Action, format!("Created {} with Oval tool", new_oval.name));
-    }
-
-    fn create_text_at(&mut self, pos: Pos2) {
-        let new_text = StageItem {
-            id: format!("text_{}", self.stage_items.len() + 1),
-            name: format!("Text {}", self.stage_items.len() + 1),
-            item_type: StageItemType::Text,
-            position: pos,
-            size: Vec2::new(120.0, 30.0),
-            color: self.tool_state.fill_color,
-            alpha: 1.0,
-            rotation: 0.0,
-            text_content: "New Text".to_string(),
-            font_size: self.tool_state.text_font_size,
-            font_family: self.tool_state.text_font_family.clone(),
-            path_points: Vec::new(),
-        };
-        self.stage_items.push(new_text.clone());
-        self.log(LogLevel::Action, format!("Created {} with Text tool", new_text.name));
-    }
-
-    fn create_line_at(&mut self, pos: Pos2) {
-        let new_line = StageItem {
-            id: format!("line_{}", self.stage_items.len() + 1),
-            name: format!("Line {}", self.stage_items.len() + 1),
-            item_type: StageItemType::Rectangle, // Use rectangle for line representation
-            position: pos,
-            size: Vec2::new(100.0, 2.0), // Thin rectangle as line
-            color: self.tool_state.stroke_color,
-            alpha: 1.0,
-            rotation: 0.0,
-            text_content: String::new(),
-            font_size: 16.0,
-            font_family: "Arial".to_string(),
-            path_points: Vec::new(),
-        };
-        self.stage_items.push(new_line.clone());
-        self.log(LogLevel::Action, format!("Created {} with Line tool", new_line.name));
-    }
-
-    fn create_pen_point_at(&mut self, pos: Pos2) {
-        let new_path_point = StageItem {
-            id: format!("path_{}", self.stage_items.len() + 1),
-            name: format!("Path {}", self.stage_items.len() + 1),
-            item_type: StageItemType::Circle,
-            position: pos,
-            size: Vec2::splat(8.0), // Small circle for path point
-            color: self.tool_state.stroke_color,
-            alpha: 1.0,
-            rotation: 0.0,
-            text_content: String::new(),
-            font_size: 16.0,
-            font_family: "Arial".to_string(),
-            path_points: Vec::new(),
-        };
-        self.stage_items.push(new_path_point.clone());
-        self.log(LogLevel::Action, format!("Created {} with Pen tool", new_path_point.name));
-    }
-
-    fn create_pencil_mark_at(&mut self, pos: Pos2) {
-        let new_pencil_mark = StageItem {
-            id: format!("pencil_{}", self.stage_items.len() + 1),
-            name: format!("Pencil Mark {}", self.stage_items.len() + 1),
-            item_type: StageItemType::Circle,
-            position: pos,
-            size: Vec2::splat(4.0), // Small mark
-            color: self.tool_state.stroke_color,
-            alpha: 1.0,
-            rotation: 0.0,
-            text_content: String::new(),
-            font_size: 16.0,
-            font_family: "Arial".to_string(),
-            path_points: Vec::new(),
-        };
-        self.stage_items.push(new_pencil_mark.clone());
-        self.log(LogLevel::Action, format!("Created {} with Pencil tool", new_pencil_mark.name));
-    }
-
-    fn create_brush_stroke_at(&mut self, pos: Pos2) {
-        let new_brush_stroke = StageItem {
-            id: format!("brush_{}", self.stage_items.len() + 1),
-            name: format!("Brush Stroke {}", self.stage_items.len() + 1),
-            item_type: StageItemType::Circle,
-            position: pos,
-            size: Vec2::splat(self.tool_state.brush_size),
-            color: self.tool_state.stroke_color,
-            alpha: 1.0,
-            rotation: 0.0,
-            text_content: String::new(),
-            font_size: 16.0,
-            font_family: "Arial".to_string(),
-            path_points: Vec::new(),
-        };
-        self.stage_items.push(new_brush_stroke.clone());
-        self.log(LogLevel::Action, format!("Created {} with Brush tool", new_brush_stroke.name));
     }
 
     fn create_item_from_library_asset(&mut self, asset: &LibraryAsset, stage_pos: Pos2) {
@@ -835,5 +653,172 @@ impl TimelineApp {
         self.stage_items.push(new_item.clone());
         self.log(LogLevel::Action, format!("Dropped '{}' onto stage, created '{}'", 
             asset.name, new_item.name));
+    }
+    
+    fn draw_marquee_selection(&self, ui: &mut egui::Ui, marquee: &MarqueeSelection) {
+        let selection_rect = marquee.get_rect();
+        
+        // Draw selection rectangle with border and semi-transparent fill
+        ui.painter().rect_filled(
+            selection_rect,
+            0.0,
+            Color32::from_rgba_premultiplied(100, 150, 255, 50), // Light blue fill
+        );
+        
+        // Draw border using line segments
+        let stroke = egui::Stroke::new(1.0, Color32::from_rgb(100, 150, 255));
+        ui.painter().line_segment([selection_rect.left_top(), selection_rect.right_top()], stroke);
+        ui.painter().line_segment([selection_rect.right_top(), selection_rect.right_bottom()], stroke);
+        ui.painter().line_segment([selection_rect.right_bottom(), selection_rect.left_bottom()], stroke);
+        ui.painter().line_segment([selection_rect.left_bottom(), selection_rect.left_top()], stroke);
+        
+        // Draw corner indicators for better visibility
+        let corners = [
+            selection_rect.left_top(),
+            selection_rect.right_top(),
+            selection_rect.right_bottom(),
+            selection_rect.left_bottom(),
+        ];
+        
+        for corner in corners {
+            ui.painter().circle_filled(
+                corner,
+                3.0,
+                Color32::from_rgb(100, 150, 255),
+            );
+        }
+    }
+    
+    fn create_rectangle_at(&mut self, stage_pos: Pos2) {
+        let new_rect = StageItem {
+            id: format!("rect_{}", self.stage_items.len() + 1),
+            name: format!("Rectangle {}", self.stage_items.len() + 1),
+            item_type: StageItemType::Rectangle,
+            position: stage_pos,
+            size: Vec2::new(100.0, 60.0),
+            color: self.tool_state.fill_color,
+            alpha: 1.0,
+            rotation: 0.0,
+            text_content: String::new(),
+            font_size: 16.0,
+            font_family: "Arial".to_string(),
+            path_points: Vec::new(),
+        };
+        self.stage_items.push(new_rect.clone());
+        self.log(LogLevel::Action, format!("Created {} with Rectangle tool", new_rect.name));
+    }
+    
+    fn create_oval_at(&mut self, stage_pos: Pos2) {
+        let new_oval = StageItem {
+            id: format!("oval_{}", self.stage_items.len() + 1),
+            name: format!("Circle {}", self.stage_items.len() + 1),
+            item_type: StageItemType::Circle,
+            position: stage_pos,
+            size: Vec2::splat(80.0),
+            color: self.tool_state.fill_color,
+            alpha: 1.0,
+            rotation: 0.0,
+            text_content: String::new(),
+            font_size: 16.0,
+            font_family: "Arial".to_string(),
+            path_points: Vec::new(),
+        };
+        self.stage_items.push(new_oval.clone());
+        self.log(LogLevel::Action, format!("Created {} with Oval tool", new_oval.name));
+    }
+    
+    fn create_text_at(&mut self, stage_pos: Pos2) {
+        let new_text = StageItem {
+            id: format!("text_{}", self.stage_items.len() + 1),
+            name: format!("Text {}", self.stage_items.len() + 1),
+            item_type: StageItemType::Text,
+            position: stage_pos,
+            size: Vec2::new(120.0, 30.0),
+            color: self.tool_state.fill_color,
+            alpha: 1.0,
+            rotation: 0.0,
+            text_content: "New Text".to_string(),
+            font_size: self.tool_state.text_font_size,
+            font_family: self.tool_state.text_font_family.clone(),
+            path_points: Vec::new(),
+        };
+        self.stage_items.push(new_text.clone());
+        self.log(LogLevel::Action, format!("Created {} with Text tool", new_text.name));
+    }
+    
+    fn create_line_at(&mut self, stage_pos: Pos2) {
+        let new_line = StageItem {
+            id: format!("line_{}", self.stage_items.len() + 1),
+            name: format!("Line {}", self.stage_items.len() + 1),
+            item_type: StageItemType::Rectangle, // Use rectangle for line representation
+            position: stage_pos,
+            size: Vec2::new(100.0, 2.0), // Thin rectangle as line
+            color: self.tool_state.stroke_color,
+            alpha: 1.0,
+            rotation: 0.0,
+            text_content: String::new(),
+            font_size: 16.0,
+            font_family: "Arial".to_string(),
+            path_points: Vec::new(),
+        };
+        self.stage_items.push(new_line.clone());
+        self.log(LogLevel::Action, format!("Created {} with Line tool", new_line.name));
+    }
+    
+    fn create_pen_point_at(&mut self, stage_pos: Pos2) {
+        let new_path_point = StageItem {
+            id: format!("path_{}", self.stage_items.len() + 1),
+            name: format!("Path {}", self.stage_items.len() + 1),
+            item_type: StageItemType::Circle,
+            position: stage_pos,
+            size: Vec2::splat(8.0), // Small circle for path point
+            color: self.tool_state.stroke_color,
+            alpha: 1.0,
+            rotation: 0.0,
+            text_content: String::new(),
+            font_size: 16.0,
+            font_family: "Arial".to_string(),
+            path_points: Vec::new(),
+        };
+        self.stage_items.push(new_path_point.clone());
+        self.log(LogLevel::Action, format!("Created {} with Pen tool", new_path_point.name));
+    }
+    
+    fn create_pencil_mark_at(&mut self, stage_pos: Pos2) {
+        let new_pencil_mark = StageItem {
+            id: format!("pencil_{}", self.stage_items.len() + 1),
+            name: format!("Pencil Mark {}", self.stage_items.len() + 1),
+            item_type: StageItemType::Circle,
+            position: stage_pos,
+            size: Vec2::splat(4.0), // Small mark
+            color: self.tool_state.stroke_color,
+            alpha: 1.0,
+            rotation: 0.0,
+            text_content: String::new(),
+            font_size: 16.0,
+            font_family: "Arial".to_string(),
+            path_points: Vec::new(),
+        };
+        self.stage_items.push(new_pencil_mark.clone());
+        self.log(LogLevel::Action, format!("Created {} with Pencil tool", new_pencil_mark.name));
+    }
+    
+    fn create_brush_stroke_at(&mut self, stage_pos: Pos2) {
+        let new_brush_stroke = StageItem {
+            id: format!("brush_{}", self.stage_items.len() + 1),
+            name: format!("Brush Stroke {}", self.stage_items.len() + 1),
+            item_type: StageItemType::Circle,
+            position: stage_pos,
+            size: Vec2::splat(self.tool_state.brush_size),
+            color: self.tool_state.stroke_color,
+            alpha: 1.0,
+            rotation: 0.0,
+            text_content: String::new(),
+            font_size: 16.0,
+            font_family: "Arial".to_string(),
+            path_points: Vec::new(),
+        };
+        self.stage_items.push(new_brush_stroke.clone());
+        self.log(LogLevel::Action, format!("Created {} with Brush tool", new_brush_stroke.name));
     }
 }
