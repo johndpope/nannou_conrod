@@ -1275,9 +1275,8 @@ impl TimelineApp {
                     continue;
                 }
                 
-                // Item interaction
-                let item_id = ui.id().with(format!("stage_item_{}", item.id));
-                let response = ui.interact(item_rect, item_id, egui::Sense::click_and_drag());
+                // Item interaction - use allocate_rect to ensure proper event handling
+                let response = ui.allocate_rect(item_rect, egui::Sense::click_and_drag());
                 
                 // Handle hover
                 if response.hovered() {
@@ -1297,6 +1296,8 @@ impl TimelineApp {
                 // Handle clicks
                 if response.clicked() {
                     clicked_item = Some(index);
+                    // Debug log
+                    self.log(LogLevel::Action, format!("Item {} click detected", item.name));
                 }
                 
                 // Handle right-click
@@ -1421,10 +1422,11 @@ impl TimelineApp {
                 }
             }
             
-            // Handle stage background interactions
-            let stage_response = ui.interact(rect, ui.id().with("stage_bg"), egui::Sense::click());
-            
-            if stage_response.clicked() && clicked_item.is_none() {
+            // Handle stage background interactions (only if no item was clicked)
+            if clicked_item.is_none() && right_clicked_item.is_none() {
+                let stage_response = ui.interact(rect, ui.id().with("stage_bg"), egui::Sense::click());
+                
+                if stage_response.clicked() {
                 if let Some(pos) = stage_response.interact_pointer_pos() {
                     let stage_pos = pos - rect.min.to_vec2();
                     
@@ -1497,15 +1499,15 @@ impl TimelineApp {
                         }
                     }
                 }
-            }
-            
-            if stage_response.secondary_clicked() && right_clicked_item.is_none() {
-                // Right-clicked on empty stage
-                if let Some(pos) = stage_response.interact_pointer_pos() {
-                    self.context_menu = Some(ContextMenuState {
-                        position: pos,
-                        menu_type: ContextMenuType::Stage(pos - rect.min.to_vec2()),
-                    });
+                
+                if stage_response.secondary_clicked() {
+                    // Right-clicked on empty stage
+                    if let Some(pos) = stage_response.interact_pointer_pos() {
+                        self.context_menu = Some(ContextMenuState {
+                            position: pos,
+                            menu_type: ContextMenuType::Stage(pos - rect.min.to_vec2()),
+                        });
+                    }
                 }
             }
             
