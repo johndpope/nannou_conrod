@@ -358,12 +358,12 @@ impl<T: crate::RiveEngine> LegacyRiveEngineAdapter<T> {
     }
     
     fn next_keyframe_id(&self) -> KeyframeId {
-        let id = self.keyframe_counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let _id = self.keyframe_counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         KeyframeId::new()
     }
     
     fn next_tween_id(&self) -> TweenId {
-        let id = self.tween_counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let _id = self.tween_counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         TweenId::new()
     }
 }
@@ -444,16 +444,16 @@ impl<T: crate::RiveEngine> RiveController for LegacyRiveEngineAdapter<T> {
         }
     }
     
-    fn move_keyframe(&mut self, keyframe_id: KeyframeId, new_frame: u32) {
+    fn move_keyframe(&mut self, _keyframe_id: KeyframeId, _new_frame: u32) {
         eprintln!("Warning: Legacy RiveEngine doesn't support keyframe ID-based operations");
     }
     
-    fn copy_keyframe(&mut self, keyframe_id: KeyframeId) -> Option<KeyframeData> {
+    fn copy_keyframe(&mut self, _keyframe_id: KeyframeId) -> Option<KeyframeData> {
         eprintln!("Warning: Legacy RiveEngine doesn't support keyframe ID-based copy");
         None
     }
     
-    fn paste_keyframe(&mut self, layer_id: LayerId, frame: u32, data: KeyframeData) {
+    fn paste_keyframe(&mut self, layer_id: LayerId, frame: u32, _data: KeyframeData) {
         // Convert to legacy operation
         self.engine.insert_keyframe(layer_id, frame);
     }
@@ -492,7 +492,7 @@ impl<T: crate::RiveEngine> RiveDataProvider for LegacyRiveEngineAdapter<T> {
         self.engine.get_layers()
     }
     
-    fn get_keyframes(&self, layer_id: LayerId) -> Vec<KeyframeInfo> {
+    fn get_keyframes(&self, _layer_id: LayerId) -> Vec<KeyframeInfo> {
         // Legacy engine doesn't have a way to enumerate keyframes
         // Return empty for now
         Vec::new()

@@ -198,6 +198,8 @@ struct TimelineApp {
     // Stage items
     stage_items: Vec<StageItem>,
     selected_items: Vec<usize>,
+    // Marquee selection state
+    marquee_selection: Option<MarqueeSelection>,
     // Context menu state
     context_menu: Option<ContextMenuState>,
     // Properties panel state
@@ -265,6 +267,27 @@ enum ContextMenuType {
     StageItem(usize),
 }
 
+#[derive(Clone, Debug)]
+struct MarqueeSelection {
+    start_pos: egui::Pos2,
+    current_pos: egui::Pos2,
+    is_dragging: bool,
+}
+
+impl MarqueeSelection {
+    fn new(start_pos: egui::Pos2) -> Self {
+        Self {
+            start_pos,
+            current_pos: start_pos,
+            is_dragging: true,
+        }
+    }
+    
+    fn get_rect(&self) -> egui::Rect {
+        egui::Rect::from_two_pos(self.start_pos, self.current_pos)
+    }
+}
+
 #[derive(Clone, Copy, PartialEq)]
 enum PropertyTab {
     Properties,
@@ -328,25 +351,25 @@ enum Tool {
 impl Tool {
     fn get_icon(&self) -> &'static str {
         match self {
-            Tool::Arrow => "➤",
-            Tool::Subselection => "⊡",
-            Tool::Lasso => "◉",
-            Tool::Line => "╱",
-            Tool::Pen => "✒",
-            Tool::Pencil => "✏",
-            Tool::Brush => "🖌",
-            Tool::Rectangle => "▭",
-            Tool::Oval => "⭕",
-            Tool::PolyStar => "⭐",
-            Tool::Text => "T",
-            Tool::PaintBucket => "🪣",
-            Tool::InkBottle => "🖋",
-            Tool::Eyedropper => "💧",
-            Tool::Eraser => "🧽",
-            Tool::FreeTransform => "⤡",
-            Tool::GradientTransform => "🌈",
-            Tool::Zoom => "🔍",
-            Tool::Hand => "✋",
+            Tool::Arrow => "↖",         // Better arrow for selection
+            Tool::Subselection => "◇",   // Direct selection
+            Tool::Lasso => "⟡",         // Lasso selection
+            Tool::Line => "╱",          // Line tool
+            Tool::Pen => "⌐",           // Pen tool
+            Tool::Pencil => "✎",        // Pencil
+            Tool::Brush => "🖌",        // Brush
+            Tool::Rectangle => "▭",     // Rectangle
+            Tool::Oval => "○",          // Oval/Circle
+            Tool::PolyStar => "⬟",      // Star/Polygon
+            Tool::Text => "A",          // Text tool
+            Tool::PaintBucket => "▣",   // Paint bucket
+            Tool::InkBottle => "🖋",    // Ink bottle
+            Tool::Eyedropper => "🔍",   // Eyedropper
+            Tool::Eraser => "▤",        // Eraser
+            Tool::FreeTransform => "⤢", // Free transform
+            Tool::GradientTransform => "◐", // Gradient transform
+            Tool::Zoom => "⊕",         // Zoom
+            Tool::Hand => "✋",         // Hand
         }
     }
     
@@ -544,6 +567,7 @@ impl Default for TimelineApp {
             selected_language: "en".to_string(),
             stage_items,
             selected_items: Vec::new(),
+            marquee_selection: None,
             context_menu: None,
             properties_height: 200.0,
             selected_property_tab: PropertyTab::Properties,
@@ -1293,10 +1317,20 @@ impl TimelineApp {
                 // Item interaction - use allocate_rect to ensure proper event handling
                 let response = ui.allocate_rect(item_rect, egui::Sense::click_and_drag());
                 
-                // Handle hover
+                // Handle hover - set cursor based on active tool
                 if response.hovered() {
                     hovered_item = Some(index);
-                    ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                    // Set cursor based on active tool when hovering over items
+                    match self.tool_state.active_tool {
+                        Tool::Arrow => ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand),
+                        Tool::Hand => ui.ctx().set_cursor_icon(egui::CursorIcon::Grab),
+                        Tool::Zoom => ui.ctx().set_cursor_icon(egui::CursorIcon::ZoomIn),
+                        Tool::Text => ui.ctx().set_cursor_icon(egui::CursorIcon::Text),
+                        Tool::Eraser => ui.ctx().set_cursor_icon(egui::CursorIcon::NotAllowed),
+                        Tool::Eyedropper => ui.ctx().set_cursor_icon(egui::CursorIcon::Crosshair),
+                        Tool::PaintBucket => ui.ctx().set_cursor_icon(egui::CursorIcon::Crosshair),
+                        _ => ui.ctx().set_cursor_icon(egui::CursorIcon::Crosshair), // Drawing tools get crosshair
+                    }
                 }
                 
                 // Handle selection
@@ -1437,7 +1471,7 @@ impl TimelineApp {
             
             // Handle stage background interactions (only if no item was clicked)
             if clicked_item.is_none() && right_clicked_item.is_none() {
-                let stage_response = ui.interact(rect, ui.id().with("stage_bg"), egui::Sense::click());
+                let stage_response = ui.interact(rect, ui.id().with("stage_bg"), egui::Sense::click_and_drag());
                 
                 if stage_response.clicked() {
                     if let Some(pos) = stage_response.interact_pointer_pos() {
@@ -1505,6 +1539,34 @@ impl TimelineApp {
                             self.stage_items.push(new_text.clone());
                             self.log(LogLevel::Action, format!("Created {} with Text tool", new_text.name));
                             }
+                            Tool::Line => {
+                            // Line tool - create a line (represented as thin rectangle for now)
+                            let new_line = StageItem {
+                                id: format!("line_{}", self.stage_items.len() + 1),
+                                name: format!("Line {}", self.stage_items.len() + 1),
+                                item_type: StageItemType::Rectangle, // Use rectangle for line representation
+                                position: stage_pos,
+                                size: egui::Vec2::new(100.0, 2.0), // Thin rectangle as line
+                                color: self.tool_state.stroke_color,
+                                alpha: 1.0,
+                                rotation: 0.0,
+                                text_content: String::new(),
+                                font_size: 16.0,
+                                font_family: "Arial".to_string(),
+                                };
+                            self.stage_items.push(new_line.clone());
+                            self.log(LogLevel::Action, format!("Created {} with Line tool", new_line.name));
+                            }
+                            Tool::Hand => {
+                            // Hand tool - pan/scroll functionality (log for now)
+                            self.log(LogLevel::Action, format!("Hand tool panning at ({:.1}, {:.1})", 
+                                stage_pos.x, stage_pos.y));
+                            }
+                            Tool::Zoom => {
+                            // Zoom tool - zoom in/out functionality (log for now)
+                            self.log(LogLevel::Action, format!("Zoom tool clicked at ({:.1}, {:.1})", 
+                                stage_pos.x, stage_pos.y));
+                            }
                             _ => {
                             // Other tools - just log the click for now
                             self.log(LogLevel::Action, format!("{} clicked at ({:.1}, {:.1})", 
@@ -1521,6 +1583,68 @@ impl TimelineApp {
                             position: pos,
                             menu_type: ContextMenuType::Stage(pos - rect.min.to_vec2()),
                             });
+                    }
+                }
+                
+                // Handle marquee selection for Arrow tool
+                if self.tool_state.active_tool == Tool::Arrow {
+                    if stage_response.drag_started() {
+                        if let Some(start_pos) = stage_response.interact_pointer_pos() {
+                            self.marquee_selection = Some(MarqueeSelection::new(start_pos));
+                            self.log(LogLevel::Action, "Started marquee selection".to_string());
+                        }
+                    }
+                    
+                    if let Some(ref mut marquee) = &mut self.marquee_selection {
+                        if stage_response.dragged() {
+                            if let Some(current_pos) = stage_response.interact_pointer_pos() {
+                                marquee.current_pos = current_pos;
+                            }
+                        }
+                        
+                        if stage_response.drag_stopped() {
+                            // Complete marquee selection
+                            let selection_rect = marquee.get_rect();
+                            let mut selected_count = 0;
+                            
+                            // Clear current selection unless Ctrl/Cmd is held
+                            let modifiers = ui.input(|i| i.modifiers);
+                            if !modifiers.ctrl && !modifiers.command {
+                                self.selected_items.clear();
+                            }
+                            
+                            // Check which items intersect with the marquee rectangle
+                            for (index, item) in self.stage_items.iter().enumerate() {
+                                let item_rect = egui::Rect::from_center_size(
+                                    rect.min + item.position.to_vec2(),
+                                    item.size
+                                );
+                                
+                                if selection_rect.intersects(item_rect) {
+                                    if !self.selected_items.contains(&index) {
+                                        self.selected_items.push(index);
+                                        selected_count += 1;
+                                    }
+                                }
+                            }
+                            
+                            self.log(LogLevel::Action, format!("Marquee selection completed: {} items selected", selected_count));
+                            self.marquee_selection = None;
+                        }
+                    }
+                }
+                
+                // Set cursor for empty stage area based on active tool
+                if stage_response.hovered() && hovered_item.is_none() {
+                    match self.tool_state.active_tool {
+                        Tool::Arrow => ui.ctx().set_cursor_icon(egui::CursorIcon::Default),
+                        Tool::Hand => ui.ctx().set_cursor_icon(egui::CursorIcon::Grab),
+                        Tool::Zoom => ui.ctx().set_cursor_icon(egui::CursorIcon::ZoomIn),
+                        Tool::Text => ui.ctx().set_cursor_icon(egui::CursorIcon::Text),
+                        Tool::Eraser => ui.ctx().set_cursor_icon(egui::CursorIcon::NotAllowed),
+                        Tool::Eyedropper => ui.ctx().set_cursor_icon(egui::CursorIcon::Crosshair),
+                        Tool::PaintBucket => ui.ctx().set_cursor_icon(egui::CursorIcon::Crosshair),
+                        _ => ui.ctx().set_cursor_icon(egui::CursorIcon::Crosshair), // Drawing tools get crosshair
                     }
                 }
             }
@@ -1568,6 +1692,41 @@ impl TimelineApp {
                     let pos = item.position;
                     self.log(LogLevel::Action, format!("Moving {} to ({:.1}, {:.1})", 
                         name, pos.x, pos.y));
+                }
+            }
+            
+            // Draw marquee selection rectangle if active
+            if let Some(marquee) = &self.marquee_selection {
+                let selection_rect = marquee.get_rect();
+                
+                // Draw selection rectangle with border and semi-transparent fill
+                ui.painter().rect_filled(
+                    selection_rect,
+                    0.0,
+                    egui::Color32::from_rgba_premultiplied(100, 150, 255, 50), // Light blue fill
+                );
+                
+                // Draw border using line segments
+                let stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(100, 150, 255));
+                ui.painter().line_segment([selection_rect.left_top(), selection_rect.right_top()], stroke);
+                ui.painter().line_segment([selection_rect.right_top(), selection_rect.right_bottom()], stroke);
+                ui.painter().line_segment([selection_rect.right_bottom(), selection_rect.left_bottom()], stroke);
+                ui.painter().line_segment([selection_rect.left_bottom(), selection_rect.left_top()], stroke);
+                
+                // Draw corner indicators for better visibility
+                let corners = [
+                    selection_rect.left_top(),
+                    selection_rect.right_top(),
+                    selection_rect.right_bottom(),
+                    selection_rect.left_bottom(),
+                ];
+                
+                for corner in corners {
+                    ui.painter().circle_filled(
+                        corner,
+                        3.0,
+                        egui::Color32::from_rgb(100, 150, 255),
+                    );
                 }
             }
             
@@ -2174,14 +2333,6 @@ impl TimelineApp {
         if response.clicked() {
             self.tool_state.active_tool = tool;
             self.log(LogLevel::Action, format!("Selected tool: {}", tool.get_name()));
-            
-            // Update cursor based on tool
-            match tool {
-                Tool::Hand => ui.ctx().set_cursor_icon(egui::CursorIcon::Grab),
-                Tool::Zoom => ui.ctx().set_cursor_icon(egui::CursorIcon::ZoomIn),
-                Tool::Text => ui.ctx().set_cursor_icon(egui::CursorIcon::Text),
-                _ => ui.ctx().set_cursor_icon(egui::CursorIcon::Default),
-            }
         }
         
         response.on_hover_text(tooltip);

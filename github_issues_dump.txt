@@ -1,0 +1,4367 @@
+GitHub Issues Dump - RDT Project
+Generated on: Sun  3 Aug 2025 19:17:23 AEST
+Repository: johndpope/nannou_conrod
+==========================================
+
+==========================================
+ISSUE #1
+==========================================
+
+title:	Upgrade nannou_timeline to support Flash-inspired timeline component (PRD v1.0)
+state:	OPEN
+author:	johndpope
+labels:	enhancement
+comments:	0
+assignees:	
+projects:	
+milestone:	
+number:	1
+--
+## Overview
+Implement a comprehensive Flash-inspired timeline component based on the Product Requirements Document (PRD) v1.0. This upgrade will transform the existing `nannou_timeline` crate into a modern, feature-rich timeline interface similar to Adobe Flash IDE's timeline.
+
+## Background
+The current `nannou_timeline` provides basic timeline functionality, but lacks many features that would make it suitable for professional animation work. This upgrade aims to implement a full-featured timeline component with:
+- Layer-based organization
+- Keyframe management
+- Tweening controls
+- Modern UI/UX features
+
+## Key Requirements (from PRD)
+
+### Core UI Elements
+- **Layer List**: Vertical stack with drag-and-drop, visibility toggles, locking, nested folders
+- **Frame Grid**: Scrollable grid with keyframes, tweens, and visual markers
+- **Playhead**: Draggable indicator with frame-by-frame navigation
+- **Ruler**: Frame numbers with labels and scene markers
+
+### Interaction Features
+- Frame selection (single/multiple with lasso)
+- Keyframe management (insert, clear, convert)
+- Tweening controls (Classic, Motion, Shape with easing editor)
+- Onion skinning overlay
+- Playback controls (play, pause, loop with FPS selector)
+
+### Technical Requirements
+- Support 500 layers × 5000 frames with <500ms render time
+- 60 FPS smooth scrolling using virtualization
+- Keyboard shortcuts matching Flash
+- Full accessibility support (ARIA labels, keyboard navigation)
+- Responsive design for various screen sizes
+
+## Implementation Approach
+
+### Phase 1: Architecture Adaptation
+- Evaluate current `nannou_timeline` codebase
+- Design Rust-based architecture to support PRD requirements
+- Implement virtualized rendering for performance
+
+### Phase 2: Core Features
+- Implement layer management system
+- Add keyframe and frame grid functionality
+- Create playhead and timeline controls
+- Integrate with nannou's rendering system
+
+### Phase 3: Advanced Features
+- Add tweening engine with easing curves
+- Implement onion skinning
+- Add drag-and-drop interactions
+- Create accessibility layer
+
+### Phase 4: Polish & Performance
+- Optimize for large timelines (10,000+ frames)
+- Add theme support
+- Complete keyboard shortcut system
+- Performance benchmarking
+
+## Technical Considerations
+
+### Current Codebase Status
+- Repository is marked as "NO LONGER MAINTAINED"
+- Recommendation is to use `nannou_egui` instead
+- We'll need to either:
+  1. Fork and modernize this codebase, or
+  2. Create a new timeline component using egui
+
+### Dependencies to Update
+- Current: conrod 0.76 (deprecated)
+- Consider migration to egui for modern GUI support
+- Update to latest nannou version
+- Add virtualization library for performance
+
+### Compatibility Requirements
+- Maintain API compatibility where possible
+- Support both standalone and integrated usage
+- Provide migration guide from current version
+
+## Deliverables
+1. Updated timeline component with all PRD features
+2. Comprehensive documentation and examples
+3. Performance benchmarks showing <500ms render for large timelines
+4. Migration guide from current nannou_timeline
+5. Demo application showcasing all features
+
+## Success Metrics (from PRD)
+- Render 500 layers × 5000 frames in <500ms
+- 60 FPS smooth scrolling
+- 90% unit test coverage
+- Support for 100+ layers without performance lag
+- Full keyboard accessibility
+
+## Questions/Decisions Needed
+1. Should we upgrade the existing conrod-based code or migrate to egui?
+2. How to handle the deprecated status of this repository?
+3. Integration approach with modern nannou versions?
+4. Rust-specific adaptations for React-like component model described in PRD?
+
+## References
+- [PRD Document]: Flash-Inspired Timeline Component v1.0
+- [Conrod Deprecation Context](https://github.com/PistonDevelopers/conrod/issues/1454)
+- Adobe Flash timeline documentation
+- Modern timeline implementations (Animate.css, Shotcut)
+
+
+==========================================
+ISSUE #2
+==========================================
+
+title:	Phase 1: Migrate timeline from conrod to egui
+state:	CLOSED
+author:	johndpope
+labels:	enhancement
+comments:	1
+assignees:	
+projects:	
+milestone:	
+number:	2
+--
+## Overview
+First phase of the Flash-inspired timeline upgrade. Migrate the existing nannou_timeline from the deprecated conrod framework to modern egui, establishing the foundation for future enhancements.
+
+## Motivation
+- Conrod is no longer maintained (see https://github.com/PistonDevelopers/conrod/issues/1454)
+- The main nannou project recommends using egui for GUI components
+- egui provides better performance, modern features, and active development
+
+## Tasks
+- [ ] Set up egui dependencies in Cargo.toml
+- [ ] Create basic egui timeline window structure
+- [ ] Port existing timeline widget to egui
+- [ ] Migrate track system (PianoRoll, Toggle, Bang, NumericAutomation)
+- [ ] Port playhead widget
+- [ ] Update event handling from conrod to egui
+- [ ] Ensure compatibility with nannou 0.19+
+- [ ] Update examples to use new egui-based timeline
+
+## Technical Details
+### Current Structure (conrod-based)
+```rust
+// Current imports
+use conrod_core::{widget, Colorable, Positionable, Widget};
+use conrod_derive::WidgetCommon;
+```
+
+### Target Structure (egui-based)
+```rust
+// New imports
+use egui::{Context, Ui, Response, Widget};
+use nannou_egui;
+```
+
+### Key Migration Points
+1. Replace conrod's widget trait system with egui's immediate mode GUI
+2. Convert retained mode state to egui's frame-based updates
+3. Adapt coordinate systems (conrod uses center-origin, egui uses top-left)
+4. Update color and styling to use egui's theme system
+
+## Acceptance Criteria
+- [ ] All existing timeline functionality works with egui
+- [ ] Examples compile and run without conrod dependencies
+- [ ] Performance is equal or better than conrod version
+- [ ] No breaking changes to public API (where possible)
+
+## Dependencies
+- Depends on: Main issue #1
+- Blocks: All subsequent phases
+
+## References
+- [egui documentation](https://docs.rs/egui/latest/egui/)
+- [nannou_egui integration guide](https://github.com/nannou-org/nannou/tree/master/nannou_egui)
+
+
+==========================================
+ISSUE #3
+==========================================
+
+title:	Phase 2: Implement core timeline UI components
+state:	OPEN
+author:	johndpope
+labels:	enhancement
+comments:	0
+assignees:	
+projects:	
+milestone:	
+number:	3
+--
+## Overview
+Implement the core visual components of the Flash-inspired timeline as specified in the PRD. This phase focuses on the basic UI structure without advanced interactions.
+
+## Components to Implement
+
+### 1. Timeline Panel Layout
+- [ ] Create main timeline container with resizable sections
+- [ ] Left panel: Layer list area (25% width)
+- [ ] Center panel: Frame grid area (70% width)  
+- [ ] Top bar: Ruler with frame numbers
+- [ ] Bottom bar: Playback controls
+
+### 2. Frame Grid
+- [ ] Implement scrollable grid display
+- [ ] Frame cells with configurable width (zoom levels)
+- [ ] Visual states: empty, keyframe, tween span
+- [ ] Grid lines and alternating row colors
+- [ ] Support for 1000+ frames horizontal scroll
+
+### 3. Playhead
+- [ ] Vertical red line indicator
+- [ ] Frame number display
+- [ ] Smooth dragging interaction
+- [ ] Snap-to-frame behavior
+
+### 4. Ruler
+- [ ] Frame number markers (configurable intervals)
+- [ ] Click to jump playhead
+- [ ] Support for frame labels
+- [ ] Scene divider markers
+
+### 5. Basic Playback Controls
+- [ ] Play/Pause button
+- [ ] Stop/Rewind button
+- [ ] FPS selector (dropdown or input)
+- [ ] Current frame display
+- [ ] Total frames display
+
+## Visual Design Requirements
+- Match Flash timeline aesthetic where appropriate
+- Support light/dark themes via egui
+- Consistent spacing and alignment
+- Clear visual hierarchy
+
+## Technical Implementation
+```rust
+// Example structure
+pub struct TimelineUI {
+    grid: FrameGrid,
+    playhead: Playhead,
+    ruler: TimelineRuler,
+    controls: PlaybackControls,
+}
+
+impl TimelineUI {
+    pub fn show(&mut self, ui: &mut egui::Ui) {
+        // Layout implementation
+    }
+}
+```
+
+## Acceptance Criteria
+- [ ] All UI components render correctly
+- [ ] Responsive layout adjusts to window size
+- [ ] Smooth scrolling and zooming
+- [ ] Visual feedback for interactive elements
+- [ ] No visual glitches or alignment issues
+
+## Dependencies
+- Depends on: Phase 1 (#2)
+- Blocks: Phase 3 (layer management)
+
+## Test Requirements
+- [ ] Unit tests for component calculations
+- [ ] Visual regression tests
+- [ ] Manual testing checklist for UI interactions
+
+
+==========================================
+ISSUE #4
+==========================================
+
+title:	Phase 3: Implement layer management system
+state:	OPEN
+author:	johndpope
+labels:	enhancement
+comments:	0
+assignees:	
+projects:	
+milestone:	
+number:	4
+--
+## Overview
+Implement the layer management system as specified in the PRD, providing Flash-like layer organization with modern enhancements.
+
+## Features to Implement
+
+### 1. Layer List UI
+- [ ] Vertical stack of layer items
+- [ ] Layer item components:
+  - [ ] Name label (editable on double-click)
+  - [ ] Visibility toggle (eye icon)
+  - [ ] Lock toggle (padlock icon)
+  - [ ] Layer type indicator (normal/mask/guide)
+  - [ ] Expand/collapse arrow for folders
+
+### 2. Layer Operations
+- [ ] Add new layer (button and keyboard shortcut)
+- [ ] Delete selected layers
+- [ ] Duplicate layer with content
+- [ ] Rename layer (inline editing)
+- [ ] Convert to folder/group
+- [ ] Layer properties dialog
+
+### 3. Drag and Drop
+- [ ] Drag to reorder layers
+- [ ] Visual feedback during drag (insertion line)
+- [ ] Drag into/out of folders
+- [ ] Multi-select drag support
+- [ ] Smooth animations during reorder
+
+### 4. Layer Folders/Groups
+- [ ] Nested hierarchy (up to 5 levels)
+- [ ] Expand/collapse functionality
+- [ ] Folder visibility affects children
+- [ ] Folder lock affects children
+- [ ] Indentation for visual hierarchy
+
+### 5. Context Menu
+- [ ] Right-click menu implementation
+- [ ] Menu items:
+  - [ ] Insert Layer
+  - [ ] Delete Layer
+  - [ ] Duplicate Layer
+  - [ ] Convert to Folder
+  - [ ] Merge Down
+  - [ ] Properties
+
+### 6. Selection Management
+- [ ] Single layer selection
+- [ ] Multi-select with Ctrl/Cmd
+- [ ] Range select with Shift
+- [ ] Select all in folder
+- [ ] Visual selection indicators
+
+## Data Structure
+```rust
+pub struct Layer {
+    pub id: LayerId,
+    pub name: String,
+    pub visible: bool,
+    pub locked: bool,
+    pub layer_type: LayerType,
+    pub parent: Option<LayerId>,
+    pub children: Vec<LayerId>,
+    pub frames: HashMap<FrameNumber, Frame>,
+}
+
+pub enum LayerType {
+    Normal,
+    Mask,
+    Guide,
+    Folder,
+}
+```
+
+## Integration Requirements
+- [ ] Sync layer selection with frame grid
+- [ ] Update frame grid on layer reorder
+- [ ] Layer state affects frame rendering
+- [ ] Undo/redo support for all operations
+
+## Performance Requirements
+- [ ] Support 100+ layers without lag
+- [ ] Smooth drag animations at 60 FPS
+- [ ] Instant response to visibility toggles
+- [ ] Efficient rendering of nested hierarchies
+
+## Acceptance Criteria
+- [ ] All layer operations work correctly
+- [ ] Drag and drop is smooth and intuitive
+- [ ] Keyboard shortcuts match Flash standards
+- [ ] No performance degradation with many layers
+- [ ] Proper state management and persistence
+
+## Dependencies
+- Depends on: Phase 2 (#3)
+- Blocks: Phase 4 (keyframes need layers)
+
+## Test Cases
+- [ ] Create and delete layers
+- [ ] Drag reordering scenarios
+- [ ] Folder expand/collapse state
+- [ ] Multi-selection operations
+- [ ] Performance with 100+ layers
+
+
+==========================================
+ISSUE #5
+==========================================
+
+title:	Implement Timeline UI Presentation Layer (Stubbed)
+state:	OPEN
+author:	johndpope
+labels:	enhancement
+comments:	0
+assignees:	
+projects:	
+milestone:	
+number:	5
+--
+## Overview
+Create the timeline UI presentation layer with stubbed functionality. This issue focuses purely on the visual interface that will later connect to the Rive rendering engine located in the parent directory.
+
+## Scope
+- **Focus**: UI components and visual presentation only
+- **Approach**: Stub all data operations with mock interfaces
+- **Integration**: Define clear interfaces for future Rive integration
+
+## UI Components to Implement
+
+### 1. Timeline Window Shell
+```rust
+// Stubbed interface
+pub trait RiveEngine {
+    fn get_layers(&self) -> Vec<LayerInfo>;
+    fn get_frame_data(&self, layer_id: LayerId, frame: u32) -> FrameData;
+    fn play(&mut self);
+    fn pause(&mut self);
+    fn seek(&mut self, frame: u32);
+}
+
+pub struct TimelineUI {
+    mock_engine: Box<dyn RiveEngine>,
+}
+```
+
+### 2. Visual Components (UI Only)
+
+#### Layer Panel
+- [ ] Layer list with mock data
+- [ ] Visual elements: icons, labels, hover states
+- [ ] Stub click handlers (log actions only)
+- [ ] CSS-like styling with egui
+
+#### Frame Grid
+- [ ] Grid rendering with mock frame data
+- [ ] Visual states for different frame types
+- [ ] Hover and selection highlights
+- [ ] Stub: Log frame clicks/drags
+
+#### Playhead
+- [ ] Red line visual indicator
+- [ ] Draggable with position feedback
+- [ ] Frame number tooltip
+- [ ] Stub: Log position changes
+
+#### Playback Controls
+- [ ] Play/Pause/Stop buttons (visual only)
+- [ ] FPS display widget
+- [ ] Frame counter display
+- [ ] Stub: Log button clicks
+
+### 3. Mock Data Structures
+```rust
+// These will be replaced by Rive data later
+pub struct MockLayer {
+    pub id: String,
+    pub name: String,
+    pub visible: bool,
+    pub locked: bool,
+}
+
+pub struct MockFrame {
+    pub frame_number: u32,
+    pub frame_type: FrameType,
+}
+
+pub enum FrameType {
+    Empty,
+    Keyframe,
+    Tween,
+}
+```
+
+### 4. Styling System
+- [ ] Define color palette matching Flash aesthetic
+- [ ] Implement hover/active/disabled states
+- [ ] Support theme switching (light/dark)
+- [ ] Consistent spacing and sizing
+
+## Stubbed Interactions
+All interactions should:
+1. Provide visual feedback (hover, click states)
+2. Log the action to console
+3. Update local UI state only
+4. Not attempt any actual animation logic
+
+Example:
+```rust
+if ui.button("▶").clicked() {
+    println\!("Play button clicked - would trigger Rive playback");
+    self.ui_state.is_playing = true;
+}
+```
+
+## Development Approach
+1. Start with static mock data
+2. Build all visual components
+3. Add interaction feedback
+4. Define clear interfaces for Rive integration
+5. Document integration points
+
+## Success Criteria
+- [ ] All UI components render correctly
+- [ ] Visual design matches Flash timeline aesthetic
+- [ ] All interactions provide appropriate feedback
+- [ ] Clear separation between UI and logic
+- [ ] Well-documented integration interfaces
+
+## Non-Goals
+- No actual animation playback
+- No file I/O
+- No complex state management
+- No performance optimization (yet)
+
+## Future Integration Points
+Document where Rive will connect:
+- Layer data source
+- Frame data source
+- Playback control callbacks
+- Selection state synchronization
+
+## Dependencies
+- egui and nannou_egui
+- No dependency on Rive crate yet (just interfaces)
+
+## Reference
+- Adobe Flash CS6 timeline screenshots
+- PRD visual requirements
+
+
+==========================================
+ISSUE #6
+==========================================
+
+title:	Define Rive-Timeline Integration Interface
+state:	OPEN
+author:	johndpope
+labels:	enhancement
+comments:	0
+assignees:	
+projects:	
+milestone:	
+number:	6
+--
+## Overview
+Define the interface between the Timeline UI and the Rive rendering engine. This establishes the contract for how the timeline will communicate with Rive for animation playback and editing.
+
+## Integration Architecture
+
+### 1. Timeline → Rive Commands
+```rust
+// Commands the timeline sends to Rive
+pub trait RiveController {
+    // Playback control
+    fn play(&mut self);
+    fn pause(&mut self);
+    fn stop(&mut self);
+    fn seek_to_frame(&mut self, frame: u32);
+    fn set_fps(&mut self, fps: f32);
+    
+    // Layer operations
+    fn add_layer(&mut self, name: &str) -> LayerId;
+    fn remove_layer(&mut self, layer_id: LayerId);
+    fn reorder_layers(&mut self, layer_ids: Vec<LayerId>);
+    fn set_layer_visibility(&mut self, layer_id: LayerId, visible: bool);
+    fn set_layer_locked(&mut self, layer_id: LayerId, locked: bool);
+    
+    // Keyframe operations
+    fn add_keyframe(&mut self, layer_id: LayerId, frame: u32) -> KeyframeId;
+    fn remove_keyframe(&mut self, keyframe_id: KeyframeId);
+    fn move_keyframe(&mut self, keyframe_id: KeyframeId, new_frame: u32);
+    
+    // Tween operations
+    fn create_tween(&mut self, start_frame: u32, end_frame: u32, tween_type: TweenType);
+    fn set_easing(&mut self, tween_id: TweenId, easing: EasingFunction);
+}
+```
+
+### 2. Rive → Timeline Events
+```rust
+// Events Rive sends to the timeline
+pub trait TimelineEventHandler {
+    fn on_frame_changed(&mut self, frame: u32);
+    fn on_playback_started(&mut self);
+    fn on_playback_stopped(&mut self);
+    fn on_layer_added(&mut self, layer: LayerInfo);
+    fn on_layer_removed(&mut self, layer_id: LayerId);
+    fn on_keyframe_added(&mut self, layer_id: LayerId, frame: u32);
+    fn on_animation_loaded(&mut self, animation_info: AnimationInfo);
+}
+```
+
+### 3. Data Query Interface
+```rust
+// Timeline queries Rive for current state
+pub trait RiveDataProvider {
+    fn get_layers(&self) -> Vec<LayerInfo>;
+    fn get_keyframes(&self, layer_id: LayerId) -> Vec<KeyframeInfo>;
+    fn get_current_frame(&self) -> u32;
+    fn get_total_frames(&self) -> u32;
+    fn get_fps(&self) -> f32;
+    fn get_animation_bounds(&self) -> (u32, u32); // start, end
+}
+```
+
+### 4. Shared Data Types
+```rust
+// Common types used by both systems
+#[derive(Clone, Debug)]
+pub struct LayerInfo {
+    pub id: LayerId,
+    pub name: String,
+    pub layer_type: LayerType,
+    pub visible: bool,
+    pub locked: bool,
+    pub parent_id: Option<LayerId>,
+}
+
+#[derive(Clone, Debug)]
+pub struct KeyframeInfo {
+    pub id: KeyframeId,
+    pub frame: u32,
+    pub keyframe_type: KeyframeType,
+    pub has_tween: bool,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum TweenType {
+    Motion,
+    Shape,
+    Classic,
+}
+
+#[derive(Clone, Debug)]
+pub enum EasingFunction {
+    Linear,
+    EaseIn,
+    EaseOut,
+    EaseInOut,
+    Custom(Vec<(f32, f32)>), // Bezier control points
+}
+```
+
+### 5. Integration Pattern
+```rust
+// Example usage in timeline
+pub struct Timeline {
+    rive_controller: Box<dyn RiveController>,
+    rive_data: Box<dyn RiveDataProvider>,
+}
+
+impl Timeline {
+    pub fn handle_play_button(&mut self) {
+        self.rive_controller.play();
+        self.update_ui_state();
+    }
+    
+    pub fn render_layers(&self, ui: &mut egui::Ui) {
+        let layers = self.rive_data.get_layers();
+        for layer in layers {
+            // Render layer UI
+        }
+    }
+}
+```
+
+## Implementation Stages
+
+### Stage 1: Mock Implementation
+- [ ] Create mock implementations of all interfaces
+- [ ] Use static data for testing UI
+- [ ] Verify interface completeness
+
+### Stage 2: Rive Adapter
+- [ ] Create adapter that translates between Timeline and Rive APIs
+- [ ] Handle Rive-specific data formats
+- [ ] Implement event system
+
+### Stage 3: Full Integration
+- [ ] Connect to actual Rive instance
+- [ ] Handle edge cases and errors
+- [ ] Performance optimization
+
+## Testing Strategy
+- [ ] Unit tests for interface contracts
+- [ ] Integration tests with mock Rive
+- [ ] End-to-end tests with real Rive engine
+
+## Documentation Requirements
+- [ ] Interface documentation with examples
+- [ ] Integration guide for Rive developers
+- [ ] Migration guide from current system
+
+## Dependencies
+- Timeline UI implementation (#5)
+- Access to Rive crate in parent directory
+- Clear understanding of Rive's animation model
+
+## Success Criteria
+- [ ] Clean separation of concerns
+- [ ] No Rive-specific code in Timeline UI
+- [ ] Extensible for future features
+- [ ] Performance: <16ms response time for all operations
+
+
+==========================================
+ISSUE #7
+==========================================
+
+title:	Create UI Tests for Timeline Component
+state:	OPEN
+author:	johndpope
+labels:	enhancement
+comments:	0
+assignees:	
+projects:	
+milestone:	
+number:	7
+--
+## Overview
+Create comprehensive UI tests for the Flash-inspired timeline component, ensuring all visual elements and interactions match the expected behavior based on Flash CS6 reference.
+
+## Test Categories
+
+### 1. Visual Component Tests
+
+#### Layer Panel Tests
+```rust
+#[test]
+fn test_layer_panel_rendering() {
+    // Test that layer panel shows:
+    // - Layer names
+    // - Visibility toggle (eye icon)
+    // - Lock toggle (padlock icon)
+    // - Proper indentation for nested layers
+    // - Selection highlighting
+}
+
+#[test]
+fn test_layer_icons_states() {
+    // Test icon states:
+    // - Visible/hidden eye icon
+    // - Locked/unlocked padlock
+    // - Folder open/closed
+    // - Hover states for all icons
+}
+```
+
+#### Frame Grid Tests
+```rust
+#[test]
+fn test_frame_grid_display() {
+    // Test grid rendering:
+    // - Correct number of frames
+    // - Frame cell boundaries
+    // - Alternating row colors
+    // - Frame numbers in ruler
+}
+
+#[test]
+fn test_keyframe_visualization() {
+    // Test different frame types:
+    // - Empty frames (light gray)
+    // - Keyframes (black dot)
+    // - Tween spans (gradient/arrow)
+    // - Selected frames (blue highlight)
+}
+```
+
+#### Playhead Tests
+```rust
+#[test]
+fn test_playhead_rendering() {
+    // Test playhead:
+    // - Red vertical line
+    // - Correct position
+    // - Frame number indicator
+    // - Extends full height
+}
+```
+
+### 2. Interaction Tests
+
+#### Drag and Drop Tests
+```rust
+#[test]
+fn test_layer_drag_reorder() {
+    // Test:
+    // - Drag initiation
+    // - Visual feedback during drag
+    // - Drop zones
+    // - Layer order update
+}
+
+#[test]
+fn test_playhead_dragging() {
+    // Test:
+    // - Click and drag playhead
+    // - Snap to frames
+    // - Update frame display
+    // - Bounds checking
+}
+```
+
+#### Selection Tests
+```rust
+#[test]
+fn test_frame_selection() {
+    // Test:
+    // - Single frame click
+    // - Drag to select multiple
+    // - Shift-click range selection
+    // - Ctrl-click multi-select
+}
+
+#[test]
+fn test_layer_selection() {
+    // Test:
+    // - Single layer click
+    // - Multi-layer selection
+    // - Selection visual feedback
+}
+```
+
+#### Context Menu Tests
+```rust
+#[test]
+fn test_layer_context_menu() {
+    // Test right-click menu:
+    // - Menu appears at cursor
+    // - All options present
+    // - Menu dismissal
+}
+```
+
+### 3. Layout Tests
+
+```rust
+#[test]
+fn test_timeline_layout() {
+    // Test panel proportions:
+    // - Layer panel width (~25%)
+    // - Frame grid width (~70%)
+    // - Controls height
+    // - Resizing behavior
+}
+
+#[test]
+fn test_responsive_layout() {
+    // Test different window sizes:
+    // - Minimum size constraints
+    // - Panel collapse behavior
+    // - Scrollbar appearance
+}
+```
+
+### 4. State Management Tests
+
+```rust
+#[test]
+fn test_playback_state() {
+    // Test:
+    // - Play/pause state toggle
+    // - Frame counter updates
+    // - Button visual states
+}
+
+#[test]
+fn test_zoom_levels() {
+    // Test frame zoom:
+    // - Zoom in/out
+    // - Frame width changes
+    // - Maintain playhead position
+}
+```
+
+### 5. Visual Regression Tests
+
+Using snapshot testing:
+```rust
+#[test]
+fn test_timeline_visual_snapshot() {
+    let timeline = create_test_timeline();
+    let snapshot = render_to_image(&timeline);
+    assert_snapshot\!(snapshot, "timeline_default");
+}
+
+#[test]
+fn test_timeline_with_layers_snapshot() {
+    let timeline = create_timeline_with_layers();
+    let snapshot = render_to_image(&timeline);
+    assert_snapshot\!(snapshot, "timeline_with_layers");
+}
+```
+
+### 6. Performance Tests
+
+```rust
+#[test]
+fn test_render_performance_100_layers() {
+    // Ensure <16ms render time
+    let timeline = create_timeline_with_layers(100);
+    let start = Instant::now();
+    timeline.render();
+    assert\!(start.elapsed() < Duration::from_millis(16));
+}
+
+#[test]
+fn test_scroll_performance() {
+    // Test smooth scrolling
+    let timeline = create_large_timeline();
+    measure_fps_during_scroll(&timeline);
+}
+```
+
+## Test Utilities
+
+```rust
+// Helper functions for tests
+pub fn create_test_timeline() -> Timeline {
+    Timeline::new()
+        .with_mock_layers(5)
+        .with_mock_frames(100)
+}
+
+pub fn simulate_drag(from: Point, to: Point) {
+    // Simulate mouse drag operation
+}
+
+pub fn assert_visual_element(element: &str, expected: VisualState) {
+    // Check visual properties
+}
+```
+
+## Test Data
+
+Create fixtures for:
+- Mock layer hierarchies
+- Mock keyframe patterns
+- Mock animation sequences
+- Edge cases (empty timeline, max layers, etc.)
+
+## CI Integration
+
+- [ ] Run tests on every PR
+- [ ] Visual regression tests with image diffs
+- [ ] Performance benchmarks with thresholds
+- [ ] Coverage reports (target: 90%)
+
+## Manual Test Checklist
+
+For aspects hard to automate:
+- [ ] Smooth animations during drag
+- [ ] Visual polish and alignment
+- [ ] Keyboard shortcut feel
+- [ ] Overall UX flow
+
+## Tools and Dependencies
+
+```toml
+[dev-dependencies]
+insta = "1.34" # Snapshot testing
+criterion = "0.5" # Performance benchmarks
+test-case = "3.1" # Parameterized tests
+egui_test = "0.1" # egui testing utilities
+```
+
+## Success Criteria
+- [ ] All tests pass consistently
+- [ ] Visual snapshots match Flash reference
+- [ ] Performance targets met
+- [ ] No flaky tests
+- [ ] Clear test documentation
+
+## References
+- Flash CS6 timeline behavior videos
+- egui testing best practices
+- Rust UI testing patterns
+
+
+==========================================
+ISSUE #8
+==========================================
+
+title:	Switch from musical time to frame-based time (Flash-style)
+state:	CLOSED
+author:	johndpope
+labels:	enhancement
+comments:	1
+assignees:	
+projects:	
+milestone:	
+number:	8
+--
+## Overview
+Replace the current musically-structured time system (bars/beats/PPQN) with Flash's frame-based timeline approach. This is the highest priority as it unlocks Flash-like flexibility for animation workflows.
+
+## Background
+Flash CS6/Animate used a simple frame-based timeline where:
+- Time was represented as sequential frame numbers (1, 2, 3...)
+- Playback speed controlled by document FPS (default 24fps)
+- No musical grid constraints - frames could be inserted/removed arbitrarily
+- Frame labels and markers for synchronization points
+
+## Requirements
+- [ ] Remove musical time dependencies (bars, beats, PPQN)
+- [ ] Implement frame-based time model:
+  ```rust
+  pub struct FrameTime {
+      frame: u32,
+      fps: f32,
+  }
+  ```
+- [ ] Add frame insertion/removal operations
+- [ ] Support arbitrary frame spans and lengths
+- [ ] Update ruler to show frame numbers instead of bars
+- [ ] Add FPS selector in playback controls (12, 24, 30, 60 fps presets)
+- [ ] Calculate time display as seconds based on frame/fps
+- [ ] Support frame labels and markers
+
+## Implementation Plan
+1. Update `TimelineState` to use frame numbers exclusively
+2. Modify `draw_ruler` to display frame numbers
+3. Add right-click context menu in frame grid:
+   - Insert Frame (F5)
+   - Remove Frame (Shift+F5)
+   - Insert Keyframe (F6)
+   - Clear Keyframe (Shift+F6)
+4. Update `RiveEngine` trait to work with frames
+5. Add frame label support to ruler
+
+## Testing
+- [ ] Frame insertion/removal operations
+- [ ] FPS changes update timing correctly
+- [ ] Playback maintains sync with Rive
+- [ ] Frame labels persist correctly
+
+## Priority
+**HIGH** - This is foundational for Flash-like behavior. All other animation features depend on flexible frame manipulation.
+
+## References
+- Flash CS6 timeline documentation
+- Grok's analysis of Flash timeline behavior
+
+
+==========================================
+ISSUE #9
+==========================================
+
+title:	Add continuous scrolling with smooth zoom (Flash-style navigation)
+state:	CLOSED
+author:	johndpope
+labels:	enhancement
+comments:	1
+assignees:	
+projects:	
+milestone:	
+number:	9
+--
+## Overview
+Implement Flash-style continuous scrolling for both horizontal (frames) and vertical (layers) directions, with smooth zoom controls that adjust frame width dynamically.
+
+## Background
+Flash's timeline navigation was fluid and infinite:
+- Smooth horizontal scrolling through frames
+- Vertical scrolling through layers
+- Zoom in/out changed frame width (compressed/expanded view)
+- No pagination - continuous in both directions
+- Real-time stage updates during scroll/scrub
+
+## Requirements
+- [ ] Implement horizontal scrolling for frame grid
+  - [ ] Use `egui::ScrollArea::horizontal()`
+  - [ ] Track scroll position in `TimelineState::scroll_x`
+  - [ ] Support mouse wheel + shift for horizontal scroll
+  - [ ] Add horizontal scrollbar
+  
+- [ ] Implement vertical scrolling for layers
+  - [ ] Use `egui::ScrollArea::vertical()` 
+  - [ ] Track scroll position in `TimelineState::scroll_y`
+  - [ ] Auto-scroll when adding layers beyond viewport
+  - [ ] Sync layer panel and frame grid vertical scroll
+
+- [ ] Add smooth zoom functionality
+  - [ ] Zoom range: 10% to 500% (0.1x to 5x)
+  - [ ] Zoom centers on cursor position
+  - [ ] Ctrl/Cmd + mouse wheel for zoom
+  - [ ] Smooth interpolation between zoom levels
+  - [ ] Update frame width: `frame_width * zoom_level`
+
+- [ ] Performance optimization
+  - [ ] Only render visible frames/layers (viewport culling)
+  - [ ] Use `ui.is_rect_visible()` checks
+  - [ ] Implement frame virtualization for long timelines
+
+## Implementation Plan
+```rust
+// In draw_frame_grid
+ScrollArea::both()
+    .id_source("timeline_scroll")
+    .scroll_offset(vec2(self.state.scroll_x, self.state.scroll_y))
+    .show(ui, |ui| {
+        // Only draw visible frames
+        let visible_range = calculate_visible_frames(ui.clip_rect(), frame_width);
+        for frame in visible_range {
+            // Draw frame
+        }
+    });
+
+// Zoom handling
+if ui.input(|i| i.modifiers.ctrl && i.scroll_delta.y \!= 0.0) {
+    let zoom_factor = 1.0 + i.scroll_delta.y * 0.01;
+    self.state.zoom_level = (self.state.zoom_level * zoom_factor).clamp(0.1, 5.0);
+}
+```
+
+## Testing
+- [ ] Scroll performance with 10,000+ frames
+- [ ] Zoom maintains playhead position
+- [ ] Layer/frame grid scroll sync
+- [ ] Touch gestures on supported devices
+
+## Priority
+**HIGH** - Core navigation is essential for usability. Flash users spend most time scrolling/zooming.
+
+## References
+- Flash CS6 timeline scrolling behavior
+- egui ScrollArea documentation
+
+
+==========================================
+ISSUE #10
+==========================================
+
+title:	Implement smart snap-to-grid functionality
+state:	CLOSED
+author:	johndpope
+labels:	enhancement
+comments:	1
+assignees:	
+projects:	
+milestone:	
+number:	10
+--
+## Overview
+Add Flash-style intelligent snapping that helps users align playhead, keyframes, and selections to meaningful positions like frame boundaries, existing keyframes, or custom grid intervals.
+
+## Background
+Flash's snap-to-grid was context-aware:
+- Playhead snapped to frames by default
+- Keyframes snapped to other keyframes when dragging
+- Visual guides showed snap targets
+- Shift key toggled snap on/off
+- Configurable snap sensitivity
+
+## Requirements
+### Core Snapping Features
+- [ ] Frame boundary snapping (default)
+  - [ ] Playhead snaps to nearest frame
+  - [ ] Keyframe drags snap to frames
+  - [ ] Selection boundaries snap
+  
+- [ ] Smart snapping to existing elements
+  - [ ] Snap to other keyframes on same layer
+  - [ ] Snap to keyframes on other layers (vertical alignment)
+  - [ ] Snap to frame labels/markers
+  - [ ] Snap to selection edges
+
+- [ ] Visual feedback
+  - [ ] Show snap guides (temporary lines)
+  - [ ] Highlight snap targets on hover
+  - [ ] Display snap distance threshold
+  - [ ] Audio/haptic feedback on snap (optional)
+
+### Configuration
+- [ ] Add snap settings to TimelineConfig:
+  ```rust
+  pub struct SnapConfig {
+      pub enabled: bool,
+      pub snap_to_frames: bool,
+      pub snap_to_keyframes: bool,
+      pub snap_to_markers: bool,
+      pub threshold_pixels: f32, // e.g., 8.0
+      pub show_guides: bool,
+  }
+  ```
+
+- [ ] Keyboard modifiers:
+  - [ ] Hold Shift to temporarily disable snapping
+  - [ ] Hold Ctrl/Cmd for fine control (no snap)
+  - [ ] Alt for duplicate while dragging
+
+## Implementation Plan
+```rust
+// Snap calculation
+fn snap_to_grid(pos: f32, frame_width: f32, snap_config: &SnapConfig) -> f32 {
+    if \!snap_config.enabled {
+        return pos;
+    }
+    
+    let frame = (pos / frame_width).round();
+    let snapped_pos = frame * frame_width;
+    
+    // Only snap if within threshold
+    if (pos - snapped_pos).abs() < snap_config.threshold_pixels {
+        snapped_pos
+    } else {
+        pos
+    }
+}
+
+// Smart snap to keyframes
+fn find_snap_targets(timeline: &Timeline, layer_id: LayerId, frame: u32) -> Vec<u32> {
+    let mut targets = vec\![];
+    
+    // Add keyframes from same layer
+    // Add keyframes from other layers at same time
+    // Add markers and labels
+    
+    targets
+}
+```
+
+## Visual Guides
+- Vertical lines for frame alignment
+- Horizontal lines for cross-layer alignment  
+- Different colors for different snap types
+- Fade in/out animations for guides
+
+## Testing
+- [ ] Snap accuracy at different zoom levels
+- [ ] Performance with many snap targets
+- [ ] Modifier key combinations
+- [ ] Visual guide rendering
+- [ ] Touch/stylus input snapping
+
+## Priority
+**HIGH** - Precise alignment is crucial for professional animation work. Poor snapping leads to timing errors.
+
+## References
+- Flash CS6 View > Snapping menu
+- After Effects snap behavior
+- Figma's smart snapping system
+
+
+==========================================
+ISSUE #11
+==========================================
+
+title:	Add interactive keyframe manipulation and automation
+state:	CLOSED
+author:	johndpope
+labels:	enhancement
+comments:	1
+assignees:	
+projects:	
+milestone:	
+number:	11
+--
+## Overview
+Implement Flash-style interactive keyframe editing with drag-and-drop manipulation, toggle automation for boolean properties, and real-time preview updates via Rive engine.
+
+## Background
+Flash made keyframe manipulation intuitive:
+- Click to select, drag to move keyframes
+- Multi-select with Shift/Ctrl
+- Copy/paste keyframes
+- Extend tweens by dragging edges
+- Toggle properties (visibility) created "hold" keyframes
+- Right-click context menus for keyframe operations
+
+## Requirements
+
+### Keyframe Interactions
+- [ ] Single keyframe operations:
+  - [ ] Click to select (highlight)
+  - [ ] Drag to move to different frame
+  - [ ] Right-click for context menu
+  - [ ] Delete with Delete key
+  
+- [ ] Multi-keyframe operations:
+  - [ ] Box select (drag rectangle)
+  - [ ] Shift-click for range selection
+  - [ ] Ctrl/Cmd-click for add to selection
+  - [ ] Move multiple keyframes together
+  - [ ] Copy/paste keyframe groups
+
+- [ ] Tween manipulation:
+  - [ ] Drag tween edges to extend/shorten
+  - [ ] Click in empty frame to create tween span
+  - [ ] Convert between tween types via menu
+
+### Toggle Automation (Boolean Properties)
+- [ ] Properties to support:
+  - [ ] Visibility (eye icon)
+  - [ ] Lock state
+  - [ ] Custom boolean properties from Rive
+  
+- [ ] Interaction model:
+  - [ ] Click toggle to create keyframe with state
+  - [ ] Drag across frames to extend state
+  - [ ] Visual feedback (filled/empty circles)
+  - [ ] Step function interpolation
+
+### Context Menus
+- [ ] Frame right-click menu:
+  ```
+  Insert Frame (F5)
+  Remove Frame (Shift+F5)
+  Insert Keyframe (F6)
+  Clear Keyframe (Shift+F6)
+  ─────────────────
+  Create Classic Tween
+  Create Motion Tween
+  Remove Tween
+  ─────────────────
+  Copy Frames
+  Paste Frames
+  ```
+
+- [ ] Keyframe right-click menu:
+  ```
+  Clear Keyframe
+  Convert to Blank Keyframe
+  ─────────────────
+  Copy Properties
+  Paste Properties
+  ─────────────────
+  Edit Easing...
+  ```
+
+## Implementation Plan
+```rust
+// Keyframe selection state
+pub struct KeyframeSelection {
+    pub selected: HashMap<(LayerId, u32), KeyframeId>,
+    pub drag_start: Option<(LayerId, u32)>,
+    pub drag_offset: i32,
+}
+
+// Handle keyframe click
+if response.clicked() {
+    if ui.input(|i| i.modifiers.shift) {
+        // Range select
+    } else if ui.input(|i| i.modifiers.ctrl) {
+        // Add to selection
+    } else {
+        // Single select
+    }
+}
+
+// Handle drag
+if response.dragged() {
+    let delta_frames = (response.drag_delta().x / frame_width).round() as i32;
+    // Move selected keyframes by delta_frames
+    engine.move_keyframe(keyframe_id, new_frame);
+}
+
+// Toggle automation
+if toggle_clicked {
+    let state = \!current_state;
+    engine.set_property(layer_id, frame, "visible", state);
+    
+    // Extend across frames if dragging
+    if ui.input(|i| i.pointer.primary_down()) {
+        let frames = get_drag_frame_range();
+        for f in frames {
+            engine.set_property(layer_id, f, "visible", state);
+        }
+    }
+}
+```
+
+## Visual Feedback
+- Selected keyframes: Blue outline + glow
+- Hover state: Subtle highlight
+- Dragging: Ghost preview of new position
+- Invalid drop: Red tint
+- Multi-select box: Dotted rectangle
+
+## Testing
+- [ ] Keyframe selection accuracy
+- [ ] Drag responsiveness at different zoom levels
+- [ ] Undo/redo for all operations
+- [ ] Performance with 1000+ keyframes
+- [ ] Touch input support
+
+## Priority
+**HIGH** - Interactive editing is core to Flash workflow. Static keyframes without manipulation severely limit usability.
+
+## Dependencies
+- Requires frame-based time (#8)
+- Benefits from snap-to-grid (#10)
+
+## References
+- Flash CS6 timeline interactions
+- After Effects keyframe behavior
+- Principle/Figma animation tools
+
+
+==========================================
+ISSUE #12
+==========================================
+
+title:	Add bezier curve easing editor (Motion Editor)
+state:	CLOSED
+author:	johndpope
+labels:	enhancement
+comments:	1
+assignees:	
+projects:	
+milestone:	
+number:	12
+--
+## Overview
+Implement Flash's Motion Editor-style bezier curve editing for smooth animations. This allows fine control over property transitions with visual curve editing and preset easing functions.
+
+## Background
+Flash CS4+ introduced the Motion Editor:
+- Per-property easing curves
+- Bezier handles for custom curves
+- Preset easing functions (ease-in, ease-out, bounce, elastic)
+- Visual preview of curve shape
+- Copy/paste curves between properties
+
+## Requirements
+
+### Easing Curve Editor
+- [ ] Create popup Motion Editor window:
+  - [ ] Opens on double-click of tween span
+  - [ ] Or via "Edit Easing..." in context menu
+  - [ ] Resizable window with property list
+
+- [ ] Curve visualization:
+  - [ ] Use `egui::plot::Plot` for graph
+  - [ ] X-axis: Time (0-1 normalized)
+  - [ ] Y-axis: Value (0-1 normalized)
+  - [ ] Grid background
+  - [ ] Bezier curve rendering
+
+- [ ] Interactive curve editing:
+  - [ ] Drag control points
+  - [ ] Adjust bezier handles (tangents)
+  - [ ] Add/remove control points
+  - [ ] Snap to grid option
+
+### Preset Easing Functions
+- [ ] Common presets:
+  ```rust
+  pub enum EasingPreset {
+      Linear,
+      EaseIn,
+      EaseOut,
+      EaseInOut,
+      EaseInQuad,
+      EaseOutQuad,
+      EaseInOutQuad,
+      EaseInCubic,
+      EaseOutCubic,
+      EaseInOutCubic,
+      EaseInElastic,
+      EaseOutElastic,
+      EaseInOutElastic,
+      EaseInBounce,
+      EaseOutBounce,
+      EaseInOutBounce,
+      Custom(BezierCurve),
+  }
+  ```
+
+- [ ] Preset picker UI:
+  - [ ] Dropdown or grid of thumbnails
+  - [ ] Preview animation on hover
+  - [ ] Apply preset to current curve
+
+### Per-Property Curves
+- [ ] Support different curves for:
+  - [ ] Position (X, Y separate or combined)
+  - [ ] Rotation
+  - [ ] Scale (X, Y)
+  - [ ] Alpha/Opacity
+  - [ ] Color components
+  - [ ] Custom Rive properties
+
+- [ ] Property list panel:
+  - [ ] Tree view of animatable properties
+  - [ ] Checkbox to enable/disable
+  - [ ] Mini curve preview per property
+
+### Integration
+- [ ] Store curves in frame data:
+  ```rust
+  pub struct TweenData {
+      pub start_frame: u32,
+      pub end_frame: u32,
+      pub easing_curves: HashMap<PropertyId, BezierCurve>,
+  }
+  ```
+
+- [ ] Update Rive engine:
+  - [ ] Pass easing data to Rive
+  - [ ] Calculate interpolated values
+  - [ ] Real-time preview during edit
+
+## Implementation Plan
+```rust
+// Bezier curve representation
+pub struct BezierCurve {
+    pub points: Vec<BezierPoint>,
+}
+
+pub struct BezierPoint {
+    pub position: Vec2,      // x: time (0-1), y: value (0-1)
+    pub in_handle: Vec2,     // Relative to position
+    pub out_handle: Vec2,    // Relative to position
+}
+
+// Easing calculation
+impl BezierCurve {
+    pub fn evaluate(&self, t: f32) -> f32 {
+        // De Casteljau's algorithm or similar
+    }
+}
+
+// Motion Editor UI
+pub struct MotionEditor {
+    curves: HashMap<PropertyId, BezierCurve>,
+    selected_property: Option<PropertyId>,
+    preview_time: f32,
+}
+
+impl MotionEditor {
+    pub fn show(&mut self, ctx: &egui::Context) {
+        egui::Window::new("Motion Editor")
+            .show(ctx, |ui| {
+                ui.columns(2, |columns| {
+                    // Left: Property list
+                    columns[0].label("Properties");
+                    // ... property tree
+                    
+                    // Right: Curve editor
+                    columns[1].label("Easing Curve");
+                    Plot::new("easing_plot")
+                        .data_aspect(1.0)
+                        .show(&columns[1], |plot_ui| {
+                            // Draw curve
+                            plot_ui.line(curve_points);
+                            // Draw handles
+                            plot_ui.points(control_points);
+                        });
+                });
+            });
+    }
+}
+```
+
+## Visual Design
+- Dark theme matching timeline
+- Curve: White/colored line
+- Control points: Circular handles
+- Bezier handles: Square handles with lines
+- Grid: Subtle gray lines
+- Preview scrubber at bottom
+
+## Testing
+- [ ] Curve mathematical accuracy
+- [ ] Handle dragging responsiveness
+- [ ] Preset application
+- [ ] Copy/paste between properties
+- [ ] Performance with complex curves
+- [ ] Undo/redo support
+
+## Priority
+**HIGH** - Professional animations require easing control. Linear transitions look mechanical.
+
+## Dependencies
+- Requires tween system from keyframe manipulation (#11)
+- Benefits from Rive property exposure
+
+## References
+- Flash CS6 Motion Editor documentation
+- After Effects graph editor
+- CSS animation timing functions
+- Robert Penner's easing equations
+
+
+==========================================
+ISSUE #13
+==========================================
+
+title:	Add audio waveform track support
+state:	CLOSED
+author:	johndpope
+labels:	enhancement
+comments:	1
+assignees:	johndpope
+projects:	
+milestone:	
+number:	13
+--
+## Overview
+Implement Flash-style audio layers that display waveforms directly in timeline frames, with support for scrubbing preview and basic volume control.
+
+## Background
+Flash's audio integration was seamless:
+- Waveform visualization in timeline frames
+- Audio scrubbing during playhead drag
+- Sync options (Event, Start, Stop, Stream)
+- Volume envelope editing
+- Multiple audio layers for mixing
+
+## Requirements
+
+### Audio Layer Type
+- [ ] Add `Audio` variant to `LayerType` enum
+- [ ] Audio-specific layer properties:
+  ```rust
+  pub struct AudioLayer {
+      pub source: AudioSource,
+      pub sync_mode: AudioSyncMode,
+      pub volume: f32,
+      pub start_frame: u32,
+      pub trim_start: f32, // seconds
+      pub trim_end: f32,   // seconds
+  }
+  
+  pub enum AudioSyncMode {
+      Event,    // Play once when reached
+      Start,    // Start if not playing
+      Stop,     // Stop playback
+      Stream,   // Sync to timeline position
+  }
+  ```
+
+### Waveform Visualization
+- [ ] Generate waveform data:
+  - [ ] Load audio file (mp3, wav, ogg)
+  - [ ] Decode to samples
+  - [ ] Generate min/max peaks per frame
+  - [ ] Cache waveform data
+
+- [ ] Render in timeline:
+  - [ ] Draw waveform in frame cells
+  - [ ] Scale to fit layer height
+  - [ ] Color based on sync mode
+  - [ ] Fade in/out for trimmed regions
+
+- [ ] Performance optimization:
+  - [ ] LOD system for zoom levels
+  - [ ] Only render visible portion
+  - [ ] Background thread for decoding
+
+### Audio Playback Integration
+- [ ] Scrubbing preview:
+  - [ ] Play short segment on drag
+  - [ ] Update as playhead moves
+  - [ ] Low-latency response
+
+- [ ] Sync with Rive playback:
+  - [ ] Start/stop with timeline
+  - [ ] Maintain frame accuracy
+  - [ ] Handle multiple audio layers
+
+### Volume Envelope
+- [ ] Visual envelope editor:
+  - [ ] Overlay line on waveform
+  - [ ] Drag points to adjust
+  - [ ] Fade in/out handles
+
+- [ ] Envelope data:
+  ```rust
+  pub struct VolumeEnvelope {
+      pub points: Vec<(u32, f32)>, // (frame, volume)
+  }
+  ```
+
+## Implementation Plan
+```rust
+// Waveform rendering
+impl AudioLayer {
+    fn draw_waveform(&self, ui: &mut Ui, rect: Rect, frames: Range<u32>) {
+        let samples_per_frame = self.sample_rate / timeline.fps;
+        
+        for frame in frames {
+            let frame_rect = calculate_frame_rect(frame);
+            let peaks = self.get_peaks_for_frame(frame);
+            
+            // Draw waveform
+            let center_y = frame_rect.center().y;
+            let points: Vec<Pos2> = peaks.iter()
+                .map(|(min, max)| {
+                    // Create waveform shape
+                })
+                .collect();
+                
+            ui.painter().add(Shape::line(points, Stroke::new(1.0, Color32::LIGHT_BLUE)));
+        }
+    }
+}
+
+// Audio engine integration
+trait AudioEngine {
+    fn load_audio(&mut self, path: &Path) -> Result<AudioId>;
+    fn play_segment(&mut self, audio_id: AudioId, start: f32, duration: f32);
+    fn set_volume(&mut self, audio_id: AudioId, volume: f32);
+}
+```
+
+## UI/UX Considerations
+- Right-click menu:
+  - Import Audio...
+  - Replace Audio...
+  - Edit Envelope
+  - Sync Mode >
+  - Remove Audio
+
+- Drag & drop:
+  - Drop audio files onto timeline
+  - Drag to reposition
+  - Drag edges to trim
+
+- Visual feedback:
+  - Highlight on hover
+  - Show time info on scrub
+  - Volume meter during playback
+
+## Testing
+- [ ] Audio format support (mp3, wav, ogg, m4a)
+- [ ] Waveform accuracy
+- [ ] Sync with various FPS settings
+- [ ] Performance with long audio (5+ minutes)
+- [ ] Memory usage with multiple tracks
+
+## Priority
+**MEDIUM** - Important for multimedia projects but not core animation functionality.
+
+## Dependencies
+- Basic timeline functionality
+- Frame-based time system (#8)
+- Consider using `rodio` or `cpal` for audio
+
+## References
+- Flash CS6 audio documentation
+- Adobe Audition waveform rendering
+- Logic Pro X audio regions
+
+
+==========================================
+ISSUE #14
+==========================================
+
+title:	Add video preview track support
+state:	OPEN
+author:	johndpope
+labels:	enhancement
+comments:	0
+assignees:	
+projects:	
+milestone:	
+number:	14
+--
+## Overview
+Implement Flash-style video layers that display thumbnail previews in timeline frames, with support for video playback sync and basic editing controls.
+
+## Background
+Flash's video integration allowed:
+- Thumbnail strip preview in timeline
+- Frame-accurate sync with animation
+- Embedded or linked video files
+- Basic trim and position controls
+- Multiple video formats support
+
+## Requirements
+
+### Video Layer Type
+- [ ] Add `Video` variant to `LayerType` enum
+- [ ] Video-specific layer properties:
+  ```rust
+  pub struct VideoLayer {
+      pub source: VideoSource,
+      pub embed_mode: VideoEmbedMode,
+      pub start_frame: u32,
+      pub trim_start: f32,  // seconds
+      pub trim_end: f32,    // seconds
+      pub playback_rate: f32,
+  }
+  
+  pub enum VideoEmbedMode {
+      Embedded,    // Include in project file
+      Linked,      // Reference external file
+      Streaming,   // URL-based streaming
+  }
+  
+  pub enum VideoSource {
+      File(PathBuf),
+      Url(String),
+      Embedded(Vec<u8>),
+  }
+  ```
+
+### Thumbnail Generation
+- [ ] Extract video frames:
+  - [ ] Use video decoder (ffmpeg or similar)
+  - [ ] Generate thumbnails at intervals
+  - [ ] Cache thumbnails for performance
+  - [ ] Multiple quality levels for zoom
+
+- [ ] Thumbnail display strategy:
+  ```rust
+  pub struct ThumbnailCache {
+      thumbnails: HashMap<u32, TextureId>, // frame -> texture
+      quality_levels: Vec<ThumbnailQuality>,
+  }
+  
+  pub struct ThumbnailQuality {
+      pub frames_per_thumbnail: u32,
+      pub resolution: (u32, u32),
+  }
+  ```
+
+### Timeline Rendering
+- [ ] Display thumbnails in frames:
+  - [ ] Scale to fit layer height
+  - [ ] Smooth transitions between thumbs
+  - [ ] Indicate trimmed regions
+  - [ ] Show video duration
+
+- [ ] Visual indicators:
+  - [ ] Film strip border style
+  - [ ] Playback rate overlay (if not 1.0)
+  - [ ] Missing file warning icon
+
+### Video Playback Integration
+- [ ] Sync with timeline:
+  - [ ] Start/stop with playback
+  - [ ] Maintain frame accuracy
+  - [ ] Handle variable playback rates
+  - [ ] Support reverse playback
+
+- [ ] Preview features:
+  - [ ] Scrub to show video frame
+  - [ ] Real-time preview in stage
+  - [ ] Audio track extraction
+
+## Implementation Plan
+```rust
+// Video decoder trait
+trait VideoDecoder {
+    fn open(path: &Path) -> Result<Self>;
+    fn get_frame(&mut self, time: f32) -> Result<VideoFrame>;
+    fn duration(&self) -> f32;
+    fn fps(&self) -> f32;
+}
+
+// Thumbnail rendering
+impl VideoLayer {
+    fn draw_thumbnails(&self, ui: &mut Ui, rect: Rect, frame_range: Range<u32>) {
+        let thumb_width = rect.height() * (16.0 / 9.0); // Assume 16:9
+        let frames_per_thumb = (thumb_width / frame_width).ceil() as u32;
+        
+        for frame in frame_range.step_by(frames_per_thumb) {
+            if let Some(texture) = self.cache.get_thumbnail(frame) {
+                let thumb_rect = calculate_thumb_rect(frame);
+                ui.painter().image(
+                    texture,
+                    thumb_rect,
+                    Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)),
+                    Color32::WHITE,
+                );
+            }
+        }
+    }
+}
+
+// Rive integration
+impl RiveEngine {
+    fn set_video_frame(&mut self, layer_id: LayerId, video_time: f32) {
+        // Update Rive with current video frame
+    }
+}
+```
+
+## Performance Considerations
+- [ ] Lazy thumbnail generation
+- [ ] Background thread for decoding
+- [ ] GPU texture caching
+- [ ] LOD system for different zoom levels
+- [ ] Memory limits for cache size
+
+## UI/UX Features
+- [ ] Right-click menu:
+  - Import Video...
+  - Replace Video Source
+  - Edit Video Properties
+  - Extract Audio Track
+  - Export Frame...
+
+- [ ] Drag & drop:
+  - Drop video files onto timeline
+  - Drag to reposition
+  - Drag edges to trim
+
+- [ ] Properties panel:
+  - Playback rate slider
+  - Quality settings
+  - Color correction basics
+
+## Testing
+- [ ] Format support (mp4, mov, avi, webm)
+- [ ] Large video files (1GB+)
+- [ ] 4K video performance
+- [ ] Various frame rates (24, 30, 60 fps)
+- [ ] Sync accuracy with audio
+
+## Priority
+**MEDIUM** - Important for motion graphics and video compositing workflows.
+
+## Dependencies
+- Frame-based time system (#8)
+- Consider using `ffmpeg-next` or `gstreamer` for video
+- GPU texture management for thumbnails
+
+## References
+- Flash CS6 video import documentation
+- Premiere Pro timeline thumbnails
+- After Effects video layer handling
+- DaVinci Resolve thumbnail quality levels
+
+
+==========================================
+ISSUE #15
+==========================================
+
+title:	Modularize track system into separate crate
+state:	OPEN
+author:	johndpope
+labels:	enhancement
+comments:	0
+assignees:	
+projects:	
+milestone:	
+number:	15
+--
+## Overview
+Extract the track/layer system into a separate crate (`nannou_timeline_tracks`) to allow custom track implementations and better modularity, similar to how Flash allowed extensions and custom components.
+
+## Background
+Flash's extensibility came from:
+- Modular layer types (graphics, audio, video, camera)
+- Plugin system for custom components
+- Symbol libraries for reusable elements
+- JSFL scripting for custom behaviors
+
+## Requirements
+
+### Track Trait System
+- [ ] Create `nannou_timeline_tracks` crate
+- [ ] Define core track trait:
+  ```rust
+  pub trait Track: Send + Sync {
+      /// Unique identifier for this track instance
+      fn id(&self) -> &TrackId;
+      
+      /// Human-readable name
+      fn name(&self) -> &str;
+      
+      /// Track type for UI categorization
+      fn track_type(&self) -> TrackType;
+      
+      /// Height in pixels (can be dynamic)
+      fn height(&self) -> f32;
+      
+      /// Draw track content in timeline
+      fn draw_frames(
+          &self,
+          ui: &mut egui::Ui,
+          rect: Rect,
+          frame_range: Range<u32>,
+          zoom: f32,
+          state: &TrackDrawState,
+      );
+      
+      /// Draw track header (name, controls)
+      fn draw_header(
+          &self,
+          ui: &mut egui::Ui,
+          rect: Rect,
+          state: &TrackDrawState,
+      ) -> HeaderResponse;
+      
+      /// Handle track-specific interactions
+      fn handle_interaction(
+          &mut self,
+          interaction: TrackInteraction,
+      ) -> Option<TrackEvent>;
+      
+      /// Serialize/deserialize support
+      fn save_state(&self) -> Result<serde_json::Value>;
+      fn load_state(&mut self, state: serde_json::Value) -> Result<()>;
+  }
+  ```
+
+### Core Track Types
+- [ ] Standard tracks (moved from main crate):
+  - [ ] `GraphicsTrack` - Normal Flash layer
+  - [ ] `AudioTrack` - Waveform display
+  - [ ] `VideoTrack` - Thumbnail preview
+  - [ ] `FolderTrack` - Group container
+  - [ ] `MaskTrack` - Masking layer
+  - [ ] `GuideTrack` - Non-rendering guides
+
+### Track Registry
+- [ ] Track factory system:
+  ```rust
+  pub struct TrackRegistry {
+      factories: HashMap<String, Box<dyn TrackFactory>>,
+  }
+  
+  pub trait TrackFactory: Send + Sync {
+      fn track_type(&self) -> &str;
+      fn create(&self, id: TrackId, name: String) -> Box<dyn Track>;
+      fn from_state(&self, state: serde_json::Value) -> Result<Box<dyn Track>>;
+  }
+  
+  impl TrackRegistry {
+      pub fn register<F: TrackFactory + 'static>(&mut self, factory: F) {
+          self.factories.insert(factory.track_type().to_string(), Box::new(factory));
+      }
+      
+      pub fn create_track(&self, track_type: &str, name: String) -> Result<Box<dyn Track>>;
+  }
+  ```
+
+### Example: Custom Track Implementation
+- [ ] Create example crate showing custom track:
+  ```rust
+  // In user crate
+  pub struct PlotterTrack {
+      id: TrackId,
+      name: String,
+      data_points: Vec<(u32, f32)>, // frame -> value
+      color: Color32,
+  }
+  
+  impl Track for PlotterTrack {
+      fn draw_frames(&self, ui: &mut egui::Ui, rect: Rect, frames: Range<u32>, zoom: f32, state: &TrackDrawState) {
+          // Draw data as line graph
+          use egui::plot::{Plot, Line};
+          // ...
+      }
+      // ... other trait methods
+  }
+  ```
+
+### Integration Points
+- [ ] Update main timeline to use trait:
+  ```rust
+  pub struct Timeline {
+      tracks: Vec<Box<dyn Track>>,
+      registry: TrackRegistry,
+  }
+  ```
+
+- [ ] Plugin loading (optional future enhancement):
+  - [ ] Dynamic library loading
+  - [ ] WASM-based plugins
+  - [ ] Hot reload support
+
+## Benefits
+- **Extensibility**: Users can create domain-specific tracks
+- **Modularity**: Core timeline doesn't need to know about all track types  
+- **Testing**: Easier to test tracks in isolation
+- **Examples**: Custom tracks like MIDI, OSC data, sensor data, etc.
+
+## Migration Plan
+1. Create new crate with trait definitions
+2. Move existing track implementations
+3. Update timeline to use trait objects
+4. Create examples of custom tracks
+5. Document extension points
+
+## Testing
+- [ ] Core tracks work identically after migration
+- [ ] Custom track example builds and runs
+- [ ] Serialization round-trip works
+- [ ] Performance impact is minimal
+
+## Priority
+**LOW** - This is architectural improvement, not user-facing feature. Do after core functionality is solid.
+
+## Future Possibilities
+- Track marketplace/sharing
+- Visual track editor
+- Track templates
+- Procedural track generation
+
+## References
+- Flash JSFL extensibility
+- After Effects plugin architecture
+- VST/AU plugin systems for inspiration
+
+
+==========================================
+ISSUE #18
+==========================================
+
+title:	Comprehensive Timeline Interaction Test Cases (Flash IDE Compatibility)
+state:	OPEN
+author:	johndpope
+labels:	enhancement
+comments:	0
+assignees:	johndpope
+projects:	
+milestone:	
+number:	18
+--
+## Overview
+This issue documents comprehensive test cases for timeline interactions, based on Adobe Flash CS6/Animate IDE behavior. These test cases ensure our Flash-inspired timeline component handles all major user interactions correctly.
+
+## Test Categories
+
+### 1. Basic Timeline Navigation
+
+#### Playhead Manipulation
+- [ ] **Test Case 1.1**: Scrub playhead by clicking and dragging
+  - Action: Click and drag the playhead (red vertical line) left/right along the timeline
+  - Expected: Stage updates in real-time, current frame number updates
+  - Edge cases: Dragging beyond timeline end snaps to last frame, locked timeline prevents movement
+
+- [ ] **Test Case 1.2**: Jump to specific frame
+  - Action: Click on a frame number in the timeline header
+  - Expected: Playhead jumps to frame, stage updates
+  - Edge cases: Clicking beyond current timeline extends if auto-extend enabled
+
+### Implementation Priority
+
+**Phase 1 (Critical)**:
+- Basic navigation (Tests 1.1-1.6)
+- Frame operations (Tests 3.1-3.4)
+- Layer management (Tests 2.1-2.6)
+
+**Phase 2 (Important)**:
+- Keyframe manipulation (Tests 4.1-4.4)
+- Keyboard shortcuts (Tests 7.1-7.3)
+- Context menus (Tests 8.1-8.3)
+
+**Phase 3 (Advanced)**:
+- Timeline editing (Tests 5.1-5.4)
+- Advanced features (Tests 6.1-6.4)
+
+## Related Issues
+- #8 Frame-based time system
+- #9 Continuous scrolling
+- #10 Snap-to-grid functionality
+- #11 Interactive keyframe manipulation
+
+
+==========================================
+ISSUE #20
+==========================================
+
+title:	Upgrade to egui 0.32.0 and implement comprehensive UI testing with egui_kittest
+state:	CLOSED
+author:	johndpope
+labels:	enhancement
+comments:	2
+assignees:	
+projects:	
+milestone:	
+number:	20
+--
+## Overview
+Upgrade the nannou_timeline project to use the latest egui version (0.32.0) and implement comprehensive UI testing capabilities using the new egui_kittest framework for automated interaction testing.
+
+## Background
+Currently using egui 0.24, but egui 0.32.0 (latest) includes:
+- New egui_kittest testing framework for automated UI testing
+- Support for simulating mouse events, drag-and-drop, and complex interactions
+- Screenshot testing for regression tests
+- Improved popup API and atom-based UI components
+
+## Requirements
+
+### egui Upgrade (Phase 1)
+- [ ] Update egui dependency from 0.24 to 0.32.0
+- [ ] Update any breaking API changes in timeline implementation
+- [ ] Ensure all existing functionality works with new egui version
+- [ ] Update nannou_conrod integration if needed
+- [ ] Test all examples and demos
+
+### UI Testing Framework (Phase 2)  
+- [ ] Add egui_kittest as dev dependency
+- [ ] Create comprehensive UI test suite covering:
+  - [ ] **Drag and Drop Testing**:
+    - Keyframe dragging between frames
+    - Layer reordering
+    - Audio file import via drag-drop
+    - Timeline scrubbing
+  - [ ] **Mouse Interaction Testing**:
+    - Click selection (single, multi-select with Ctrl)
+    - Right-click context menus
+    - Scroll wheel zoom and pan
+    - Playhead manipulation
+  - [ ] **Keyboard Shortcut Testing**:
+    - Space bar play/pause
+    - Arrow key frame navigation
+    - Copy/paste operations (Ctrl+C, Ctrl+V)
+    - Delete key for keyframe removal
+
+### Test Categories Implementation
+- [ ] **Basic Timeline Navigation Tests**:
+  - Playhead scrubbing and jumping
+  - Frame-by-frame navigation
+  - Zoom in/out operations
+  - Timeline scrolling (horizontal/vertical)
+
+- [ ] **Layer Management Tests**:
+  - Layer selection and deselection
+  - Layer visibility toggle
+  - Layer locking/unlocking
+  - Layer reordering via drag-drop
+
+- [ ] **Keyframe Manipulation Tests**:
+  - Keyframe creation (F6 key)
+  - Keyframe selection (click, Ctrl+click, Shift+click)
+  - Keyframe dragging and moving
+  - Keyframe copy/paste operations
+  - Multi-keyframe selection and batch operations
+
+- [ ] **Audio Layer Tests**:
+  - Audio waveform rendering validation
+  - Audio scrubbing behavior
+  - Volume envelope manipulation
+  - Audio trimming operations
+
+- [ ] **Snap-to-Grid Tests**:
+  - Snap behavior with different threshold settings
+  - Snap guide visualization
+  - Snap disable with Shift modifier
+  - Snap to keyframes vs snap to frames
+
+### Advanced Testing Features
+- [ ] **Screenshot Testing**:
+  - Regression tests for timeline appearance
+  - Waveform rendering consistency
+  - UI layout validation across zoom levels
+  - Color and styling verification
+
+- [ ] **Integration Testing**:
+  - MockRiveEngine interaction validation
+  - MockAudioEngine behavior testing
+  - Timeline state persistence
+  - Configuration changes
+
+- [ ] **Performance Testing**:
+  - Large timeline performance (1000+ frames)
+  - Multiple audio layers rendering
+  - Smooth scrolling and zooming
+  - Memory usage validation
+
+## Implementation Plan
+
+### Phase 1: egui Upgrade
+```toml
+[dependencies]
+egui = "0.32"
+
+[dev-dependencies]
+egui_kittest = "0.32"
+```
+
+### Phase 2: Test Structure
+```rust
+// tests/ui_tests.rs
+use egui_kittest::Harness;
+use nannou_timeline::{Timeline, MockRiveEngine};
+
+#[test]
+fn test_keyframe_drag_and_drop() {
+    let mut harness = Harness::new();
+    let mut timeline = Timeline::new();
+    
+    harness.run(|ctx| {
+        // Simulate drag-and-drop keyframe operation
+        harness.simulate_drag(
+            start_pos: (100.0, 50.0),
+            end_pos: (150.0, 50.0),
+        );
+        
+        timeline.show(ctx, &mut MockRiveEngine::new());
+    });
+    
+    // Verify keyframe moved correctly
+    assert\!(timeline.state.keyframe_selection.is_selected(layer_id, new_frame));
+}
+```
+
+### Phase 3: Flash IDE Compatibility Tests
+Based on Adobe Flash CS6/Animate behavior patterns:
+- Timeline scrubbing should update preview in real-time
+- Keyframe selection should follow Flash conventions
+- Context menus should match Flash timeline menus
+- Keyboard shortcuts should behave like Flash IDE
+
+## Benefits
+- **Automated Testing**: Catch regressions automatically
+- **Flash Compatibility**: Ensure behavior matches Flash IDE
+- **Developer Experience**: Faster development with reliable tests
+- **Quality Assurance**: Comprehensive coverage of user interactions
+- **Documentation**: Tests serve as usage examples
+
+## Breaking Changes
+- egui 0.32.0 may have breaking API changes
+- Some timeline rendering code may need updates
+- Test infrastructure will be new dependency
+
+## References
+- [egui 0.32.0 Release](https://github.com/emilk/egui/releases/tag/0.32.0)
+- [egui_kittest Documentation](https://docs.rs/egui_kittest/)
+- [Flash Timeline Behavior Reference](https://helpx.adobe.com/animate/using/timeline.html)
+
+## Priority
+**HIGH** - Essential for ensuring timeline quality and Flash IDE compatibility
+
+## Dependencies
+- All current timeline functionality (issues #8-#13)
+- Audio waveform support (#13)
+- Keyframe manipulation (#11)
+- Snap-to-grid (#10)
+
+
+==========================================
+ISSUE #21
+==========================================
+
+title:	Feature: Rust Egui Curve Editor Component
+state:	CLOSED
+author:	johndpope
+labels:	enhancement
+comments:	1
+assignees:	
+projects:	
+milestone:	
+number:	21
+--
+## Product Requirements Document (PRD): Rust Egui Curve Editor Component
+
+### 1. Document Information
+
+**Component Name:** Egui Curve Editor (ECE)  
+**Version:** 1.0  
+**Author:** Grok (xAI Assistant)  
+**Date:** August 03, 2025  
+**Status:** Draft  
+**Purpose:** This PRD outlines the requirements for developing a curve editor component for the Rust egui library, inspired by the Cocos Creator Curve Editor (https://docs.cocos.com/creator/3.8/manual/en/animation/curve-editor.html). The component will allow users to create, edit, and visualize animation curves (e.g., Bézier curves) for controlling animation properties over time, integrated seamlessly into egui-based applications.
+
+### 2. Overview
+
+#### 2.1 Component Description
+
+The Egui Curve Editor (ECE) is an immediate-mode GUI component for Rust's egui library, designed to enable users to define and manipulate animation curves for properties like position, scale, rotation, or opacity. It replicates the functionality of the Cocos Creator Curve Editor, providing a 2D graph interface where users can plot keyframes, adjust Bézier handles, and apply easing functions.
+
+**Key Inspirations from Cocos Creator:**
+- Visual graph with draggable keyframes and tangent handles
+- Support for multiple curves per property
+- Real-time preview of curve effects via callbacks
+
+**Egui-Specific Enhancements:**
+- Immediate-mode rendering for seamless integration with egui's event loop
+- Cross-platform compatibility (web via WebAssembly, desktop via eframe)
+- Extensible API for custom curve types and styling
+
+#### 2.2 Business Goals
+- Enhance egui's ecosystem by providing a robust animation curve editor for Rust developers
+- Support indie game developers and animators building tools with Bevy or custom engines
+- Achieve integration in at least 3 open-source projects within 6 months of release
+- Reduce development time for animation tooling by providing a plug-and-play component
+
+#### 2.3 Scope
+- **In Scope:** Core curve editing UI, keyframe manipulation, Bézier curve logic, and integration with egui's immediate-mode paradigm
+- **Out of Scope:** Full animation timeline (e.g., layer management), direct integration with specific game engines, or audio waveform support
+- **Assumptions:** Users have basic familiarity with Rust/egui and animation concepts
+
+### 3. Target Audience
+
+**Primary Users:**
+- Rust Developers: Building animation tools or game editors using egui
+- Game Developers: Integrating curve editors into Bevy or custom engines for animation control
+
+**Secondary Users:**
+- Animators: Using the component in custom tools for fine-tuned animations
+- Educators: Teaching animation principles in Rust-based environments
+
+### 4. Features and Requirements
+
+#### 4.1 Core UI Elements
+
+| Element | Description | Details |
+|---------|-------------|---------|
+| Graph Canvas | A rectangular area displaying the curve, with time (x-axis) and value (y-axis) | - Configurable range<br>- Grid lines with customizable intervals<br>- Zoom/pan with mouse<br>- Light/dark theme support |
+| Keyframes | Points on the curve representing animation states | - Draggable dots, snap to grid<br>- Click to add, right-click to delete<br>- Max 100 keyframes per curve |
+| Bézier Handles | Tangent controls for curve segments | - Two handles per keyframe<br>- Types: Linear, Smooth, Free<br>- Visual feedback with dashed lines |
+| Toolbar | Buttons and inputs for curve manipulation | - Add/delete keyframe<br>- Easing presets dropdown<br>- Input fields for precise values |
+
+#### 4.2 Interaction Features
+
+| Feature | Description | Details |
+|---------|-------------|---------|
+| Keyframe Manipulation | Add, move, or delete keyframes | - Click to add<br>- Drag to adjust<br>- Multi-select with Ctrl |
+| Curve Editing | Adjust curve shape via handles or presets | - Drag handles for Bézier<br>- Apply easing presets<br>- Real-time curve redraw |
+| Preview and Feedback | Real-time updates to external systems | - onChange callback<br>- Hover tooltips<br>- Optional preview mode |
+| Undo/Redo | Revert changes to curve state | - Ctrl+Z/Y support<br>- Up to 50 actions |
+
+#### 4.3 Data Model and API
+
+```rust
+pub struct Curve {
+    keyframes: Vec<Keyframe>,
+    easing: Option<EasingType>,
+}
+
+pub struct Keyframe {
+    time: f32,
+    value: f32,
+    in_tangent: Vec2,
+    out_tangent: Vec2,
+    tangent_type: TangentType,
+}
+```
+
+**Integration:** `ui.add(CurveEditor::new(data))`
+
+#### 4.4 Non-Functional Requirements
+
+- **Performance:** Render <100ms for 100 keyframes at 60 FPS
+- **Usability:** Intuitive controls, tooltips, keyboard shortcuts
+- **Accessibility:** ARIA labels, keyboard navigation, screen reader support
+- **Compatibility:** Rust 1.85.0+, egui 0.28+, Web/Desktop platforms
+
+### 5. Technical Requirements
+
+#### 5.1 Architecture
+- **Tech Stack:** Rust, egui, emath, epaint
+- **Implementation:** CurveEditor widget implementing egui::Widget
+- **Testing:** Unit tests for calculations, integration tests for UI
+
+#### 5.2 Dependencies and Risks
+- **Dependencies:** egui 0.28+, eframe for demos
+- **Risks:** Performance with many keyframes, WebAssembly lag
+
+### 6. Roadmap and Timeline
+
+- **Phase 1 (Q4 2025):** Core graph, keyframe dragging, linear curves
+- **Phase 2 (Q1 2026):** Bézier handles, easing presets, undo/redo
+- **Phase 3 (Q2 2026):** Accessibility, polish, documentation
+
+### 7. Success Metrics
+
+- 500 downloads on crates.io in 3 months
+- <10 critical GitHub issues
+- <50ms redraw time for 50 keyframes
+- 85% unit test coverage
+
+### 8. Integration with Timeline Demo
+
+This curve editor should be integrated into the standalone timeline demo as a companion tool for editing animation curves. It would appear as a dockable panel alongside the timeline, allowing users to:
+- Edit easing curves for keyframe transitions
+- Adjust property curves (position, rotation, scale)
+- Preview animation effects in real-time
+
+---
+
+**References:**
+- [Cocos Creator Curve Editor](https://docs.cocos.com/creator/3.8/manual/en/animation/curve-editor.html)
+- [egui plot demo](https://www.egui.rs/#demo)
+
+
+==========================================
+ISSUE #22
+==========================================
+
+title:	Epic: Flash-Inspired Timeline Editor UI/UX Controls
+state:	OPEN
+author:	johndpope
+labels:	enhancement
+comments:	0
+assignees:	
+projects:	
+milestone:	
+number:	22
+--
+# Flash-Inspired Timeline Editor - Master Epic
+
+This epic tracks the implementation of a comprehensive Flash Professional 8-inspired timeline editor with all UI/UX controls and interactions.
+
+## Overview
+Recreate the classic Flash timeline experience for modern tools, enabling frame-based animation editing with familiar controls and workflows.
+
+## Business Goals
+- Recreate classic Flash timeline experience for nostalgia and productivity
+- Enable developers/animators to build modern tools with familiar interface
+- Target user adoption in educational and indie development communities
+
+## Target Users
+- **Maya the Animator**: 29-year-old, seeks precise frame control for animations
+- **Tom the Teacher**: 40-year-old, needs intuitive tool for teaching timelines  
+- **Sam the Developer**: 32-year-old, integrates timeline into custom editor
+
+## Implementation Phases
+- **Phase 1 (Q4 2025)**: Core UI and basic interactions
+- **Phase 2 (Q1 2026)**: Context menus and advanced dragging
+- **Phase 3 (Q2 2026)**: Polish, accessibility, and performance
+
+## Success Metrics
+- 1,000 users in 3 months
+- <5 critical issues in feedback
+- 90% task completion in user tests
+
+## Related Issues
+
+### Core Timeline Features (Phase 1)
+- #23 Timeline Panel: Frame Management and Context Menus
+- #24 Layer Management: Advanced Layer Controls and Organization
+- #25 Timeline Ruler and Navigation: Frame Labels and Scrubbing
+- #27 Stage Area: Object Manipulation and Context Menus
+- #28 Tools Panel: Drawing and Selection Tools
+
+### Advanced Features (Phase 2)
+- #26 Onion Skinning and Animation Preview
+- #29 Properties Panel: Object and Frame Properties
+- #30 Library Panel: Symbol and Asset Management
+- #31 Scene Management: Multiple Scenes and Navigation
+
+### Polish and Optimization (Phase 3)
+- #32 Accessibility and Keyboard Navigation
+- #33 Performance Optimization and Large Project Support
+
+## Technical Stack
+- Rust + egui for UI framework
+- Canvas-based timeline grid rendering
+- JSON state management for timeline data
+
+## References
+- Macromedia Flash Professional 8 documentation
+- Original Flash interface screenshots
+- User workflow analysis
+
+## Current Status
+✅ Layer renaming functionality implemented
+🔄 Breaking down into component issues
+⏳ Ready for Phase 1 development
+
+
+==========================================
+ISSUE #23
+==========================================
+
+title:	Timeline Panel: Frame Management and Context Menus
+state:	CLOSED
+author:	johndpope
+labels:	enhancement
+comments:	2
+assignees:	
+projects:	
+milestone:	
+number:	23
+--
+## Description
+Implement comprehensive frame management in the timeline panel with Flash-style interactions and context menus.
+
+## User Story
+As an animator, I want to right-click on frames to access context menus for inserting keyframes, copying frames, and managing timeline content so I can work efficiently with frame-based animations.
+
+## Acceptance Criteria
+### Frame Interactions
+- [x] Click to select frame
+- [x] Drag to select multiple frames
+- [ ] Double-click to edit frame content
+- [x] Visual feedback for frame selection
+
+### Right-Click Context Menu
+- [x] **Insert Frame (F5)**: Extends frame span
+- [x] **Insert Keyframe (F6)**: Adds a keyframe at position
+- [x] **Insert Blank Keyframe (F7)**: Adds empty frame
+- [x] **Clear Keyframe (Shift+F6)**: Removes keyframe
+- [ ] **Convert to Keyframe**: Changes frame type
+- [x] **Remove Frame (Shift+F5)**: Removes frame
+- [x] **Copy Frames**: Duplicates frames
+- [x] **Paste Frames**: Inserts copied frames
+- [x] **Clear Frames**: Deletes without copying
+- [ ] **Select All Frames**: Selects all frames in layer
+
+### Frame Types
+- [x] Empty frames (no fill)
+- [x] Keyframes (solid circle indicator)
+- [x] Tween frames (arrow indicator)
+- [x] Different visual styling for each type
+
+### Tweening Options
+- [x] **Create Motion Tween**: For position/rotation animation
+- [x] **Create Shape Tween**: For morphing shapes
+- [x] **Create Classic Tween**: Traditional Flash tweening
+- [x] **Edit Easing**: Opens motion editor for easing curves
+
+### Frame Labels and Organization
+- [x] **Insert Frame Label**: Add named markers
+- [ ] **Insert Comment**: Add comments to frames
+- [ ] **Edit Label**: Modify existing labels
+- [ ] **Remove Label**: Delete frame labels
+
+### Keyboard Shortcuts
+- [x] F5: Insert Frame
+- [x] F6: Insert Keyframe  
+- [x] F7: Insert Blank Keyframe
+- [x] Shift+F6: Clear Keyframe
+- [x] Shift+F5: Remove Frame
+
+## Technical Requirements
+- ✅ Integrate with existing timeline_egui_fixed.rs
+- ✅ Use egui context menu system
+- ✅ Update RiveEngine trait for frame operations
+- ✅ Maintain frame state in TimelineState
+
+## ✅ Already Implemented
+- Complete frame context menu system
+- All basic frame operations (insert, remove, keyframes)
+- Tweening operations (motion, shape, classic)
+- Frame type visualization
+- Keyboard shortcuts
+- Motion editor integration
+
+## 🔲 Still Needed
+- Double-click to edit frame content
+- Convert frame type functionality
+- Select all frames in layer
+- Frame comments system
+- Label editing capabilities
+
+## Related Issues
+Part of Epic #22
+
+## Priority
+High - Core timeline functionality
+
+## Status
+~80% Complete - Most core functionality implemented
+
+
+==========================================
+ISSUE #24
+==========================================
+
+title:	Layer Management: Advanced Layer Controls and Organization
+state:	CLOSED
+author:	johndpope
+labels:	enhancement
+comments:	3
+assignees:	
+projects:	
+milestone:	
+number:	24
+--
+## Description
+Enhance layer management with advanced controls including layer folders, reordering, and comprehensive layer properties.
+
+## User Story
+As an animator, I want to organize my layers with folders, reorder them by dragging, and manage layer properties so I can keep complex animations organized and efficient.
+
+## Acceptance Criteria
+### Layer Organization
+- [ ] **Layer Folders**: Create collapsible folder layers
+- [x] **Drag-and-Drop Reordering**: Move layers up/down by dragging (partial - dragging_layer state exists)
+- [x] **Nested Layers**: Support layers inside folders (LayerInfo has parent_id and children fields)
+- [ ] **Visual Hierarchy**: Indentation for nested layers
+
+### Layer Context Menu (Right-Click) - 80% Complete
+- [x] **Insert Layer**: Adds new layer above current ("➕ Insert Layer Above/Below")
+- [ ] **Insert Folder**: Creates layer folder
+- [x] **Delete Layer**: Removes selected layer with confirmation ("🗑 Delete Layer")
+- [ ] **Duplicate Layer**: Copies layer and all frames
+- [x] **Properties**: Opens layer properties dialog ("🎨 Layer Properties...")
+- [ ] **Add Motion Guide**: Creates guide layer for motion paths
+- [ ] **Convert to Guide Layer**: Changes layer to guide type
+- [x] **Lock/Unlock Layer**: Toggle layer editability (🔒/🔓 icons implemented)
+- [x] **Show/Hide Layer**: Toggle layer visibility (👁/⚫ icons implemented)
+
+### Layer Properties Dialog
+- [x] Layer name editing (inline text edit on rename)
+- [ ] Layer type selection (Normal, Guide, Mask, Motion Guide)
+- [x] Visibility settings (toggle buttons implemented)
+- [x] Lock settings (toggle buttons implemented)
+- [x] Outline color selection (⬚/⬛ outline toggle implemented)
+- [ ] Layer height adjustment
+
+### Layer Types - 80% Complete
+- [x] **Normal Layer**: Standard animation layer (LayerType::Normal)
+- [x] **Guide Layer**: Non-rendering helper layer (LayerType::Guide) 
+- [x] **Mask Layer**: For masking effects (LayerType::Mask)
+- [ ] **Motion Guide**: For animation paths
+- [x] **Folder Layer**: For organization (LayerType::Folder)
+
+### Visual Indicators - 90% Complete
+- [ ] Layer type icons (🎬 for normal, 📁 for folder, etc.)
+- [x] Lock/unlock icons (🔒/🔓)
+- [x] Visibility icons (👁/⚫) 
+- [x] Selected layer highlighting
+- [x] Layer renaming functionality (inline text edit)
+
+## Technical Requirements
+- [x] Extend LayerInfo struct with additional properties (has parent_id, children, layer_type)
+- [x] Implement layer hierarchy in RiveEngine (parent/child relationships exist)
+- [x] Add drag-and-drop handling for layer reordering (dragging_layer state exists)
+- [ ] Create layer properties modal dialog
+
+## Implementation Status: 70% Complete
+**Already Implemented:**
+- Layer visibility/lock/outline controls with proper UI
+- Layer renaming with inline text editing  
+- Context menu with insert/delete/properties options
+- Layer type enum (Normal, Guide, Mask, Folder, Audio)
+- Layer hierarchy support (parent_id, children fields)
+- Drag state tracking for reordering
+
+**Missing:**
+- Layer type icons in UI
+- Motion Guide layer type
+- Layer properties modal dialog
+- Visual hierarchy indentation
+- Folder layer creation in context menu
+- Layer duplication functionality
+
+## Dependencies
+- Depends on Epic #22
+- Builds on existing layer renaming functionality
+
+## Priority
+High - Essential for professional timeline use
+
+
+==========================================
+ISSUE #25
+==========================================
+
+title:	Timeline Ruler and Navigation: Frame Labels and Scrubbing
+state:	CLOSED
+author:	johndpope
+labels:	enhancement, in-progress
+comments:	3
+assignees:	
+projects:	
+milestone:	
+number:	25
+--
+## Description
+Implement timeline ruler with frame labels, markers, and smooth playhead scrubbing for precise animation control.
+
+## User Story
+As an animator, I want to add frame labels and scrub through the timeline smoothly so I can organize my animation and preview it accurately.
+
+## Acceptance Criteria
+### Timeline Ruler - 90% Complete
+- [x] **Frame Numbers**: Display frame indices (1, 5, 10, 15, etc.) (implemented in ruler_egui.rs)
+- [x] **Major/Minor Ticks**: Different tick sizes for readability (major every 5/10 frames, minor when zoomed)
+- [ ] **Time Display**: Show time in seconds alongside frames
+- [x] **FPS Indicator**: Display current frame rate (editable) (FPS combo box implemented)
+
+### Frame Labels and Markers - 80% Complete
+- [x] **Frame Labels**: Named markers at specific frames (FrameLabel struct + display)
+- [ ] **Comments**: Non-functional notes for organization
+- [x] **Visual Indicators**: Icons/colors for different marker types (color support in FrameLabel)
+- [ ] **Label Panel**: List view of all labels with jump-to functionality
+
+### Ruler Context Menu (Right-Click) - 0% Complete
+- [ ] **Add Frame Label**: Insert named marker at position
+- [ ] **Add Comment**: Insert comment marker
+- [ ] **Edit Label/Comment**: Modify existing marker
+- [ ] **Remove Label/Comment**: Delete selected marker
+- [ ] **Go to Frame**: Jump to specific frame number
+
+### Playhead and Scrubbing - 90% Complete
+- [x] **Visual Playhead**: Red vertical line indicator (implemented with config.style.playhead_color)
+- [x] **Drag Scrubbing**: Smooth preview while dragging (click ruler to seek)
+- [x] **Click Navigation**: Jump to frame by clicking ruler (implemented)
+- [ ] **Keyboard Navigation**: Arrow keys for frame-by-frame
+- [ ] **Snap to Frames**: Optional snapping during scrub
+
+### Timeline Navigation - 85% Complete
+- [x] **Zoom Controls**: Zoom in/out on timeline (zoom_level state implemented)
+- [x] **Horizontal Scrolling**: Pan through long timelines (scroll_x state implemented)
+- [ ] **Frame Range Selection**: Select multiple frames
+- [x] **Go to Frame Dialog**: Direct frame number input (frame text edit in controls)
+
+### FPS Management - 95% Complete
+- [x] **FPS Display**: Current frame rate indicator (FPS combo box shows current)
+- [x] **FPS Editor**: Double-click to change frame rate (combo box selection)
+- [x] **Common Presets**: 12, 24, 30, 60 fps options (Film=24, PAL=25, NTSC=29.97, Web=30, High=60)
+- [x] **Custom FPS**: User-defined frame rates (FpsPreset::Custom(f32))
+
+## Implementation Status: 85% Complete
+
+**Already Implemented:**
+- Complete frame-based ruler with numbers and ticks (ruler_egui.rs)
+- Frame labels with color support and visual display
+- Playhead with visual indicator and click-to-seek
+- Comprehensive FPS management with presets and custom values
+- Zoom and scroll functionality
+- Direct frame number input
+
+**Missing:**
+- Time display in seconds alongside frames
+- Ruler context menu for adding/editing labels
+- Comments system separate from frame labels
+- Label management panel
+- Keyboard navigation (arrow keys)
+- Frame range selection
+- Snap to frames during scrubbing
+
+## Technical Requirements
+- [x] Enhance timeline ruler rendering (done in ruler_egui.rs)
+- [x] Implement marker data structures (FrameLabel struct exists)
+- [x] Add smooth scrubbing with frame interpolation (basic click-to-seek implemented)
+- [x] Create FPS management system (comprehensive FpsPreset system)
+
+## Dependencies
+- Part of Epic #22
+- Works with Timeline Panel #23
+
+## Priority
+Medium - Important for professional workflow
+
+
+==========================================
+ISSUE #26
+==========================================
+
+title:	Onion Skinning and Animation Preview
+state:	CLOSED
+author:	johndpope
+labels:	enhancement, in-progress, task-master
+comments:	2
+assignees:	
+projects:	
+milestone:	
+number:	26
+--
+## Description
+Implement onion skinning controls and animation preview features for better animation workflow and timing visualization.
+
+## User Story
+As an animator, I want onion skinning to see previous and next frames while drawing so I can create smooth animations with proper timing.
+
+## Acceptance Criteria
+### Onion Skinning Controls - 20% Complete
+- [x] **Toggle Buttons**: Enable/disable onion skinning (🧅 On/Off button implemented)
+- [ ] **Previous Frames**: Show frames before current (blue tint)
+- [ ] **Next Frames**: Show frames after current (green tint)
+- [ ] **Range Control**: Adjust how many frames to show
+- [ ] **Opacity Control**: Adjust transparency of onion skins
+
+### Visual Feedback - 0% Complete
+- [ ] **Color Coding**: Different colors for before/after frames
+- [ ] **Gradual Opacity**: Closer frames more opaque
+- [ ] **Outline Mode**: Option for outline-only onion skins
+- [ ] **Custom Colors**: User-configurable onion skin colors
+
+### Animation Preview - 60% Complete
+- [x] **Loop Playback**: Continuous animation playback (🔁 loop toggle implemented)
+- [ ] **Scrub Preview**: Real-time preview while dragging
+- [x] **Frame-by-Frame**: Step through individual frames (playhead navigation)
+- [ ] **Selection Playback**: Play only selected frame range
+
+### Onion Skin Settings - 5% Complete  
+- [ ] **Settings Panel**: Dedicated onion skin configuration
+- [ ] **Frame Count**: Number of frames before/after
+- [ ] **Opacity Curve**: How opacity decreases with distance
+- [ ] **Display Mode**: Solid, outline, or both
+- [ ] **Per-Layer Control**: Enable/disable per layer
+
+### Performance Optimization - 0% Complete
+- [ ] **Viewport Culling**: Only render visible onion skins
+- [ ] **Quality Settings**: Reduce quality for performance
+- [ ] **Smart Updates**: Only redraw when necessary
+- [ ] **Memory Management**: Efficient frame caching
+
+## Implementation Status: 25% Complete
+
+**Already Implemented:**
+- Onion skinning toggle button (🧅 On/Off) in toolbar 
+- Loop playback toggle (🔁/➡️) for continuous animation
+- Basic playback controls (play/pause ▶/⏸, stop ⏹)
+- Playhead state tracking (is_playing bool)
+- Frame-by-frame navigation through playhead controls
+
+**Infrastructure in Place:**
+- `onion_skinning` state boolean tracked in TimelineState
+- `loop_playback` state boolean for playback mode
+- Playback state management with engine.play()/pause()
+- Timeline drawing system ready for onion skin layers
+
+**Missing Major Features:**
+- Actual onion skin frame rendering (visual ghosting)
+- Frame range/opacity controls for onion skins
+- Color coding for before/after frames
+- Real-time scrub preview
+- Onion skin settings panel
+- Performance optimizations
+
+## Technical Requirements
+- [x] Integrate with existing timeline rendering (structure ready)
+- [ ] Add onion skin rendering layers
+- [ ] Implement frame caching system
+- [ ] Create onion skin settings UI
+
+## Dependencies
+- Part of Epic #22
+- Requires Timeline Panel #23
+
+## Priority
+Medium - Enhances animation workflow
+
+
+==========================================
+ISSUE #27
+==========================================
+
+title:	Stage Area: Object Manipulation and Context Menus
+state:	CLOSED
+author:	johndpope
+labels:	enhancement
+comments:	2
+assignees:	
+projects:	
+milestone:	
+number:	27
+--
+## Description
+Enhance the stage area with comprehensive object manipulation tools and Flash-style context menus for editing content.
+
+## User Story
+As an animator, I want to manipulate objects on the stage with selection, transformation tools, and right-click menus so I can efficiently edit my animation content.
+
+## Acceptance Criteria
+### Object Selection - 80% Complete
+- [x] **Click Selection**: Select objects by clicking (implemented with selected_item tracking)
+- [ ] **Marquee Selection**: Drag to select multiple objects  
+- [ ] **Multi-Selection**: Ctrl/Cmd+click for multiple selection
+- [ ] **Selection Handles**: Resize/rotate handles on selected objects
+- [x] **Selection Highlighting**: Visual feedback for selected items (selection border implemented)
+
+### Object Transformation - 70% Complete
+- [x] **Move Objects**: Drag to reposition (full drag implementation with delta tracking)
+- [ ] **Resize Objects**: Drag handles to scale
+- [x] **Rotate Objects**: Rotation handle or modifier+drag (context menu rotate 45°)
+- [ ] **Skew/Distort**: Advanced transformation tools
+- [ ] **Snap to Grid**: Optional grid snapping
+- [ ] **Snap to Objects**: Align with other objects
+
+### Stage Context Menu (Right-Click on Empty Area) - 85% Complete
+- [ ] **Paste in Place**: Paste at original position
+- [ ] **Paste in Center**: Paste at stage center
+- [ ] **Select All**: Select all stage objects
+- [x] **Insert**: Add new objects (Rectangle, Circle, Text, MovieClip all implemented)
+- [ ] **Properties**: Stage properties dialog
+- [ ] **Grid Settings**: Configure stage grid
+- [ ] **Zoom**: Zoom options (Fit to Stage, 100%, etc.)
+
+### Object Context Menu (Right-Click on Object) - 90% Complete
+- [ ] **Cut**: Remove and copy selection
+- [ ] **Copy**: Duplicate selection
+- [x] **Delete**: Remove selection (🗑️ Delete implemented)
+- [x] **Duplicate**: Create copy at offset position (📋 Duplicate with +20 offset)
+- [ ] **Group**: Combine selected objects
+- [ ] **Ungroup**: Break apart group
+- [x] **Arrange**: Bring to Front, Send to Back, etc. (⬆️⬇️ both implemented)
+- [ ] **Lock/Unlock**: Toggle object editability
+- [ ] **Convert to Symbol**: Create reusable symbol
+- [ ] **Break Apart**: Convert to basic shapes
+- [ ] **Properties**: Object properties dialog
+
+### Drawing Tools Integration - 25% Complete
+- [ ] **Tool Selection**: Switch between selection and drawing tools
+- [x] **Basic Shapes**: Rectangle, Circle, Line tools (via context menu creation)
+- [x] **Text Tool**: Add and edit text objects (via context menu)
+- [ ] **Pen Tool**: Vector drawing capabilities
+- [ ] **Paint Bucket**: Fill enclosed areas
+- [ ] **Eyedropper**: Sample colors from stage
+
+### Stage Properties - 20% Complete
+- [ ] **Stage Size**: Width/height configuration
+- [x] **Background Color**: Stage background (gray background implemented)
+- [ ] **Grid Settings**: Grid visibility and spacing
+- [ ] **Ruler Guides**: Draggable guides for alignment
+- [ ] **Safe Areas**: Video safe area indicators
+
+## Implementation Status: 70% Complete
+
+**Already Implemented:**
+- Complete StageItem system with Rectangle, Circle, Text, MovieClip types
+- Full object selection with visual highlighting (selection borders)
+- Drag-to-move functionality with real-time position updates
+- Comprehensive context menus for both stage and objects:
+  - Stage context menu: Add Rectangle/Circle/Text/MovieClip at click position
+  - Object context menu: Rename, Duplicate, Bring to Front/Back, Rotate 45°, Delete
+- Object properties: position, size, color, rotation, type, name, id
+- Hover tooltips showing object names
+- Activity logging for all user interactions
+- Click-to-deselect on empty stage
+
+**Infrastructure Ready:**
+- StageItem struct with full transformation properties
+- Context menu system with ContextMenuState and ContextMenuType
+- Selection state management
+- Event handling for clicks, drags, right-clicks, hovers
+
+**Missing Major Features:**
+- Marquee selection (drag rectangle to select multiple)
+- Resize handles and handle-based transformations  
+- Multi-selection with Ctrl/Cmd+click
+- Copy/paste operations
+- Grouping functionality
+- Tool palette for drawing
+- Grid system and snapping
+- Stage properties panel
+
+## Technical Requirements
+- [x] Extend stage rendering system (comprehensive StageItem rendering)
+- [x] Implement object selection/transformation (selection + drag movement)
+- [ ] Add tool system architecture  
+- [x] Create context menu framework (full context menu system implemented)
+
+## Dependencies
+- Part of Epic #22
+- [x] Integrates with existing stage items (fully implemented)
+
+## Priority
+High - Core editing functionality
+
+
+==========================================
+ISSUE #28
+==========================================
+
+title:	Tools Panel: Drawing and Selection Tools
+state:	CLOSED
+author:	johndpope
+labels:	enhancement
+comments:	1
+assignees:	
+projects:	
+milestone:	
+number:	28
+--
+## Description
+Implement a comprehensive tools panel with drawing, selection, and editing tools similar to Flash Professional 8.
+
+## User Story
+As an animator, I want access to drawing and selection tools so I can create and edit graphics directly on the stage.
+
+## Acceptance Criteria
+### Selection Tools - 0% Complete
+- [ ] **Arrow Tool (V)**: Primary selection and transformation tool
+- [ ] **Subselection Tool (A)**: Direct selection of anchor points
+- [ ] **Lasso Tool (L)**: Free-form selection
+- [ ] **Magic Wand**: Select similar objects/colors
+
+### Drawing Tools - 0% Complete
+- [ ] **Line Tool (N)**: Draw straight lines
+- [ ] **Pen Tool (P)**: Vector path drawing with bezier curves
+- [ ] **Pencil Tool (Y)**: Freehand drawing
+- [ ] **Brush Tool (B)**: Variable-width brush strokes
+- [ ] **Rectangle Tool (R)**: Draw rectangles and squares
+- [ ] **Oval Tool (O)**: Draw circles and ellipses
+- [ ] **PolyStar Tool**: Draw polygons and stars
+
+### Text and Paint Tools - 0% Complete
+- [ ] **Text Tool (T)**: Add and edit text objects
+- [ ] **Paint Bucket Tool (K)**: Fill enclosed areas
+- [ ] **Ink Bottle Tool (S)**: Apply stroke to objects
+- [ ] **Eyedropper Tool (I)**: Sample colors and properties
+- [ ] **Eraser Tool (E)**: Erase parts of objects
+
+### Transform Tools - 0% Complete
+- [ ] **Free Transform Tool (Q)**: Scale, rotate, skew objects
+- [ ] **Gradient Transform Tool (F)**: Adjust gradients
+- [ ] **Zoom Tool (Z)**: Zoom in/out on stage
+- [ ] **Hand Tool (H)**: Pan the stage view
+
+### Tool Options Panel - 0% Complete
+- [ ] **Tool-Specific Settings**: Options for each tool
+- [ ] **Stroke Properties**: Color, width, style
+- [ ] **Fill Properties**: Color, gradient, bitmap
+- [ ] **Shape Options**: Corner radius, star points, etc.
+- [ ] **Snap Settings**: Grid, object, guide snapping
+
+### Color Controls - 0% Complete
+- [ ] **Stroke Color Swatch**: Current stroke color
+- [ ] **Fill Color Swatch**: Current fill color
+- [ ] **Color Picker**: Advanced color selection
+- [ ] **Swap Colors**: Switch stroke/fill colors
+- [ ] **Default Colors**: Reset to black/white
+- [ ] **No Color**: Transparent option
+
+### Tool Shortcuts and Keyboard Support - 0% Complete
+- [ ] **Single-Key Shortcuts**: V for Arrow, P for Pen, etc.
+- [ ] **Tool Toggle**: Hold key to temporarily switch tools
+- [ ] **Modifier Keys**: Shift, Ctrl, Alt for tool variations
+- [ ] **Escape Key**: Return to selection tool
+
+### Visual Feedback - 0% Complete
+- [ ] **Tool Icons**: Clear visual representation
+- [ ] **Active Tool Highlight**: Visual indication of selected tool
+- [ ] **Cursor Changes**: Tool-appropriate cursors
+- [ ] **Tooltips**: Tool descriptions on hover
+
+## Implementation Status: 0% Complete
+
+**Current State:**
+- No tools panel implemented
+- No tool system architecture 
+- No drawing tools available
+- Object creation only via stage context menu
+- Basic selection exists but not tool-based
+
+**Infrastructure Needed:**
+- Tool enum system (Arrow, Pen, Rectangle, etc.)
+- Tool state management and switching
+- Tool-specific mouse cursor changes
+- Tool options panel UI
+- Keyboard shortcut system
+- Color swatch system
+- Tool-specific drawing/editing logic
+
+**Related Existing Features:**
+- Stage object creation via context menu (Issue #27)
+- Object selection and manipulation (Issue #27)
+- Some tooltip infrastructure exists (i18n system)
+
+## Technical Requirements
+- [ ] Create tool system architecture
+- [ ] Implement tool state management
+- [ ] Add keyboard shortcut system
+- [ ] Integrate with stage drawing system
+
+## Dependencies
+- Part of Epic #22
+- Integrates with Stage Area #27
+- Should build on existing object manipulation system
+
+## Priority
+High - Essential for content creation
+
+## Implementation Notes
+This is a major undertaking that will require:
+1. Complete tool system design and architecture
+2. Tool panel UI component
+3. Integration with existing stage/object system
+4. Keyboard input handling system
+5. Per-tool drawing and interaction logic
+
+Consider implementing incrementally:
+1. Basic tool selection framework
+2. Arrow tool (building on existing selection)
+3. Simple drawing tools (Rectangle, Circle)
+4. Advanced drawing tools (Pen, Brush)
+5. Paint and transform tools
+
+
+==========================================
+ISSUE #29
+==========================================
+
+title:	Properties Panel: Object and Frame Properties
+state:	CLOSED
+author:	johndpope
+labels:	enhancement
+comments:	4
+assignees:	
+projects:	
+milestone:	
+number:	29
+--
+## Description
+Implement a comprehensive properties panel for editing object and frame properties with Flash-style interface.
+
+## User Story
+As an animator, I want to view and edit properties of selected objects and frames so I can fine-tune my animations with precise control.
+
+## Acceptance Criteria
+### Object Properties - 30% Complete
+- [x] **Transform Properties**: X, Y, Width, Height, Rotation, Skew (position/size fields implemented)
+- [ ] **Color Properties**: Fill color, stroke color, alpha (alpha slider exists but not connected)
+- [ ] **Text Properties**: Font, size, style, alignment, color
+- [ ] **Shape Properties**: Corner radius, stroke width, line style
+- [ ] **Instance Properties**: Symbol instance name, type (instance name display implemented)
+
+### Frame Properties - 0% Complete
+- [ ] **Frame Type**: Keyframe, blank keyframe, regular frame
+- [ ] **Tween Type**: None, Motion, Shape, Classic
+- [ ] **Easing**: Ease in/out, custom curves
+- [ ] **Label**: Frame label and comment
+- [ ] **Sound**: Attached sound properties
+
+### Motion Properties - 0% Complete
+- [ ] **Motion Tween Settings**: Duration, easing, rotation
+- [ ] **Motion Path**: Path editing controls
+- [ ] **Orient to Path**: Rotation along motion path
+- [ ] **Speed Control**: Constant vs. variable speed
+
+### Filters and Effects - 10% Complete
+- [x] **Drop Shadow**: Offset, blur, color, alpha (filters tab exists)
+- [ ] **Blur**: Blur X/Y, quality
+- [ ] **Glow**: Inner/outer glow settings
+- [ ] **Bevel**: Highlight/shadow colors, angles
+- [ ] **Gradient Effects**: Gradient bevel/glow
+
+### Color and Style - 15% Complete
+- [ ] **Fill Panel**: Solid color, gradient, bitmap fill
+- [ ] **Stroke Panel**: Color, width, style, caps, joins
+- [x] **Alpha**: Transparency settings (alpha slider implemented)
+- [x] **Blend Modes**: Normal, multiply, screen, etc. (blend mode combo implemented)
+
+### Layout and Alignment - 25% Complete
+- [x] **Position Fields**: Precise X/Y positioning (X/Y text fields implemented)
+- [x] **Size Fields**: Exact width/height values (W/H text fields implemented)
+- [ ] **Registration Point**: Object anchor point
+- [ ] **Align Panel**: Align to stage or other objects
+
+### Property Animation - 0% Complete
+- [ ] **Keyframe Controls**: Add/remove keyframes for properties
+- [ ] **Property Curves**: Visual curves for animated properties
+- [ ] **Timeline Scrubbing**: Scrub to see property changes
+- [ ] **Value Input**: Direct numeric input
+
+### Context-Sensitive Display - 70% Complete
+- [ ] **Auto-Update**: Properties update with selection (not connected to stage selection)
+- [ ] **Multi-Selection**: Show common properties only
+- [x] **No Selection State**: Instructions or empty state (No object selected message)
+- [x] **Property Grouping**: Collapsible sections (Properties/Filters/Color/Display tabs)
+
+## Implementation Status: 35% Complete
+
+**Already Implemented (main_fixed.rs):**
+- Complete properties panel UI with 4 tabs (Properties, Filters, Color, Display)
+- Transform property fields: X, Y, Width, Height, Z position
+- Alpha transparency slider (0-100%)
+- Blend mode selection (Normal, Multiply, Screen, etc.)
+- Color effect style selection (None, Brightness, Tint, etc.)
+- No selection state with helpful instructions
+- Proper panel layout with scrollable content
+- Tab-based organization
+- 3D position controls (Z coordinate)
+
+**Infrastructure in Place:**
+- PropertyTab enum (Properties, Filters, ColorEffect, Display)
+- Resizable properties panel with splitter
+- Selected asset tracking system
+- Property panel drawing system
+- Tab switching functionality
+
+**Major Missing Features:**
+- Connection to actual stage object selection
+- Real-time property value updates from objects
+- Property value binding (changes do not affect objects)
+- Frame-based properties
+- Motion tween properties  
+- Comprehensive filters panel
+- Object-specific property types
+- Property animation controls
+- Multi-selection support
+
+## Technical Requirements
+- [x] Create property panel UI components (implemented with tabs)
+- [ ] Implement property binding system (values not connected to objects)
+- [ ] Add real-time property updates (selection changes do not update panel)
+- [ ] Create undo/redo for property changes
+
+## Dependencies
+- Part of Epic #22
+- Integrates with Stage Area #27 and Tools Panel #28
+- **CRITICAL**: Needs connection to stage object selection system
+
+## Priority
+Medium - Important for precise editing
+
+
+==========================================
+ISSUE #30
+==========================================
+
+title:	Library Panel: Symbol and Asset Management
+state:	CLOSED
+author:	johndpope
+labels:	enhancement
+comments:	1
+assignees:	
+projects:	
+milestone:	
+number:	30
+--
+## Description
+Implement a library panel for managing symbols, graphics, sounds, and other reusable assets with Flash-style organization.
+
+## User Story
+As an animator, I want to organize my graphics and symbols in a library so I can reuse assets efficiently across my animation project.
+
+## Acceptance Criteria
+### Library Organization - 70% Complete
+- [x] **Folder Structure**: Create folders to organize assets (Graphics, Bitmaps, Sounds, Fonts folders implemented)
+- [x] **Asset Types**: Graphics, Movie Clips, Buttons, Sounds, Videos (MovieClip, Bitmap, Sound types implemented)
+- [ ] **Drag-and-Drop**: Drag assets to stage to create instances
+- [x] **Nested Folders**: Support folder hierarchies (collapsible folder structure)
+- [x] **Search/Filter**: Find assets by name or type (search bar implemented)
+
+### Asset Management - 40% Complete
+- [x] **Import Assets**: Import external graphics, sounds, videos (Import button implemented)
+- [ ] **Export Assets**: Export library items to files
+- [x] **Asset Preview**: Thumbnail previews for visual assets (emoji icons per type)
+- [ ] **Asset Properties**: View file size, format, dimensions
+- [ ] **Usage Count**: Show where assets are used
+
+### Symbol Creation and Editing - 20% Complete
+- [x] **Convert to Symbol**: Create symbols from stage objects (New Symbol button)
+- [x] **Symbol Types**: Movie Clip, Button, Graphic (type labels shown)
+- [ ] **Edit in Place**: Edit symbol without leaving main stage
+- [ ] **Edit in New Window**: Open symbol in separate window
+- [x] **Symbol Instances**: Multiple instances with different properties (asset selection system)
+
+### Library Context Menu (Right-Click) - 0% Complete
+- [ ] **New Symbol**: Create blank symbol
+- [ ] **New Folder**: Create organization folder
+- [ ] **Import**: Import external assets
+- [ ] **Delete**: Remove selected items
+- [ ] **Duplicate**: Create copy of asset
+- [ ] **Rename**: Change asset name
+- [ ] **Properties**: View/edit asset properties
+- [ ] **Edit**: Open symbol for editing
+- [ ] **Update**: Refresh external assets
+
+### Asset Properties Dialog - 0% Complete
+- [ ] **Symbol Properties**: Name, type, registration point
+- [ ] **Graphic Properties**: Format, size, color depth
+- [ ] **Sound Properties**: Format, quality, compression
+- [ ] **Video Properties**: Format, frame rate, dimensions
+- [ ] **Linkage**: Export settings for ActionScript
+
+### Library Features - 30% Complete
+- [ ] **Shared Libraries**: Share assets between projects
+- [ ] **Version Control**: Track asset changes
+- [ ] **Batch Operations**: Rename, move, delete multiple items
+- [ ] **Asset Statistics**: File sizes, usage reports
+- [ ] **Backup/Restore**: Protect against asset loss
+
+### Visual Interface - 85% Complete
+- [x] **List View**: Detailed list with properties (asset list with type labels)
+- [ ] **Icon View**: Large thumbnails for visual assets  
+- [x] **Tree View**: Hierarchical folder structure (collapsible folders implemented)
+- [ ] **Preview Pane**: Large preview of selected asset
+- [x] **Asset Thumbnails**: Auto-generated previews (emoji icons per asset type)
+
+## Implementation Status: 50% Complete
+
+**Already Implemented (main_fixed.rs):**
+- Complete library panel with 3 tabs (Assets, Components, AS Linkage)
+- Folder structure: Graphics, Bitmaps, Sounds, Fonts with collapsible interface
+- Asset selection system with selected_asset tracking
+- Search bar with hint text and change detection
+- Import/New Symbol/New Folder buttons
+- Asset type identification (MovieClip, Bitmap, Sound, Font)
+- Asset icons (🎭 🖼️ 🔊 📝) for visual differentiation
+- Properties panel integration (selected asset shows in properties)
+- ActionScript linkage tab with class name mapping
+- Library options button with tooltip
+- Comprehensive logging for all user interactions
+
+**Infrastructure in Place:**
+- LibraryTab enum (Assets, Components, ActionScript)
+- Asset tree structure with folder organization
+- Asset selection state management
+- Scrollable asset list interface
+- Tab-based organization
+- Search functionality framework
+
+**Major Missing Features:**
+- Drag-and-drop from library to stage
+- Actual asset import/export functionality
+- Context menus for library items
+- Asset properties dialogs
+- Real asset management (currently mock data)
+- Asset thumbnails (real images vs emojis)
+- Symbol editing workflow
+- Usage tracking and statistics
+
+**Missing UI Components:**
+- Right-click context menus for assets/folders
+- Asset properties editor dialogs
+- Large preview pane for selected assets
+- Icon view mode (currently only list view)
+- Batch operation tools
+- Asset filtering by type
+
+## Technical Requirements
+- [x] Implement asset management system (basic structure in place)
+- [ ] Create symbol/instance architecture (asset selection exists but no instances)
+- [ ] Add import/export functionality (buttons exist but not functional)
+- [x] Design library UI components (comprehensive UI implemented)
+
+## Dependencies
+- Part of Epic #22
+- Integrates with Stage Area #27
+- **CRITICAL**: Needs connection to stage object creation system
+
+## Priority
+Medium - Important for asset reuse and organization
+
+## Implementation Notes
+The library panel UI is very well developed with proper Flash CS6-style organization. Next steps should focus on:
+1. **Functional Integration**: Connect library assets to stage object creation
+2. **Real Asset Management**: Replace mock data with actual asset loading
+3. **Drag-and-Drop**: Implement dragging assets to stage 
+4. **Context Menus**: Add right-click functionality for asset operations
+5. **Asset Properties**: Create property dialogs for different asset types
+
+
+==========================================
+ISSUE #31
+==========================================
+
+title:	Scene Management: Multiple Scenes and Navigation
+state:	OPEN
+author:	johndpope
+labels:	enhancement
+comments:	0
+assignees:	
+projects:	
+milestone:	
+number:	31
+--
+## Description
+Implement scene management functionality allowing users to create, organize, and navigate between multiple scenes in their animation project.
+
+## User Story
+As an animator, I want to organize my animation into multiple scenes so I can structure complex projects and navigate between different sections easily.
+
+## Acceptance Criteria
+### Scene Organization - 0% Complete
+- [ ] **Scene Tabs**: Visual tabs for each scene
+- [ ] **Scene Navigation**: Click tabs to switch scenes
+- [ ] **Scene Indicators**: Visual indication of active scene
+- [ ] **Scene Ordering**: Arrange scenes in logical sequence
+
+### Scene Operations - 0% Complete
+- [ ] **Add Scene**: Create new blank scene
+- [ ] **Delete Scene**: Remove scene with confirmation
+- [ ] **Duplicate Scene**: Copy scene and all content
+- [ ] **Rename Scene**: Edit scene names inline
+- [ ] **Scene Properties**: Configure scene settings
+
+### Scene Context Menu (Right-Click on Scene Tab) - 0% Complete
+- [ ] **Insert Scene**: Add new scene at position
+- [ ] **Delete Scene**: Remove with confirmation
+- [ ] **Duplicate Scene**: Create copy
+- [ ] **Rename Scene**: Edit scene name
+- [ ] **Scene Properties**: Open settings dialog
+- [ ] **Move Scene**: Change scene order
+
+### Scene Properties Dialog - 0% Complete
+- [ ] **Scene Name**: Editable scene title
+- [ ] **Scene Description**: Optional description field
+- [ ] **Frame Rate**: Per-scene frame rate settings
+- [ ] **Stage Size**: Scene-specific stage dimensions
+- [ ] **Background Color**: Scene background
+
+### Scene Navigation - 0% Complete
+- [ ] **Keyboard Shortcuts**: Ctrl+PageUp/PageDown for navigation
+- [ ] **Scene Panel**: Dedicated scene management panel
+- [ ] **Go to Scene**: Direct navigation by name
+- [ ] **Scene History**: Recently accessed scenes
+
+### Content Management - 0% Complete
+- [ ] **Scene Isolation**: Each scene has independent timeline
+- [ ] **Shared Library**: Assets shared across scenes
+- [ ] **Scene-Specific Assets**: Assets unique to scenes
+- [ ] **Cross-Scene References**: Link between scenes
+
+### Visual Feedback - 0% Complete
+- [ ] **Active Scene Highlight**: Clear indication of current scene
+- [ ] **Modified Scene Indicator**: Show unsaved changes
+- [ ] **Scene Thumbnails**: Preview images for scenes
+- [ ] **Content Summary**: Frame count, layer count per scene
+
+## Implementation Status: 0% Complete
+
+**Current State:**
+- No scene management system implemented
+- Single scene/timeline workflow only
+- No scene-related data structures
+- No scene navigation UI
+
+**Infrastructure Needed:**
+- Scene data structure and management
+- Scene tab UI component
+- Scene switching logic
+- Scene-specific state isolation
+- Multi-scene timeline coordination
+- Scene properties system
+
+**Related Existing Features:**
+- Timeline functionality exists (Issue #23, #25)
+- Asset management exists (Issue #30)
+- Could build on existing tabbed interfaces
+
+## Technical Requirements
+- [ ] Implement scene data structure
+- [ ] Add scene switching logic
+- [ ] Create scene management UI
+- [ ] Handle scene-specific state
+
+## Dependencies
+- Part of Epic #22
+- Builds on existing timeline functionality
+- Should integrate with Library Panel #30
+
+## Priority
+Low - Advanced organization feature
+
+## Implementation Notes
+This is a completely new feature with no existing implementation. Should be considered after core timeline, stage, and asset management features are complete.
+
+Key architectural decisions needed:
+1. **Scene Data Model**: How to structure scenes vs timelines vs assets
+2. **State Management**: How to isolate scene-specific state
+3. **UI Integration**: Where to place scene tabs in the interface
+4. **Asset Sharing**: How library assets work across scenes
+5. **Performance**: How to handle multiple scenes efficiently
+
+Recommended implementation order:
+1. Basic scene data structure
+2. Simple scene tab UI
+3. Scene switching without content
+4. Scene-specific timeline isolation
+5. Scene properties and management
+6. Advanced features (thumbnails, cross-references)
+
+
+==========================================
+ISSUE #32
+==========================================
+
+title:	Accessibility and Keyboard Navigation
+state:	OPEN
+author:	johndpope
+labels:	enhancement
+comments:	0
+assignees:	
+projects:	
+milestone:	
+number:	32
+--
+## Description
+Implement comprehensive accessibility features and keyboard navigation to ensure the timeline editor is usable by all users, including those with disabilities.
+
+## User Story
+As a user with accessibility needs, I want to navigate and use the timeline editor with keyboard shortcuts and screen readers so I can create animations without relying solely on mouse interaction.
+
+## Acceptance Criteria
+### Keyboard Navigation - 15% Complete
+- [ ] **Tab Navigation**: Navigate through all interactive elements
+- [ ] **Focus Indicators**: Clear visual focus indicators
+- [ ] **Escape Key**: Cancel operations, close dialogs (partial - works for layer rename)
+- [x] **Enter/Space**: Activate focused elements (Enter works for layer rename, Space for play/pause)
+- [ ] **Arrow Keys**: Navigate within components
+
+### Timeline Keyboard Controls - 80% Complete
+- [x] **Frame Navigation**: Left/Right arrows for frame-by-frame (implemented)
+- [ ] **Layer Navigation**: Up/Down arrows for layer selection
+- [x] **Timeline Shortcuts**: F5, F6, F7 for frame operations (F5/F6 with shift variations implemented)
+- [x] **Playback Control**: Spacebar for play/pause (implemented)
+- [ ] **Selection**: Shift+arrows for range selection
+
+### Global Keyboard Shortcuts - 20% Complete
+- [ ] **File Operations**: Ctrl+N (New), Ctrl+O (Open), Ctrl+S (Save)
+- [ ] **Edit Operations**: Ctrl+Z (Undo), Ctrl+Y (Redo)
+- [ ] **Selection**: Ctrl+A (Select All), Delete (Remove)
+- [x] **View Controls**: Ctrl+0 (Fit to Screen), Ctrl++ (Zoom In) (F12 console toggle, Home/End navigation)
+
+### Screen Reader Support - 0% Complete
+- [ ] **ARIA Labels**: Descriptive labels for all elements
+- [ ] **ARIA Roles**: Proper semantic roles
+- [ ] **Live Regions**: Announce dynamic changes
+- [ ] **Alternative Text**: Descriptions for visual elements
+
+### High Contrast and Visual Support - 0% Complete
+- [ ] **High Contrast Mode**: Alternative color scheme
+- [ ] **Font Size Scaling**: Respect system font size
+- [ ] **Reduce Motion**: Respect motion preferences
+- [ ] **Focus Outline**: High-contrast focus indicators
+
+### Contextual Help - 40% Complete
+- [x] **Tooltips**: Helpful descriptions on hover/focus (extensive tooltip system with i18n)
+- [ ] **Status Bar**: Current state information
+- [ ] **Help Mode**: F1 for contextual help
+- [x] **Keyboard Reference**: Shortcut cheat sheet (logged to console on startup)
+
+### Error Handling and Feedback - 5% Complete
+- [ ] **Error Announcements**: Screen reader error messages
+- [ ] **Progress Indication**: Accessible progress bars
+- [ ] **Confirmation Dialogs**: Clear action descriptions
+- [ ] **Undo Support**: Easy reversal of actions
+
+### Mobile and Touch Support - 0% Complete
+- [ ] **Touch Gestures**: Pinch to zoom, swipe to scroll
+- [ ] **Touch Targets**: Minimum 44px touch targets
+- [ ] **Responsive Layout**: Adapt to different screen sizes
+- [ ] **Virtual Keyboard**: Support for on-screen keyboards
+
+### Testing and Validation - 0% Complete
+- [ ] **Screen Reader Testing**: Test with NVDA, JAWS, VoiceOver
+- [ ] **Keyboard-Only Testing**: Complete functionality without mouse
+- [ ] **Color Contrast**: WCAG AA compliance
+- [ ] **Accessibility Audit**: Automated and manual testing
+
+## Implementation Status: 25% Complete
+
+**Already Implemented:**
+- Comprehensive keyboard shortcut system:
+  - **F5**: Insert frame, **Shift+F5**: Remove frame
+  - **F6**: Insert keyframe, **Shift+F6**: Clear keyframe  
+  - **Space**: Play/pause toggle
+  - **Left/Right arrows**: Frame-by-frame navigation
+  - **Home**: Go to first frame, **End**: Go to last frame
+  - **F12**: Toggle debug console
+  - **F2**: Take screenshot
+  - **Enter**: Confirm layer rename
+  - **Escape**: Cancel layer rename
+- Extensive tooltip system with i18n support
+- Keyboard shortcut reference displayed in console on startup
+- Text input handling (layer rename with Enter/Escape)
+
+**Infrastructure in Place:**
+- handle_keyboard_shortcuts() function in both timeline implementations
+- Comprehensive input handling system
+- Tooltip system with hover text
+- Multi-language support for tooltips
+- Context-aware keyboard handling
+
+**Major Missing Features:**
+- ARIA labels and semantic markup
+- Screen reader support
+- Tab navigation system
+- Focus indicators
+- High contrast themes
+- Layer navigation with Up/Down arrows
+- Global application shortcuts (Ctrl+Z, Ctrl+S, etc.)
+- Range selection with Shift+arrows
+- Accessibility testing framework
+
+**Missing UI Components:**
+- Focus outline styles
+- High contrast color schemes
+- Accessible form controls
+- Status bar with current state
+- Help system/documentation
+- Error announcement system
+
+## Technical Requirements
+- [x] Add keyboard handling framework (comprehensive system implemented)
+- [ ] Add ARIA attributes throughout UI
+- [ ] Implement comprehensive keyboard handling (partially done)
+- [ ] Create high contrast theme
+- [ ] Add accessibility testing framework
+
+## Dependencies
+- Affects all other issues in Epic #22
+- Should be considered in every component
+
+## Priority
+High - Essential for inclusive design
+
+## Implementation Notes
+The keyboard shortcut foundation is solid with comprehensive timeline controls. Next priorities should focus on:
+1. **ARIA Support**: Add semantic markup and labels
+2. **Tab Navigation**: Implement focus management system
+3. **Screen Reader Support**: Test and optimize for assistive technology
+4. **Global Shortcuts**: Add file/edit operations
+5. **High Contrast**: Create accessible color themes
+
+## Compliance
+- WCAG 2.1 AA compliance
+- Section 508 compliance  
+- EU Accessibility Act compliance
+
+
+==========================================
+ISSUE #33
+==========================================
+
+title:	Performance Optimization and Large Project Support
+state:	OPEN
+author:	johndpope
+labels:	enhancement
+comments:	0
+assignees:	
+projects:	
+milestone:	
+number:	33
+--
+## Description
+Optimize timeline performance for large projects with many layers, frames, and assets to ensure smooth operation even with complex animations.
+
+## User Story
+As an animator working on complex projects, I want the timeline to remain responsive with hundreds of layers and thousands of frames so I can work efficiently on large-scale animations.
+
+## Acceptance Criteria
+### Timeline Virtualization - 40% Complete
+- [x] **Virtual Scrolling**: Only render visible timeline areas (viewport-based rendering implemented)
+- [x] **Frame Culling**: Skip rendering off-screen frames (visible frame range calculation)
+- [x] **Layer Pagination**: Load layers on demand (layer viewport culling with y-offset checks)
+- [ ] **Smooth Scrolling**: Maintain 60fps during scroll
+
+### Memory Management - 20% Complete
+- [x] **Asset Caching**: Intelligent asset loading/unloading (unload_audio function in AudioManager)
+- [ ] **Frame Buffers**: Efficient frame data storage
+- [ ] **Garbage Collection**: Minimize memory leaks
+- [ ] **Memory Monitoring**: Track and report memory usage
+
+### Rendering Optimization - 30% Complete
+- [ ] **Canvas Optimization**: Efficient drawing operations
+- [x] **Dirty Region Tracking**: Only redraw changed areas (viewport-based rendering)
+- [ ] **Level of Detail**: Reduce detail when zoomed out
+- [ ] **Hardware Acceleration**: GPU-assisted rendering where possible
+
+### Timeline Performance - 35% Complete
+- [ ] **Debounced Updates**: Batch timeline state changes
+- [x] **Background Processing**: Non-blocking operations (waveform generation system)
+- [ ] **Progressive Loading**: Load project data incrementally
+- [x] **Smart Invalidation**: Minimal UI updates (viewport culling prevents unnecessary draws)
+
+### Large Project Features - 10% Complete
+- [ ] **Project Streaming**: Load/save large projects efficiently
+- [ ] **Proxy Assets**: Low-res proxies for faster preview
+- [ ] **Background Saving**: Non-blocking save operations
+- [ ] **Project Fragmentation**: Split large projects into chunks
+
+### Performance Monitoring - 5% Complete
+- [x] **Performance Metrics**: FPS, memory, load times (FPS presets and timing support)
+- [ ] **Profiling Tools**: Built-in performance profiler
+- [ ] **Performance Warnings**: Alert for performance issues
+- [ ] **Optimization Suggestions**: Recommend improvements
+
+### Scalability Settings - 0% Complete
+- [ ] **Quality Settings**: Reduce quality for performance
+- [ ] **Preview Modes**: Fast preview vs. high quality
+- [ ] **Background Tasks**: Manage CPU-intensive operations
+- [ ] **Thread Management**: Multi-threading where appropriate
+
+### Stress Testing Scenarios - 0% Complete
+- [ ] **1000+ Layers**: Handle extremely deep layer stacks
+- [ ] **10000+ Frames**: Support very long animations
+- [ ] **Large Assets**: Handle high-resolution images/videos
+- [ ] **Complex Scenes**: Multiple scenes with rich content
+
+## Implementation Status: 25% Complete
+
+**Already Implemented:**
+- **Viewport-based Rendering**: Both timeline implementations use viewport culling
+- **Audio Memory Management**: unload_audio function for memory optimization
+- **Background Audio Processing**: Waveform generation system with completion tracking
+- **FPS Management**: Comprehensive FPS preset system (24, 25, 29.97, 30, 60 fps + custom)
+- **Scroll State Optimization**: Efficient scroll tracking with viewport updates
+
+**Performance Optimizations Working:**
+- Timeline only renders visible frames (massive performance gain)
+- Layers outside viewport are skipped entirely
+- Audio assets can be unloaded from memory
+- Efficient scroll position tracking
+- Frame width calculations optimized for viewport
+
+## Technical Requirements
+- [x] Implement virtual scrolling for timeline (done with viewport system)
+- [ ] Add object pooling for UI components
+- [ ] Create performance monitoring system
+- [x] Optimize rendering pipeline (viewport culling implemented)
+
+## Priority
+Medium - Important for professional use
+
+## Performance Targets
+- [x] Timeline remains responsive at 60fps (viewport culling achieves this)
+- [ ] Less than 2 second load time for 1000-frame projects
+- [ ] Less than 100MB memory usage for typical projects  
+- [ ] Smooth playback for 30fps animations
+
+
+==========================================
+ISSUE #34
+==========================================
+
+title:	Fix infinite seek loop in timeline ruler interaction
+state:	CLOSED
+author:	johndpope
+labels:	task-master
+comments:	1
+assignees:	
+projects:	
+milestone:	
+number:	34
+--
+Description: Timeline demo enters infinite seek loop during ruler interaction. Priority bug affecting demo functionality. Investigate ruler click handling and frame range selection logic.
+
+
+==========================================
+ISSUE #35
+==========================================
+
+title:	Wire up standalone_demo to RustFlash Editor engine
+state:	CLOSED
+author:	johndpope
+labels:	enhancement, task-master
+comments:	1
+assignees:	
+projects:	
+milestone:	
+number:	35
+--
+## Overview
+The standalone_demo in nannou_timeline currently uses a MockRiveEngine. We need to wire it up to the actual RustFlash Editor engine for real integration.
+
+## Current State
+- The demo uses MockRiveEngine defined in nannou_timeline/src/ui/mod.rs
+- LoggingRiveEngine wraps the mock for logging interactions
+- The RiveEngine trait defines the interface needed
+
+## Tasks
+1. Create a bridge module that implements RiveEngine trait using the RustFlash Editor's display and animation systems
+2. Replace MockRiveEngine with the real engine implementation
+3. Ensure the Stage and display objects are properly rendered in the egui canvas
+4. Connect timeline controls to the animation state machine
+
+## Integration Points
+- RustFlash Editor Stage (/rustflash-editor/src/display/stage.rs) → Timeline canvas
+- SceneManager update loop → Timeline playback controls  
+- Display objects → Timeline layers
+- Animation state machines → Timeline keyframes
+
+## Technical Requirements
+- The RustFlash Editor exposes:
+  - Stage with display object hierarchy
+  - SceneManager for frame updates
+  - Rhai scripting for animation control
+  - Rive path rendering system
+- Need to map these to the RiveEngine trait methods
+
+## Related Work
+- RustFlash Editor Issue #37: flash.display package implementation
+- The editor has Stage, SceneManager, and rendering integration ready
+
+
+==========================================
+ISSUE #36
+==========================================
+
+title:	Add Rhai scripting layer for timeline interactions
+state:	CLOSED
+author:	johndpope
+labels:	enhancement, task-master
+comments:	2
+assignees:	
+projects:	
+milestone:	
+number:	36
+--
+## Overview
+Add a Rhai scripting layer to the timeline that allows users to write scripts for animation control, similar to Flash ActionScript.
+
+## Requirements
+1. **Script Editor Panel**
+   - Add a script editor panel to the timeline UI
+   - Syntax highlighting for Rhai scripts
+   - Script execution controls (run, stop, clear)
+   - Error display for script errors
+
+2. **Timeline API for Scripts**
+   - Expose timeline controls to Rhai:
+     - play(), pause(), stop()
+     - gotoAndPlay(frame), gotoAndStop(frame)
+     - currentFrame, totalFrames properties
+     - Layer manipulation (add, remove, reorder)
+     - Keyframe creation and modification
+
+3. **Display Object Scripting**
+   - Access stage items from scripts:
+     - getChildByName(name)
+     - Stage properties (width, height, frameRate)
+     - Display object properties (x, y, rotation, alpha, etc.)
+     - Graphics drawing API
+
+4. **Event System**
+   - onEnterFrame event handler
+   - Mouse events (click, over, out)
+   - Keyboard events
+   - Custom event dispatching
+
+## Example Scripts
+```rhai
+// Animate a circle across the stage
+let circle = stage.getChildByName("circle1");
+circle.onEnterFrame = || {
+    circle.x += 5;
+    if (circle.x > stage.width) {
+        circle.x = 0;
+    }
+};
+
+// Create tweened animation
+let box = stage.getChildByName("box1");
+tween(box, "x", 100, 500, 60, "easeOutBounce");
+
+// Control timeline playback
+if (currentFrame >= 60) {
+    gotoAndPlay(1);
+}
+```
+
+## Integration with RustFlash Editor
+The RustFlash Editor already has:
+- Complete Rhai bindings for display objects (display/rhai_bindings.rs)
+- Animation state machine with Rhai support
+- Easing functions and transitions
+
+We need to:
+1. Bridge the editor's Rhai engine to the timeline UI
+2. Add script storage/management to timeline projects
+3. Provide script templates for common tasks
+4. Enable hot-reload for script changes
+
+## UI/UX Considerations
+- Script panel should be collapsible/dockable
+- Provide autocomplete for common APIs
+- Show script execution state in timeline
+- Allow scripts to be attached to frames/layers
+
+
+==========================================
+ISSUE #37
+==========================================
+
+title:	[PRD] Rhai Scripting Layer - Product Requirements Document
+state:	OPEN
+author:	johndpope
+labels:	documentation, enhancement, task-master
+comments:	1
+assignees:	
+projects:	
+milestone:	
+number:	37
+--
+# Product Requirements Document: Rhai Scripting Layer for Timeline Interface
+
+## Executive Summary
+
+### Vision
+Integrate a Rhai scripting layer into the nannou_conrod timeline interface to provide users with programmatic control over animations, similar to Flash ActionScript but with modern Rust safety and performance.
+
+### Benefits
+- **Familiar Workflow**: Flash animators can use scripting patterns they already know
+- **Power & Flexibility**: Complex animations beyond visual timeline capabilities
+- **Modern Safety**: Rust's safety guarantees with sandboxed script execution
+- **Performance**: Native performance with JIT-compiled scripts
+
+## User Personas
+
+### 1. Professional Animator (Sarah)
+- **Background**: 10+ years Flash/Animate experience
+- **Needs**: Familiar scripting for complex character animations
+- **Pain Points**: Limited by visual-only timeline tools
+- **Goal**: Create sophisticated animations efficiently
+
+### 2. Creative Developer (Alex)
+- **Background**: Interactive media developer
+- **Needs**: Data-driven animations, API integration
+- **Pain Points**: Lack of programmatic control
+- **Goal**: Build dynamic, responsive animations
+
+### 3. Motion Designer (Maya)
+- **Background**: UI/UX motion design
+- **Needs**: Reusable animation components
+- **Pain Points**: Repetitive manual keyframing
+- **Goal**: Create consistent motion systems
+
+### 4. Technical Artist (Jordan)
+- **Background**: Game development, procedural animation
+- **Needs**: Mathematical animation control
+- **Pain Points**: Limited expression evaluation
+- **Goal**: Generate complex procedural effects
+
+## Use Cases
+
+### UC1: Frame Scripts
+```rhai
+// On frame 30
+if (player.health <= 0) {
+    gotoAndPlay("game_over");
+} else {
+    player.alpha = player.health / 100.0;
+}
+```
+
+### UC2: Interactive Buttons
+```rhai
+let button = stage.getChildByName("play_button");
+button.onClick = || {
+    timeline.play();
+    button.visible = false;
+};
+```
+
+### UC3: Data-Driven Animation
+```rhai
+let data = loadJSON("animation_data.json");
+for item in data.items {
+    let obj = createSprite(item.name);
+    tween(obj, item.properties, item.duration, item.easing);
+}
+```
+
+### UC4: Procedural Animation
+```rhai
+onEnterFrame = || {
+    let time = getCurrentTime();
+    for i in 0..particles.len() {
+        particles[i].x += sin(time + i) * 2.0;
+        particles[i].y += particles[i].velocity;
+    }
+};
+```
+
+## Functional Requirements
+
+### FR1: Script Editor UI
+- **FR1.1**: Embedded code editor with syntax highlighting
+- **FR1.2**: Line numbers and error indicators
+- **FR1.3**: Auto-completion for API methods
+- **FR1.4**: Script execution controls (Run, Stop, Clear)
+- **FR1.5**: Console output panel
+- **FR1.6**: Debugging breakpoints
+
+### FR2: Script Types
+- **FR2.1**: Frame Scripts - Attached to timeline frames
+- **FR2.2**: Object Scripts - Attached to display objects
+- **FR2.3**: Global Scripts - Project-wide scripts
+- **FR2.4**: Event Scripts - Event handler scripts
+- **FR2.5**: Module Scripts - Reusable script modules
+
+### FR3: Timeline Integration
+- **FR3.1**: Visual indicators for frames with scripts
+- **FR3.2**: Script preview on hover
+- **FR3.3**: Copy/paste scripts between frames
+- **FR3.4**: Script templates menu
+- **FR3.5**: Batch script operations
+
+### FR4: Rhai Language Support
+- **FR4.1**: Full Rhai 1.x language features
+- **FR4.2**: Custom modules for animation
+- **FR4.3**: Type safety for display objects
+- **FR4.4**: Async/await for animations
+- **FR4.5**: Error handling with try/catch
+
+## Technical Requirements
+
+### TR1: Architecture
+
+```
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│   Timeline UI   │────▶│  Script Manager  │────▶│   Rhai Engine   │
+└─────────────────┘     └──────────────────┘     └─────────────────┘
+         │                       │                         │
+         ▼                       ▼                         ▼
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│  Script Editor  │     │  Script Storage  │     │   API Bindings  │
+└─────────────────┘     └──────────────────┘     └─────────────────┘
+```
+
+### TR2: Integration Points
+- **TR2.1**: RustFlash Editor's Rhai bindings
+- **TR2.2**: Timeline's RiveEngine trait
+- **TR2.3**: Display object hierarchy
+- **TR2.4**: Animation state machine
+- **TR2.5**: Event system
+
+### TR3: Performance
+- **TR3.1**: Script compilation caching
+- **TR3.2**: Execution time limits (16ms/frame)
+- **TR3.3**: Memory usage limits (10MB/script)
+- **TR3.4**: Concurrent script execution
+- **TR3.5**: Hot-reload without restart
+
+### TR4: Storage
+- **TR4.1**: Scripts saved in project file
+- **TR4.2**: Version control friendly format
+- **TR4.3**: Script library management
+- **TR4.4**: Import/export capabilities
+- **TR4.5**: Backup and recovery
+
+## API Specification
+
+### Timeline Control API
+```rhai
+// Playback control
+play()
+pause()
+stop()
+gotoAndPlay(frame: int|string)
+gotoAndStop(frame: int|string)
+
+// Properties
+currentFrame: int
+totalFrames: int
+frameRate: float
+isPlaying: bool
+
+// Layer management
+addLayer(name: string, type: LayerType) -> Layer
+removeLayer(layerId: int)
+getLayer(name: string) -> Layer
+```
+
+### Display Object API
+```rhai
+// Stage access
+stage.width: float
+stage.height: float
+stage.getChildByName(name: string) -> DisplayObject
+stage.addChild(child: DisplayObject)
+
+// Display object properties
+obj.x, obj.y: float
+obj.rotation: float
+obj.scaleX, obj.scaleY: float
+obj.alpha: float
+obj.visible: bool
+
+// Graphics API
+graphics.beginFill(color: int, alpha: float)
+graphics.lineStyle(thickness: float, color: int)
+graphics.drawRect(x, y, width, height)
+graphics.drawCircle(x, y, radius)
+```
+
+### Animation API
+```rhai
+// Tweening
+tween(target: Object, props: Map, duration: float, easing: string)
+killTween(target: Object)
+killAllTweens()
+
+// Easing functions
+Easing.Linear
+Easing.QuadIn/Out/InOut
+Easing.ElasticIn/Out/InOut
+Easing.BounceIn/Out/InOut
+```
+
+### Event System API
+```rhai
+// Frame events
+onEnterFrame = || { ... }
+onExitFrame = || { ... }
+
+// Mouse events
+obj.onClick = |event| { ... }
+obj.onMouseOver = |event| { ... }
+obj.onMouseOut = |event| { ... }
+
+// Keyboard events
+onKeyDown = |event| { ... }
+onKeyUp = |event| { ... }
+
+// Custom events
+dispatchEvent(name: string, data: Any)
+addEventListener(name: string, handler: Fn)
+```
+
+### Utility API
+```rhai
+// Math utilities
+random(min: float, max: float) -> float
+lerp(a: float, b: float, t: float) -> float
+clamp(value: float, min: float, max: float) -> float
+
+// Data loading
+loadJSON(path: string) -> Map
+loadText(path: string) -> string
+
+// Debugging
+trace(message: string)
+console.log/warn/error(message: string)
+```
+
+## Security Considerations
+
+### SC1: Sandboxing
+- **SC1.1**: No file system access beyond project
+- **SC1.2**: No network access without permission
+- **SC1.3**: Memory allocation limits
+- **SC1.4**: CPU time limits per frame
+- **SC1.5**: Stack depth limits
+
+### SC2: Permissions
+- **SC2.1**: Explicit permissions for external resources
+- **SC2.2**: User consent for data access
+- **SC2.3**: Sandboxed execution environment
+- **SC2.4**: No access to host system APIs
+- **SC2.5**: Controlled inter-script communication
+
+### SC3: Validation
+- **SC3.1**: Script syntax validation before execution
+- **SC3.2**: Type checking for API calls
+- **SC3.3**: Bounds checking for array access
+- **SC3.4**: Input sanitization
+- **SC3.5**: Output filtering
+
+## Performance Requirements
+
+### PR1: Execution Performance
+- **PR1.1**: Frame scripts < 1ms execution time
+- **PR1.2**: No more than 5% FPS impact
+- **PR1.3**: JIT compilation for hot paths
+- **PR1.4**: Efficient memory usage
+- **PR1.5**: Minimal GC pressure
+
+### PR2: Editor Performance
+- **PR2.1**: Instant syntax highlighting
+- **PR2.2**: < 100ms auto-completion
+- **PR2.3**: Real-time error detection
+- **PR2.4**: Smooth scrolling for large scripts
+- **PR2.5**: Fast search and replace
+
+### PR3: Scalability
+- **PR3.1**: Support 1000+ scripts per project
+- **PR3.2**: Handle scripts up to 10,000 lines
+- **PR3.3**: Manage 100+ concurrent tweens
+- **PR3.4**: Support complex object hierarchies
+- **PR3.5**: Efficient event propagation
+
+## Testing Strategy
+
+### TS1: Unit Testing
+- API binding correctness
+- Script compilation
+- Runtime behavior
+- Memory management
+- Error handling
+
+### TS2: Integration Testing
+- Timeline interaction
+- Display object manipulation
+- Event system
+- Animation system
+- Performance benchmarks
+
+### TS3: User Testing
+- Usability studies with target personas
+- A/B testing of UI layouts
+- Performance perception testing
+- Error message clarity
+- Documentation effectiveness
+
+## Migration Strategy
+
+### MS1: ActionScript Compatibility
+- **MS1.1**: AS3 to Rhai syntax converter
+- **MS1.2**: Common patterns guide
+- **MS1.3**: API mapping documentation
+- **MS1.4**: Migration wizard UI
+- **MS1.5**: Compatibility warnings
+
+### MS2: Training Materials
+- **MS2.1**: Interactive tutorials
+- **MS2.2**: Video walkthroughs
+- **MS2.3**: Example project library
+- **MS2.4**: API reference
+- **MS2.5**: Community forum
+
+## Success Metrics
+
+### M1: Adoption Metrics
+- 80% of power users adopt scripting within 3 months
+- 50% of all users try scripting features
+- 90% script execution success rate
+- < 5% performance degradation
+- 95% user satisfaction score
+
+### M2: Performance Metrics
+- Average frame script execution < 0.5ms
+- 99th percentile < 2ms
+- Zero memory leaks
+- < 10MB memory overhead
+- 60 FPS maintained
+
+### M3: Business Metrics
+- 30% increase in project complexity
+- 25% reduction in animation time
+- 40% increase in user retention
+- 20% growth in pro subscriptions
+- 50% reduction in support tickets
+
+## Timeline
+
+### Phase 1: Foundation (Months 1-2)
+- Core Rhai integration
+- Basic script editor
+- Timeline API
+
+### Phase 2: Features (Months 3-4)
+- Full API implementation
+- Advanced editor features
+- Event system
+
+### Phase 3: Polish (Months 5-6)
+- Performance optimization
+- Migration tools
+- Documentation
+
+## Risk Analysis
+
+### R1: Technical Risks
+- **Risk**: Performance regression
+- **Mitigation**: Continuous benchmarking
+
+### R2: Adoption Risks
+- **Risk**: Learning curve too steep
+- **Mitigation**: Extensive tutorials and examples
+
+### R3: Security Risks
+- **Risk**: Script exploits
+- **Mitigation**: Sandboxing and validation
+
+## Future Enhancements
+
+1. **Visual Script Builder**: Node-based visual scripting
+2. **AI Code Assistant**: GPT-powered code suggestions
+3. **Collaborative Scripting**: Real-time multi-user editing
+4. **Mobile Runtime**: Script execution on mobile devices
+5. **Cloud Functions**: Server-side script execution
+
+---
+
+This PRD provides a comprehensive roadmap for implementing a powerful Rhai scripting layer that bridges Flash's legacy with modern animation tools.
+
+
