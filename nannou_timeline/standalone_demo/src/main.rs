@@ -3343,6 +3343,10 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "Timeline Demo",
         options,
-        Box::new(|_cc| Ok(Box::new(TimelineApp::default()))),
+        Box::new(|cc| {
+            // Initialize material icons
+            egui_material_icons::initialize(&cc.egui_ctx);
+            Ok(Box::new(TimelineApp::default()))
+        }),
     )
 }

@@ -1,6 +1,7 @@
 //! Tools panel types and functionality
 
 use egui::Color32;
+use egui_material_icons::icons;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Tool {
@@ -35,25 +36,25 @@ pub enum Tool {
 impl Tool {
     pub fn get_icon(&self) -> &'static str {
         match self {
-            Tool::Arrow => "↖",         // Better arrow for selection
-            Tool::Subselection => "◇",   // Direct selection
-            Tool::Lasso => "⟡",         // Lasso selection
-            Tool::Line => "╱",          // Line tool
-            Tool::Pen => "⌐",           // Pen tool
-            Tool::Pencil => "✎",        // Pencil
-            Tool::Brush => "🖌",        // Brush
-            Tool::Rectangle => "▭",     // Rectangle
-            Tool::Oval => "○",          // Oval/Circle
-            Tool::PolyStar => "⬟",      // Star/Polygon
-            Tool::Text => "A",          // Text tool
-            Tool::PaintBucket => "▣",   // Paint bucket
-            Tool::InkBottle => "🖋",    // Ink bottle
-            Tool::Eyedropper => "🔍",   // Eyedropper
-            Tool::Eraser => "▤",        // Eraser
-            Tool::FreeTransform => "⤢", // Free transform
-            Tool::GradientTransform => "◐", // Gradient transform
-            Tool::Zoom => "⊕",         // Zoom
-            Tool::Hand => "✋",         // Hand
+            Tool::Arrow => icons::ICON_NEAR_ME,           // Selection arrow (using near_me as arrow pointer)
+            Tool::Subselection => icons::ICON_CROP_FREE,  // Direct selection
+            Tool::Lasso => icons::ICON_GESTURE,           // Lasso selection
+            Tool::Line => icons::ICON_TIMELINE,           // Line tool
+            Tool::Pen => icons::ICON_DRAW,                // Pen tool
+            Tool::Pencil => icons::ICON_EDIT,             // Pencil (using edit icon)
+            Tool::Brush => icons::ICON_BRUSH,             // Brush
+            Tool::Rectangle => icons::ICON_CROP_SQUARE,   // Rectangle
+            Tool::Oval => icons::ICON_CIRCLE,             // Circle/oval
+            Tool::PolyStar => icons::ICON_STAR,           // Star/Polygon
+            Tool::Text => icons::ICON_TEXT_FIELDS,        // Text tool
+            Tool::PaintBucket => icons::ICON_FORMAT_PAINT, // Paint bucket
+            Tool::InkBottle => icons::ICON_BORDER_COLOR,  // Ink bottle (stroke)
+            Tool::Eyedropper => icons::ICON_COLORIZE,     // Eyedropper
+            Tool::Eraser => icons::ICON_AUTO_FIX_OFF,     // Eraser (using auto_fix_off)
+            Tool::FreeTransform => icons::ICON_TRANSFORM, // Free transform
+            Tool::GradientTransform => icons::ICON_GRADIENT, // Gradient transform
+            Tool::Zoom => icons::ICON_ZOOM_IN,            // Zoom
+            Tool::Hand => icons::ICON_PAN_TOOL,           // Hand/pan
         }
     }
     
