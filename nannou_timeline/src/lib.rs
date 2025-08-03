@@ -67,6 +67,19 @@ pub struct TimelineConfig {
     pub frame_labels: Vec<FrameLabel>,
     /// Colors and styling
     pub style: TimelineStyle,
+    /// Snap-to-grid configuration
+    pub snap: SnapConfig,
+}
+
+/// Snap-to-grid configuration
+#[derive(Clone, Debug)]
+pub struct SnapConfig {
+    pub enabled: bool,
+    pub snap_to_frames: bool,
+    pub snap_to_keyframes: bool,
+    pub snap_to_markers: bool,
+    pub threshold_pixels: f32,
+    pub show_guides: bool,
 }
 
 impl Default for TimelineConfig {
@@ -80,6 +93,20 @@ impl Default for TimelineConfig {
             fps: FpsPreset::default(),
             frame_labels: Vec::new(),
             style: TimelineStyle::default(),
+            snap: SnapConfig::default(),
+        }
+    }
+}
+
+impl Default for SnapConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            snap_to_frames: true,
+            snap_to_keyframes: true,
+            snap_to_markers: true,
+            threshold_pixels: 8.0,
+            show_guides: true,
         }
     }
 }

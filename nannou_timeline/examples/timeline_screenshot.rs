@@ -32,6 +32,7 @@ fn main() {
             border_color: Color32::from_gray(80),
             text_color: Color32::from_gray(220),
         },
+        snap: nannou_timeline::SnapConfig::default(),
     };
     
     let mut timeline = Timeline::with_config(config);

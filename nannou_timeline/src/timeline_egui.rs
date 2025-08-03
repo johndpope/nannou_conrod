@@ -31,6 +31,8 @@ pub struct TimelineState {
     pub track_heights: HashMap<LayerId, f32>,
     /// Right-click context menu state
     pub context_menu: Option<ContextMenuState>,
+    /// Active snap guides (frame positions)
+    pub snap_guides: Vec<f32>,
 }
 
 impl Default for TimelineState {
@@ -45,11 +47,94 @@ impl Default for TimelineState {
             scroll_y: 0.0,
             track_heights: HashMap::new(),
             context_menu: None,
+            snap_guides: Vec::new(),
         }
     }
 }
 
 impl Timeline {
+    /// Snap a position to the nearest valid grid position
+    pub fn snap_position(&self, pos: f32, modifiers: &egui::Modifiers) -> f32 {
+        // Disable snapping if Shift is held
+        if modifiers.shift || !self.config.snap.enabled {
+            return pos;
+        }
+        
+        let frame_width = self.config.frame_width * self.state.zoom_level;
+        let frame_pos = pos / frame_width;
+        
+        // Snap to frame boundaries
+        if self.config.snap.snap_to_frames {
+            let nearest_frame = frame_pos.round();
+            let snapped_pos = nearest_frame * frame_width;
+            
+            if (pos - snapped_pos).abs() < self.config.snap.threshold_pixels {
+                return snapped_pos;
+            }
+        }
+        
+        pos
+    }
+    
+    /// Find snap targets for intelligent snapping
+    pub fn find_snap_targets(&self, layer_id: &LayerId, frame: u32, engine: &Box<dyn crate::RiveEngine>) -> Vec<u32> {
+        let mut targets = Vec::new();
+        
+        if self.config.snap.snap_to_keyframes {
+            // Add keyframes from same layer
+            for test_frame in 0..engine.get_total_frames() {
+                let frame_data = engine.get_frame_data(layer_id.clone(), test_frame);
+                if matches!(frame_data.frame_type, crate::frame::FrameType::Keyframe) {
+                    targets.push(test_frame);
+                }
+            }
+            
+            // Add keyframes from other layers at same time position
+            let layers = engine.get_layers();
+            for layer in &layers {
+                if layer.id != *layer_id {
+                    let frame_data = engine.get_frame_data(layer.id.clone(), frame);
+                    if matches!(frame_data.frame_type, crate::frame::FrameType::Keyframe) {
+                        targets.push(frame);
+                    }
+                }
+            }
+        }
+        
+        if self.config.snap.snap_to_markers {
+            // Add frame labels
+            for label in &self.config.frame_labels {
+                targets.push(label.frame);
+            }
+        }
+        
+        targets.sort_unstable();
+        targets.dedup();
+        targets
+    }
+    
+    /// Update snap guides based on cursor position
+    pub fn update_snap_guides(&mut self, cursor_pos: f32) {
+        self.state.snap_guides.clear();
+        
+        if !self.config.snap.show_guides || !self.config.snap.enabled {
+            return;
+        }
+        
+        let frame_width = self.config.frame_width * self.state.zoom_level;
+        let frame_pos = cursor_pos / frame_width;
+        
+        // Add guide for nearest frame
+        if self.config.snap.snap_to_frames {
+            let nearest_frame = frame_pos.round();
+            let guide_pos = nearest_frame * frame_width;
+            
+            if (cursor_pos - guide_pos).abs() < self.config.snap.threshold_pixels {
+                self.state.snap_guides.push(guide_pos);
+            }
+        }
+    }
+    
     /// Create a new timeline with default configuration
     pub fn new() -> Self {
         Self {
@@ -116,6 +201,9 @@ impl Timeline {
         
         // Handle context menu (needs mutable engine access)
         self.handle_context_menu(ui, engine);
+        
+        // Draw snap guides
+        self.draw_snap_guides(ui, frame_grid_rect);
 
         response
     }
@@ -524,6 +612,35 @@ impl Timeline {
                     self.state.zoom_level = (self.state.zoom_level * 1.2).min(5.0);
                     println!("Zoom in to {}", self.state.zoom_level);
                 }
+                
+                ui.add_space(20.0);
+                
+                // Snap controls
+                ui.separator();
+                ui.add_space(5.0);
+                
+                let snap_icon = if self.config.snap.enabled { "🧲" } else { "⚫" };
+                if ui.selectable_label(self.config.snap.enabled, format!("{} Snap", snap_icon)).clicked() {
+                    self.config.snap.enabled = !self.config.snap.enabled;
+                    println!("Snap {}", if self.config.snap.enabled { "enabled" } else { "disabled" });
+                }
+                
+                if self.config.snap.enabled {
+                    ui.menu_button("⚙", |ui| {
+                        ui.label("Snap Settings:");
+                        ui.separator();
+                        
+                        ui.checkbox(&mut self.config.snap.snap_to_frames, "Snap to frames");
+                        ui.checkbox(&mut self.config.snap.snap_to_keyframes, "Snap to keyframes");
+                        ui.checkbox(&mut self.config.snap.snap_to_markers, "Snap to markers");
+                        ui.checkbox(&mut self.config.snap.show_guides, "Show guides");
+                        
+                        ui.separator();
+                        ui.label("Snap distance:");
+                        ui.add(egui::Slider::new(&mut self.config.snap.threshold_pixels, 1.0..=20.0)
+                            .suffix(" px"));
+                    });
+                }
             });
         });
     }
@@ -555,14 +672,54 @@ impl Timeline {
             ));
         }
 
-        // Handle playhead dragging (stubbed)
+        // Handle playhead dragging with snapping
         if ui.input(|i| i.pointer.primary_down()) {
             if let Some(pos) = ui.input(|i| i.pointer.interact_pos()) {
                 if ruler_rect.contains(pos) {
-                    let frame = ((pos.x - ruler_rect.min.x + self.state.scroll_x) / frame_width) as u32;
-                    println!("Playhead dragged to frame {}", frame);
+                    let raw_x = pos.x - ruler_rect.min.x + self.state.scroll_x;
+                    let modifiers = ui.input(|i| i.modifiers);
+                    let snapped_x = self.snap_position(raw_x, &modifiers);
+                    let frame = (snapped_x / frame_width) as u32;
+                    
+                    println!("Playhead dragged to frame {} (snapped: {})", frame, modifiers.shift);
                     engine.seek(frame);
                 }
+            }
+        }
+        
+        // Update snap guides on hover
+        if let Some(hover_pos) = ui.input(|i| i.pointer.hover_pos()) {
+            if ruler_rect.contains(hover_pos) || grid_rect.contains(hover_pos) {
+                let raw_x = hover_pos.x - ruler_rect.min.x + self.state.scroll_x;
+                self.update_snap_guides(raw_x);
+            } else {
+                self.state.snap_guides.clear();
+            }
+        }
+    }
+    
+    /// Draw snap guides as vertical lines
+    fn draw_snap_guides(&self, ui: &mut Ui, grid_rect: Rect) {
+        if !self.config.snap.show_guides {
+            return;
+        }
+        
+        for &guide_x in &self.state.snap_guides {
+            let x = grid_rect.min.x + guide_x - self.state.scroll_x;
+            
+            // Only draw if visible
+            if x >= grid_rect.min.x && x <= grid_rect.max.x {
+                ui.painter().line_segment(
+                    [pos2(x, grid_rect.min.y), pos2(x, grid_rect.max.y)],
+                    Stroke::new(1.0, egui::Color32::from_rgb(255, 255, 0)), // Yellow guide
+                );
+                
+                // Add a small indicator at the top
+                ui.painter().circle_filled(
+                    pos2(x, grid_rect.min.y + 3.0),
+                    2.0,
+                    egui::Color32::from_rgb(255, 255, 0),
+                );
             }
         }
     }
