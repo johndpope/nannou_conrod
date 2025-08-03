@@ -125,3 +125,61 @@ mod state_tests {
         assert!(state.selected_frames.is_empty());
     }
 }
+
+#[cfg(test)]
+mod frame_time_tests {
+    use nannou_timeline::{FrameTime, FpsPreset};
+    
+    #[test]
+    fn test_frame_time_operations() {
+        // Test frame to seconds conversion
+        let ft = FrameTime::new(48, 24.0);
+        assert_eq!(ft.to_seconds(), 2.0);
+        
+        // Test seconds to frame conversion
+        let ft2 = FrameTime::from_seconds(3.5, 30.0);
+        assert_eq!(ft2.frame, 105);
+        
+        // Test timecode formatting
+        let ft3 = FrameTime::new(90, 30.0); // 3 seconds at 30fps
+        let timecode = ft3.to_timecode();
+        assert!(timecode.starts_with("00:00:03:"));
+    }
+    
+    #[test]
+    fn test_fps_presets() {
+        assert_eq!(FpsPreset::Film.to_fps(), 24.0);
+        assert_eq!(FpsPreset::Pal.to_fps(), 25.0);
+        assert_eq!(FpsPreset::Ntsc.to_fps(), 29.97);
+        assert_eq!(FpsPreset::Web.to_fps(), 30.0);
+        assert_eq!(FpsPreset::High.to_fps(), 60.0);
+        assert_eq!(FpsPreset::Custom(120.0).to_fps(), 120.0);
+        
+        // Test default
+        assert_eq!(FpsPreset::default(), FpsPreset::Film);
+    }
+    
+    #[test]
+    fn test_fps_labels() {
+        assert_eq!(FpsPreset::Film.label(), "24 fps (Film)");
+        assert_eq!(FpsPreset::Ntsc.label(), "29.97 fps (NTSC)");
+        assert_eq!(FpsPreset::Custom(48.0).label(), "48 fps (Custom)");
+    }
+}
+
+#[test]
+fn test_frame_operations() {
+    use nannou_timeline::ui::MockRiveEngine;
+    let mut engine = MockRiveEngine::new();
+    
+    // Test frame operations (these just print in mock implementation)
+    engine.insert_frame(LayerId::new("layer1"), 10);
+    engine.remove_frame(LayerId::new("layer1"), 10);
+    engine.insert_keyframe(LayerId::new("layer1"), 5);
+    engine.clear_keyframe(LayerId::new("layer1"), 5);
+    engine.create_motion_tween(LayerId::new("layer1"), 15);
+    engine.create_shape_tween(LayerId::new("layer1"), 20);
+    
+    // These operations should complete without panic
+    assert_eq!(engine.get_current_frame(), 0);
+}

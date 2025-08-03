@@ -15,17 +15,12 @@ egui = "0.24"
 envelope = "0.8"
 itertools = "0.10"
 num = "0.4"
-pitch_calc = { version = "0.12", features = ["serde"] }
-time_calc = { version= "0.13", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
 uuid = { version = "1.6", features = ["v4", "serde"] }
 
 [features]
 default = ["serde1"]
-serde1 = [
-    "pitch_calc/serde",
-    "time_calc/serde",
-]
+serde1 = []
 
 [dev-dependencies]
 insta = "1.34"
