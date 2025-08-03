@@ -1675,17 +1675,35 @@ impl TimelineApp {
             let mut folders_to_collapse = Vec::new();
             let mut log_messages = Vec::new();
             
+            // Define folder order for consistent display
+            let folder_order = ["Sounds", "Fonts", "Bitmaps", "Graphics"];
+            let mut sorted_folders: Vec<_> = Vec::new();
+            
+            // Add folders in defined order
+            for &folder_name in &folder_order {
+                if let Some(assets) = folders.get(folder_name) {
+                    sorted_folders.push((folder_name, assets));
+                }
+            }
+            
+            // Add any remaining folders not in the predefined order
             for (folder_name, assets) in folders.iter() {
-                let folder_id = ui.make_persistent_id(folder_name);
-                let is_expanded = self.library_folders_expanded.contains(folder_name);
+                if !folder_order.contains(&folder_name.as_str()) {
+                    sorted_folders.push((folder_name.as_str(), assets));
+                }
+            }
+            
+            for (folder_name, assets) in sorted_folders {
+                let folder_id = egui::Id::new(format!("library_folder_{}", folder_name));
+                let is_expanded = self.library_folders_expanded.contains(&folder_name.to_string());
                 
                 ui.horizontal(|ui| {
                     // Folder toggle
                     if ui.small_button(if is_expanded { "▼" } else { "▶" }).clicked() {
                         if is_expanded {
-                            folders_to_collapse.push(folder_name.clone());
+                            folders_to_collapse.push(folder_name.to_string());
                         } else {
-                            folders_to_expand.push(folder_name.clone());
+                            folders_to_expand.push(folder_name.to_string());
                         }
                         log_messages.push((LogLevel::Action, format!("Folder '{}' {}", 
                             folder_name, if is_expanded { "collapsed" } else { "expanded" })));
