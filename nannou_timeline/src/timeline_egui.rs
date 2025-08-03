@@ -109,6 +109,24 @@ pub struct TimelineState {
     pub onion_skinning: bool,
     /// Loop playback
     pub loop_playback: bool,
+    /// Show label management panel
+    pub show_label_panel: bool,
+    /// Frame range selection (start_frame, end_frame)
+    pub frame_range_selection: Option<(u32, u32)>,
+    /// Frame range selection mode enabled
+    pub frame_range_mode: bool,
+    /// Onion skin settings
+    pub onion_skin_frames_before: u32,
+    pub onion_skin_frames_after: u32,
+    pub onion_skin_opacity: f32,
+    /// Show onion skin settings panel
+    pub show_onion_settings: bool,
+    /// Onion skin outline mode
+    pub onion_skin_outline_mode: bool,
+    /// Currently scrubbing the timeline
+    pub is_scrubbing: bool,
+    /// Was playing before scrubbing started
+    pub was_playing: bool,
 }
 
 /// State for the enhanced layer panel
@@ -146,6 +164,16 @@ impl Default for TimelineState {
             layer_panel_state: LayerPanelState::default(),
             onion_skinning: false,
             loop_playback: false,
+            show_label_panel: false,
+            frame_range_selection: None,
+            frame_range_mode: false,
+            onion_skin_frames_before: 3,
+            onion_skin_frames_after: 3,
+            onion_skin_opacity: 0.3,
+            show_onion_settings: false,
+            onion_skin_outline_mode: false,
+            is_scrubbing: false,
+            was_playing: false,
         }
     }
 }
@@ -274,6 +302,16 @@ impl Timeline {
         // Handle context menu
         self.handle_context_menu(ui, engine);
         
+        // Draw label management panel if visible
+        if self.state.show_label_panel {
+            self.draw_label_management_panel(ui, engine);
+        }
+        
+        // Draw onion skin settings panel if visible
+        if self.state.show_onion_settings {
+            self.draw_onion_settings_panel(ui);
+        }
+        
         // Draw snap guides
         self.draw_snap_guides(ui, frame_grid_rect);
         
@@ -326,6 +364,13 @@ impl Timeline {
                     self.state.onion_skinning = !self.state.onion_skinning;
                 }
                 
+                // Onion skin settings button (only show when enabled)
+                if self.state.onion_skinning {
+                    if ui.button("⚙").on_hover_text("Onion Skin Settings").clicked() {
+                        self.state.show_onion_settings = !self.state.show_onion_settings;
+                    }
+                }
+                
                 ui.separator();
                 
                 // Loop toggle
@@ -352,8 +397,26 @@ impl Timeline {
                 }
                 
                 // Frame-based selection toggle  
-                if ui.button("⬚").on_hover_text(self.get_tooltip("timeline.toolbar.frame_selection")).clicked() {
-                    println!("Frame-based selection mode");
+                let frame_selection_icon = if self.state.frame_range_mode { "✓⬚" } else { "⬚" };
+                if ui.selectable_label(self.state.frame_range_mode, frame_selection_icon)
+                    .on_hover_text(self.get_tooltip("timeline.toolbar.frame_selection"))
+                    .clicked() 
+                {
+                    self.state.frame_range_mode = !self.state.frame_range_mode;
+                    if !self.state.frame_range_mode {
+                        self.state.frame_range_selection = None;
+                    }
+                }
+                
+                ui.separator();
+                
+                // Label management panel toggle
+                let label_panel_icon = if self.state.show_label_panel { "📋" } else { "📃" };
+                if ui.selectable_label(self.state.show_label_panel, label_panel_icon)
+                    .on_hover_text(self.get_tooltip("timeline.toolbar.label_panel"))
+                    .clicked() 
+                {
+                    self.state.show_label_panel = !self.state.show_label_panel;
                 }
             });
         });
@@ -714,6 +777,11 @@ impl Timeline {
                             .unwrap_or(&true);
                         
                         if is_visible {
+                            // Draw onion skinning if enabled
+                            if self.state.onion_skinning && !matches!(layer.layer_type, crate::LayerType::Audio) {
+                                self.draw_onion_skins(ui, engine, layer, y_offset, layer_height, frame_width);
+                            }
+                            
                             // Draw frames based on layer type
                             if matches!(layer.layer_type, crate::LayerType::Audio) {
                                 self.draw_audio_waveform(ui, layer, y_offset, layer_height, visible_start_frame..=visible_end_frame, frame_width);
@@ -1002,10 +1070,17 @@ impl Timeline {
 
         // Only draw if visible
         if x >= ruler_rect.min.x && x <= ruler_rect.max.x {
-            // Draw playhead line
+            // Draw playhead line - thicker when scrubbing
+            let line_width = if self.state.is_scrubbing { 3.0 } else { 2.0 };
+            let playhead_color = if self.state.is_scrubbing {
+                self.config.style.playhead_color.gamma_multiply(1.2)
+            } else {
+                self.config.style.playhead_color
+            };
+            
             ui.painter().line_segment(
                 [pos2(x, ruler_rect.min.y), pos2(x, grid_rect.max.y)],
-                Stroke::new(2.0, self.config.style.playhead_color),
+                Stroke::new(line_width, playhead_color),
             );
 
             // Draw playhead marker in ruler
@@ -1016,21 +1091,78 @@ impl Timeline {
             ];
             ui.painter().add(Shape::convex_polygon(
                 points,
-                self.config.style.playhead_color,
+                playhead_color,
                 Stroke::NONE,
             ));
+            
+            // Draw scrub indicator when scrubbing
+            if self.state.is_scrubbing {
+                // Draw a small "SCRUB" text above the playhead
+                ui.painter().text(
+                    pos2(x, ruler_rect.min.y - 15.0),
+                    Align2::CENTER_BOTTOM,
+                    "SCRUB",
+                    FontId::proportional(10.0),
+                    playhead_color,
+                );
+            }
         }
 
-        // Handle playhead dragging
-        if ui.input(|i| i.pointer.primary_down()) {
-            if let Some(pos) = ui.input(|i| i.pointer.interact_pos()) {
-                if ruler_rect.contains(pos) {
-                    let raw_x = pos.x - ruler_rect.min.x + self.state.scroll_x;
-                    let modifiers = ui.input(|i| i.modifiers);
-                    let snapped_x = self.snap_position(raw_x, &modifiers);
-                    let frame = (snapped_x / frame_width).round() as u32;
-                    engine.seek(frame.min(engine.get_total_frames() - 1));
-                }
+        // Handle playhead dragging with scrub preview
+        let ruler_response = ui.allocate_rect(ruler_rect, Sense::click_and_drag());
+        
+        // Start scrubbing on drag begin
+        if ruler_response.drag_started() {
+            self.state.is_scrubbing = true;
+            // Store the current playing state before pausing
+            self.state.was_playing = self.state.is_playing;
+            if self.state.was_playing {
+                engine.pause();
+            }
+        }
+        
+        // Update position while dragging
+        if ruler_response.dragged() {
+            if let Some(pos) = ruler_response.interact_pointer_pos() {
+                let raw_x = pos.x - ruler_rect.min.x + self.state.scroll_x;
+                let modifiers = ui.input(|i| i.modifiers);
+                let snapped_x = self.snap_position(raw_x, &modifiers);
+                let frame = (snapped_x / frame_width).round() as u32;
+                let clamped_frame = frame.min(engine.get_total_frames() - 1);
+                
+                // Update position while scrubbing
+                engine.seek(clamped_frame);
+                
+                // Show tooltip while scrubbing
+                ui.painter().text(
+                    pos2(pos.x, pos.y - 20.0),
+                    Align2::CENTER_BOTTOM,
+                    format!("Frame {}", clamped_frame),
+                    FontId::proportional(11.0),
+                    ui.style().visuals.text_color(),
+                );
+                
+                // Force immediate redraw for responsive scrubbing
+                ui.ctx().request_repaint();
+            }
+        }
+        
+        // End scrubbing
+        if ruler_response.drag_stopped() {
+            self.state.is_scrubbing = false;
+            if self.state.was_playing {
+                engine.play();
+            }
+        }
+        
+        // Handle single click to jump to position
+        if ruler_response.clicked() && !ruler_response.dragged() {
+            if let Some(pos) = ruler_response.interact_pointer_pos() {
+                let raw_x = pos.x - ruler_rect.min.x + self.state.scroll_x;
+                let modifiers = ui.input(|i| i.modifiers);
+                let snapped_x = self.snap_position(raw_x, &modifiers);
+                let frame = (snapped_x / frame_width).round() as u32;
+                engine.seek(frame.min(engine.get_total_frames() - 1));
             }
         }
     }
@@ -1501,6 +1633,342 @@ impl Timeline {
         let _frame_width = self.config.frame_width * self.state.zoom_level;
         // This would need the visible width from the UI
         println!("Center playhead");
+    }
+    
+    /// Draw label management panel as a popup window
+    fn draw_label_management_panel(&mut self, ui: &mut Ui, engine: &mut Box<dyn RiveEngine>) {
+        let ctx = ui.ctx();
+        
+        egui::Window::new("📋 Labels & Comments")
+            .resizable(true)
+            .default_width(300.0)
+            .default_height(400.0)
+            .show(ctx, |ui| {
+                ui.vertical(|ui| {
+                    ui.heading("Frame Labels");
+                    
+                    // Frame labels section
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        let mut labels_to_remove = Vec::new();
+                        let mut jump_to_frame = None;
+                        
+                        for (index, label) in self.config.frame_labels.iter().enumerate() {
+                            ui.horizontal(|ui| {
+                                // Frame number
+                                ui.label(format!("F{}", label.frame));
+                                
+                                // Label text
+                                ui.label(&label.label);
+                                
+                                // Color indicator
+                                if let Some(color) = label.color {
+                                    ui.painter().circle_filled(ui.cursor().min + egui::vec2(5.0, 5.0), 4.0, color);
+                                }
+                                
+                                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                    // Jump to frame button
+                                    if ui.small_button("⏯").on_hover_text("Jump to frame").clicked() {
+                                        jump_to_frame = Some(label.frame);
+                                    }
+                                    
+                                    // Delete button
+                                    if ui.small_button("🗑").on_hover_text("Delete label").clicked() {
+                                        labels_to_remove.push(index);
+                                    }
+                                });
+                            });
+                            ui.separator();
+                        }
+                        
+                        // Handle deletions
+                        for &index in labels_to_remove.iter().rev() {
+                            self.config.frame_labels.remove(index);
+                        }
+                        
+                        // Handle jump to frame
+                        if let Some(frame) = jump_to_frame {
+                            self.state.playhead_frame = frame;
+                            engine.seek(frame);
+                        }
+                    });
+                    
+                    ui.separator();
+                    ui.heading("Frame Comments");
+                    
+                    // Frame comments section
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        let mut comments_to_remove = Vec::new();
+                        let mut jump_to_frame = None;
+                        
+                        for (index, comment) in self.config.frame_comments.iter().enumerate() {
+                            ui.horizontal(|ui| {
+                                // Frame number
+                                ui.label(format!("F{}", comment.frame));
+                                
+                                // Comment text (truncated)
+                                let comment_text = if comment.comment.len() > 25 {
+                                    format!("{}...", &comment.comment[..22])
+                                } else {
+                                    comment.comment.clone()
+                                };
+                                ui.label(comment_text).on_hover_text(&comment.comment);
+                                
+                                // Color indicator
+                                if let Some(color) = comment.color {
+                                    ui.painter().circle_filled(ui.cursor().min + egui::vec2(5.0, 5.0), 4.0, color);
+                                }
+                                
+                                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                    // Jump to frame button
+                                    if ui.small_button("⏯").on_hover_text("Jump to frame").clicked() {
+                                        jump_to_frame = Some(comment.frame);
+                                    }
+                                    
+                                    // Delete button
+                                    if ui.small_button("🗑").on_hover_text("Delete comment").clicked() {
+                                        comments_to_remove.push(index);
+                                    }
+                                });
+                            });
+                            
+                            // Show author and timestamp if available
+                            if comment.author.is_some() || comment.timestamp.is_some() {
+                                ui.horizontal(|ui| {
+                                    ui.add_space(20.0);
+                                    if let Some(author) = &comment.author {
+                                        ui.small(format!("by {}", author));
+                                    }
+                                    if let Some(timestamp) = &comment.timestamp {
+                                        ui.small(format!("at {}", timestamp));
+                                    }
+                                });
+                            }
+                            ui.separator();
+                        }
+                        
+                        // Handle deletions
+                        for &index in comments_to_remove.iter().rev() {
+                            self.config.frame_comments.remove(index);
+                        }
+                        
+                        // Handle jump to frame
+                        if let Some(frame) = jump_to_frame {
+                            self.state.playhead_frame = frame;
+                            engine.seek(frame);
+                        }
+                    });
+                    
+                    ui.separator();
+                    
+                    // Add new label/comment section
+                    ui.horizontal(|ui| {
+                        if ui.button("➕ Add Label").clicked() {
+                            let new_label = crate::FrameLabel::new(self.state.playhead_frame, "New Label");
+                            self.config.frame_labels.push(new_label);
+                        }
+                        
+                        if ui.button("💬 Add Comment").clicked() {
+                            let new_comment = crate::FrameComment::new(self.state.playhead_frame, "New comment");
+                            self.config.frame_comments.push(new_comment);
+                        }
+                    });
+                    
+                    ui.separator();
+                    
+                    // Statistics
+                    ui.horizontal(|ui| {
+                        ui.label(format!("{} labels, {} comments", 
+                            self.config.frame_labels.len(), 
+                            self.config.frame_comments.len()
+                        ));
+                    });
+                });
+            });
+    }
+    
+    /// Draw onion skin frames (previous and next frames with transparency)
+    fn draw_onion_skins(
+        &self,
+        ui: &mut Ui,
+        engine: &Box<dyn RiveEngine>,
+        layer: &crate::layer::LayerInfo,
+        y_offset: f32,
+        layer_height: f32,
+        frame_width: f32,
+    ) {
+        let current_frame = self.state.playhead_frame;
+        
+        // Draw previous frames (blue tint)
+        for i in 1..=self.state.onion_skin_frames_before {
+            if let Some(prev_frame) = current_frame.checked_sub(i) {
+                let frame_data = engine.get_frame_data(layer.id.clone(), prev_frame);
+                if !matches!(frame_data.frame_type, crate::frame::FrameType::Empty) {
+                    let x = prev_frame as f32 * frame_width;
+                    let opacity = self.state.onion_skin_opacity / (i as f32); // Farther frames are more transparent
+                    
+                    let frame_rect = Rect::from_min_size(
+                        pos2(x, y_offset),
+                        vec2(frame_width - 1.0, layer_height - 1.0),
+                    );
+                    
+                    // Blue tint for previous frames
+                    let color = Color32::from_rgba_unmultiplied(100, 150, 255, (opacity * 255.0) as u8);
+                    
+                    if self.state.onion_skin_outline_mode {
+                        // Outline mode - draw only border
+                        let stroke = Stroke::new(2.0, color);
+                        ui.painter().line_segment([frame_rect.left_top(), frame_rect.right_top()], stroke);
+                        ui.painter().line_segment([frame_rect.right_top(), frame_rect.right_bottom()], stroke);
+                        ui.painter().line_segment([frame_rect.right_bottom(), frame_rect.left_bottom()], stroke);
+                        ui.painter().line_segment([frame_rect.left_bottom(), frame_rect.left_top()], stroke);
+                    } else {
+                        // Solid mode - fill the frame
+                        ui.painter().rect_filled(frame_rect, 2.0, color);
+                    }
+                }
+            }
+        }
+        
+        // Draw next frames (green tint)
+        for i in 1..=self.state.onion_skin_frames_after {
+            let next_frame = current_frame + i;
+            if next_frame < engine.get_total_frames() {
+                let frame_data = engine.get_frame_data(layer.id.clone(), next_frame);
+                if !matches!(frame_data.frame_type, crate::frame::FrameType::Empty) {
+                    let x = next_frame as f32 * frame_width;
+                    let opacity = self.state.onion_skin_opacity / (i as f32); // Farther frames are more transparent
+                    
+                    let frame_rect = Rect::from_min_size(
+                        pos2(x, y_offset),
+                        vec2(frame_width - 1.0, layer_height - 1.0),
+                    );
+                    
+                    // Green tint for next frames
+                    let color = Color32::from_rgba_unmultiplied(100, 255, 150, (opacity * 255.0) as u8);
+                    
+                    if self.state.onion_skin_outline_mode {
+                        // Outline mode - draw only border
+                        let stroke = Stroke::new(2.0, color);
+                        ui.painter().line_segment([frame_rect.left_top(), frame_rect.right_top()], stroke);
+                        ui.painter().line_segment([frame_rect.right_top(), frame_rect.right_bottom()], stroke);
+                        ui.painter().line_segment([frame_rect.right_bottom(), frame_rect.left_bottom()], stroke);
+                        ui.painter().line_segment([frame_rect.left_bottom(), frame_rect.left_top()], stroke);
+                    } else {
+                        // Solid mode - fill the frame
+                        ui.painter().rect_filled(frame_rect, 2.0, color);
+                    }
+                }
+            }
+        }
+    }
+    
+    /// Draw onion skin settings panel
+    fn draw_onion_settings_panel(&mut self, ui: &mut Ui) {
+        let ctx = ui.ctx();
+        
+        egui::Window::new("🧅 Onion Skin Settings")
+            .resizable(true)
+            .default_width(300.0)
+            .default_height(350.0)
+            .show(ctx, |ui| {
+                ui.vertical(|ui| {
+                    ui.heading("Onion Skin Configuration");
+                    ui.separator();
+                    
+                    // Frame range settings
+                    ui.label("Frame Range");
+                    ui.horizontal(|ui| {
+                        ui.label("Previous Frames:");
+                        ui.add(egui::DragValue::new(&mut self.state.onion_skin_frames_before)
+                            .speed(1.0)
+                            .range(0..=10)
+                            .suffix(" frames"));
+                    });
+                    
+                    ui.horizontal(|ui| {
+                        ui.label("Next Frames:");
+                        ui.add(egui::DragValue::new(&mut self.state.onion_skin_frames_after)
+                            .speed(1.0)
+                            .range(0..=10)
+                            .suffix(" frames"));
+                    });
+                    
+                    ui.separator();
+                    
+                    // Opacity settings
+                    ui.label("Opacity Settings");
+                    ui.horizontal(|ui| {
+                        ui.label("Base Opacity:");
+                        ui.add(egui::Slider::new(&mut self.state.onion_skin_opacity, 0.1..=0.8)
+                            .show_value(true)
+                            .suffix(""));
+                    });
+                    
+                    ui.separator();
+                    
+                    // Display mode
+                    ui.label("Display Mode");
+                    ui.checkbox(&mut self.state.onion_skin_outline_mode, "Outline Mode");
+                    ui.label("When enabled, shows only object outlines");
+                    
+                    ui.separator();
+                    
+                    // Color preview
+                    ui.label("Color Preview");
+                    ui.horizontal(|ui| {
+                        // Previous frames preview
+                        ui.vertical(|ui| {
+                            ui.label("Previous Frames");
+                            for i in 1..=3.min(self.state.onion_skin_frames_before) {
+                                let opacity = self.state.onion_skin_opacity / (i as f32);
+                                let color = Color32::from_rgba_unmultiplied(100, 150, 255, (opacity * 255.0) as u8);
+                                ui.horizontal(|ui| {
+                                    ui.colored_label(color, format!("Frame -{}", i));
+                                    ui.label(format!("({:.0}% opacity)", opacity * 100.0));
+                                });
+                            }
+                        });
+                        
+                        ui.separator();
+                        
+                        // Next frames preview
+                        ui.vertical(|ui| {
+                            ui.label("Next Frames");
+                            for i in 1..=3.min(self.state.onion_skin_frames_after) {
+                                let opacity = self.state.onion_skin_opacity / (i as f32);
+                                let color = Color32::from_rgba_unmultiplied(100, 255, 150, (opacity * 255.0) as u8);
+                                ui.horizontal(|ui| {
+                                    ui.colored_label(color, format!("Frame +{}", i));
+                                    ui.label(format!("({:.0}% opacity)", opacity * 100.0));
+                                });
+                            }
+                        });
+                    });
+                    
+                    ui.separator();
+                    
+                    // Quick presets
+                    ui.label("Quick Presets");
+                    ui.horizontal(|ui| {
+                        if ui.button("Light").clicked() {
+                            self.state.onion_skin_opacity = 0.2;
+                        }
+                        if ui.button("Medium").clicked() {
+                            self.state.onion_skin_opacity = 0.3;
+                        }
+                        if ui.button("Strong").clicked() {
+                            self.state.onion_skin_opacity = 0.5;
+                        }
+                    });
+                    
+                    ui.separator();
+                    
+                    // Close button
+                    if ui.button("Close").clicked() {
+                        self.state.show_onion_settings = false;
+                    }
+                });
+            });
     }
 }
 

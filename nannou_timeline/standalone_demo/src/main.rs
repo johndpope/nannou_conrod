@@ -200,6 +200,20 @@ struct TimelineApp {
     selected_property_tab: PropertyTab,
     // Clipboard for copy/paste operations
     clipboard: Vec<StageItem>,
+    // Library panel state
+    library_tab: LibraryTab,
+    library_assets: Vec<LibraryAsset>,
+    library_folders_expanded: Vec<String>,
+    selected_library_asset: Option<String>,
+    library_search: String,
+    // Drag and drop state
+    dragging_asset: Option<LibraryAsset>,
+    drag_offset: egui::Vec2,
+    // Library context menu
+    library_context_menu: Option<LibraryContextMenuState>,
+    // Tools panel state
+    tool_state: ToolState,
+    tools_panel_width: f32,
 }
 
 #[derive(Clone)]
@@ -259,6 +273,175 @@ enum LogLevel {
     Action,
     Warning,
     Error,
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum LibraryTab {
+    Assets,
+    Components,
+    ActionScript,
+}
+
+#[derive(Clone, Copy, PartialEq, Debug)]
+enum Tool {
+    // Selection Tools
+    Arrow,        // V - Primary selection
+    Subselection, // A - Direct selection
+    Lasso,        // L - Free-form selection
+    
+    // Drawing Tools
+    Line,         // N - Straight lines
+    Pen,          // P - Bezier curves
+    Pencil,       // Y - Freehand
+    Brush,        // B - Variable width
+    Rectangle,    // R - Rectangles
+    Oval,         // O - Circles/ellipses
+    PolyStar,     // Polygons/stars
+    
+    // Text and Paint Tools
+    Text,         // T - Text objects
+    PaintBucket,  // K - Fill areas
+    InkBottle,    // S - Apply stroke
+    Eyedropper,   // I - Sample colors
+    Eraser,       // E - Erase parts
+    
+    // Transform Tools
+    FreeTransform,    // Q - Scale/rotate/skew
+    GradientTransform,// F - Adjust gradients
+    Zoom,             // Z - Zoom view
+    Hand,             // H - Pan view
+}
+
+impl Tool {
+    fn get_icon(&self) -> &'static str {
+        match self {
+            Tool::Arrow => "➤",
+            Tool::Subselection => "⊡",
+            Tool::Lasso => "◉",
+            Tool::Line => "╱",
+            Tool::Pen => "✒",
+            Tool::Pencil => "✏",
+            Tool::Brush => "🖌",
+            Tool::Rectangle => "▭",
+            Tool::Oval => "⭕",
+            Tool::PolyStar => "⭐",
+            Tool::Text => "T",
+            Tool::PaintBucket => "🪣",
+            Tool::InkBottle => "🖋",
+            Tool::Eyedropper => "💧",
+            Tool::Eraser => "🧽",
+            Tool::FreeTransform => "⤡",
+            Tool::GradientTransform => "🌈",
+            Tool::Zoom => "🔍",
+            Tool::Hand => "✋",
+        }
+    }
+    
+    fn get_name(&self) -> &'static str {
+        match self {
+            Tool::Arrow => "Selection Tool",
+            Tool::Subselection => "Subselection Tool",
+            Tool::Lasso => "Lasso Tool",
+            Tool::Line => "Line Tool",
+            Tool::Pen => "Pen Tool",
+            Tool::Pencil => "Pencil Tool",
+            Tool::Brush => "Brush Tool",
+            Tool::Rectangle => "Rectangle Tool",
+            Tool::Oval => "Oval Tool",
+            Tool::PolyStar => "PolyStar Tool",
+            Tool::Text => "Text Tool",
+            Tool::PaintBucket => "Paint Bucket Tool",
+            Tool::InkBottle => "Ink Bottle Tool",
+            Tool::Eyedropper => "Eyedropper Tool",
+            Tool::Eraser => "Eraser Tool",
+            Tool::FreeTransform => "Free Transform Tool",
+            Tool::GradientTransform => "Gradient Transform Tool",
+            Tool::Zoom => "Zoom Tool",
+            Tool::Hand => "Hand Tool",
+        }
+    }
+    
+    fn get_shortcut(&self) -> Option<char> {
+        match self {
+            Tool::Arrow => Some('V'),
+            Tool::Subselection => Some('A'),
+            Tool::Lasso => Some('L'),
+            Tool::Line => Some('N'),
+            Tool::Pen => Some('P'),
+            Tool::Pencil => Some('Y'),
+            Tool::Brush => Some('B'),
+            Tool::Rectangle => Some('R'),
+            Tool::Oval => Some('O'),
+            Tool::Text => Some('T'),
+            Tool::PaintBucket => Some('K'),
+            Tool::InkBottle => Some('S'),
+            Tool::Eyedropper => Some('I'),
+            Tool::Eraser => Some('E'),
+            Tool::FreeTransform => Some('Q'),
+            Tool::GradientTransform => Some('F'),
+            Tool::Zoom => Some('Z'),
+            Tool::Hand => Some('H'),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Clone)]
+struct ToolState {
+    active_tool: Tool,
+    stroke_color: egui::Color32,
+    fill_color: egui::Color32,
+    stroke_width: f32,
+    // Tool-specific options
+    rectangle_corner_radius: f32,
+    star_points: u32,
+    star_inner_radius: f32,
+    brush_size: f32,
+    text_font_size: f32,
+    text_font_family: String,
+}
+
+#[derive(Clone)]
+struct LibraryAsset {
+    id: String,
+    name: String,
+    asset_type: LibraryAssetType,
+    folder: String,
+    properties: AssetProperties,
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum LibraryAssetType {
+    MovieClip,
+    Button,
+    Graphic,
+    Bitmap,
+    Sound,
+    Video,
+    Font,
+    Folder,
+}
+
+#[derive(Clone)]
+struct AssetProperties {
+    file_size: Option<u64>,
+    dimensions: Option<(u32, u32)>,
+    format: Option<String>,
+    usage_count: u32,
+    linkage_class: Option<String>,
+}
+
+#[derive(Clone)]
+struct LibraryContextMenuState {
+    position: egui::Pos2,
+    target: LibraryContextTarget,
+}
+
+#[derive(Clone)]
+enum LibraryContextTarget {
+    Asset(String),
+    Folder(String),
+    Background,
 }
 
 impl Default for TimelineApp {
@@ -321,8 +504,16 @@ impl Default for TimelineApp {
             },
         ];
         
+        let mut timeline = Timeline::new();
+        
+        // Add test frame comments
+        timeline.config.frame_comments.push(nannou_timeline::FrameComment::new(5, "Opening scene starts here"));
+        timeline.config.frame_comments.push(nannou_timeline::FrameComment::new(15, "Character enters"));
+        timeline.config.frame_comments.push(nannou_timeline::FrameComment::new(30, "Important: Check timing"));
+        timeline.config.frame_comments.push(nannou_timeline::FrameComment::new(45, "Background change"));
+        
         let mut app = Self {
-            timeline: Timeline::new(),
+            timeline,
             engine: Box::new(LoggingRiveEngine::new(engine_logs.clone())),
             timeline_height: 200.0,
             library_width: 300.0,
@@ -339,6 +530,29 @@ impl Default for TimelineApp {
             properties_height: 200.0,
             selected_property_tab: PropertyTab::Properties,
             clipboard: Vec::new(),
+            // Initialize library panel
+            library_tab: LibraryTab::Assets,
+            library_assets: Self::create_default_library_assets(),
+            library_folders_expanded: vec!["Graphics".to_string(), "Sounds".to_string()],
+            selected_library_asset: None,
+            library_search: String::new(),
+            dragging_asset: None,
+            drag_offset: egui::Vec2::ZERO,
+            library_context_menu: None,
+            // Initialize tools panel
+            tool_state: ToolState {
+                active_tool: Tool::Arrow,
+                stroke_color: egui::Color32::BLACK,
+                fill_color: egui::Color32::WHITE,
+                stroke_width: 1.0,
+                rectangle_corner_radius: 0.0,
+                star_points: 5,
+                star_inner_radius: 0.5,
+                brush_size: 10.0,
+                text_font_size: 16.0,
+                text_font_family: "Arial".to_string(),
+            },
+            tools_panel_width: 60.0,
         };
         app.log(LogLevel::Info, "Timeline application started");
         app.log(LogLevel::Info, "🎮 Keyboard shortcuts:");
@@ -378,6 +592,9 @@ impl eframe::App for TimelineApp {
             self.take_screenshot(ctx);
         }
         
+        // Handle tool keyboard shortcuts
+        self.handle_tool_shortcuts(ctx);
+        
         // Show crash dialog if a panic occurred
         self.show_crash_dialog(ctx);
         
@@ -388,6 +605,11 @@ impl eframe::App for TimelineApp {
             let console_space = if self.console_visible { self.console_height } else { 0.0 };
             
             // Calculate regions with resizable sizes
+            let tools_rect = egui::Rect::from_min_size(
+                available_rect.min,
+                egui::vec2(self.tools_panel_width, available_rect.height() - self.timeline_height - console_space),
+            );
+            
             let library_rect = egui::Rect::from_min_size(
                 egui::pos2(available_rect.max.x - self.library_width, available_rect.min.y),
                 egui::vec2(self.library_width, available_rect.height() - self.timeline_height - console_space),
@@ -395,17 +617,17 @@ impl eframe::App for TimelineApp {
             
             let timeline_rect = egui::Rect::from_min_size(
                 egui::pos2(available_rect.min.x, available_rect.max.y - self.timeline_height - console_space),
-                egui::vec2(available_rect.width() - self.library_width, self.timeline_height),
+                egui::vec2(available_rect.width(), self.timeline_height),
             );
             
             let properties_rect = egui::Rect::from_min_size(
-                egui::pos2(available_rect.min.x, available_rect.max.y - self.timeline_height - console_space - self.properties_height),
-                egui::vec2(available_rect.width() - self.library_width, self.properties_height),
+                egui::pos2(available_rect.min.x + self.tools_panel_width, available_rect.max.y - self.timeline_height - console_space - self.properties_height),
+                egui::vec2(available_rect.width() - self.library_width - self.tools_panel_width, self.properties_height),
             );
             
             let stage_rect = egui::Rect::from_min_size(
-                available_rect.min,
-                egui::vec2(available_rect.width() - self.library_width, available_rect.height() - self.timeline_height - console_space - self.properties_height),
+                egui::pos2(available_rect.min.x + self.tools_panel_width, available_rect.min.y),
+                egui::vec2(available_rect.width() - self.library_width - self.tools_panel_width, available_rect.height() - self.timeline_height - console_space - self.properties_height),
             );
             
             let console_rect = if self.console_visible {
@@ -416,6 +638,9 @@ impl eframe::App for TimelineApp {
             } else {
                 None
             };
+            
+            // Draw tools panel (left side)
+            self.draw_tools_panel(ui, tools_rect);
             
             // Draw stage/canvas (central area)
             self.draw_stage(ui, stage_rect);
@@ -488,6 +713,119 @@ impl eframe::App for TimelineApp {
 }
 
 impl TimelineApp {
+    fn create_default_library_assets() -> Vec<LibraryAsset> {
+        vec![
+            // Graphics folder
+            LibraryAsset {
+                id: "logo_mc".to_string(),
+                name: "Logo".to_string(),
+                asset_type: LibraryAssetType::MovieClip,
+                folder: "Graphics".to_string(),
+                properties: AssetProperties {
+                    file_size: None,
+                    dimensions: Some((200, 100)),
+                    format: None,
+                    usage_count: 2,
+                    linkage_class: Some("LogoSymbol".to_string()),
+                },
+            },
+            LibraryAsset {
+                id: "button_mc".to_string(),
+                name: "Button".to_string(),
+                asset_type: LibraryAssetType::Button,
+                folder: "Graphics".to_string(),
+                properties: AssetProperties {
+                    file_size: None,
+                    dimensions: Some((120, 40)),
+                    format: None,
+                    usage_count: 5,
+                    linkage_class: Some("ButtonSymbol".to_string()),
+                },
+            },
+            LibraryAsset {
+                id: "star_graphic".to_string(),
+                name: "Star".to_string(),
+                asset_type: LibraryAssetType::Graphic,
+                folder: "Graphics".to_string(),
+                properties: AssetProperties {
+                    file_size: None,
+                    dimensions: Some((50, 50)),
+                    format: None,
+                    usage_count: 0,
+                    linkage_class: None,
+                },
+            },
+            // Bitmaps folder
+            LibraryAsset {
+                id: "background_jpg".to_string(),
+                name: "Background".to_string(),
+                asset_type: LibraryAssetType::Bitmap,
+                folder: "Bitmaps".to_string(),
+                properties: AssetProperties {
+                    file_size: Some(245760),
+                    dimensions: Some((1920, 1080)),
+                    format: Some("JPEG".to_string()),
+                    usage_count: 1,
+                    linkage_class: None,
+                },
+            },
+            LibraryAsset {
+                id: "icon_png".to_string(),
+                name: "Icon".to_string(),
+                asset_type: LibraryAssetType::Bitmap,
+                folder: "Bitmaps".to_string(),
+                properties: AssetProperties {
+                    file_size: Some(8192),
+                    dimensions: Some((64, 64)),
+                    format: Some("PNG".to_string()),
+                    usage_count: 3,
+                    linkage_class: None,
+                },
+            },
+            // Sounds folder
+            LibraryAsset {
+                id: "bgm_mp3".to_string(),
+                name: "Background Music".to_string(),
+                asset_type: LibraryAssetType::Sound,
+                folder: "Sounds".to_string(),
+                properties: AssetProperties {
+                    file_size: Some(3145728),
+                    dimensions: None,
+                    format: Some("MP3".to_string()),
+                    usage_count: 1,
+                    linkage_class: Some("BGMSound".to_string()),
+                },
+            },
+            LibraryAsset {
+                id: "click_wav".to_string(),
+                name: "Click Sound".to_string(),
+                asset_type: LibraryAssetType::Sound,
+                folder: "Sounds".to_string(),
+                properties: AssetProperties {
+                    file_size: Some(22050),
+                    dimensions: None,
+                    format: Some("WAV".to_string()),
+                    usage_count: 0,
+                    linkage_class: None,
+                },
+            },
+            // Fonts folder
+            LibraryAsset {
+                id: "arial_font".to_string(),
+                name: "Arial".to_string(),
+                asset_type: LibraryAssetType::Font,
+                folder: "Fonts".to_string(),
+                properties: AssetProperties {
+                    file_size: Some(367112),
+                    dimensions: None,
+                    format: Some("TTF".to_string()),
+                    usage_count: 10,
+                    linkage_class: None,
+                },
+            },
+        ]
+    }
+    
     fn log(&mut self, level: LogLevel, message: impl Into<String>) {
         let timestamp = chrono::Local::now().format("%H:%M:%S%.3f").to_string();
         self.log_messages.push(LogMessage {
@@ -875,11 +1213,77 @@ impl TimelineApp {
             let stage_response = ui.interact(rect, ui.id().with("stage_bg"), egui::Sense::click());
             
             if stage_response.clicked() && clicked_item.is_none() {
-                // Clicked on empty stage - deselect
-                self.selected_items.clear();
                 if let Some(pos) = stage_response.interact_pointer_pos() {
-                    self.log(LogLevel::Action, format!("Stage clicked at ({:.1}, {:.1})", 
-                        pos.x - rect.min.x, pos.y - rect.min.y));
+                    let stage_pos = pos - rect.min.to_vec2();
+                    
+                    // Handle tool-specific actions
+                    match self.tool_state.active_tool {
+                        Tool::Arrow => {
+                            // Arrow tool - deselect when clicking empty space
+                            self.selected_items.clear();
+                            self.log(LogLevel::Action, format!("Stage clicked at ({:.1}, {:.1})", 
+                                stage_pos.x, stage_pos.y));
+                        }
+                        Tool::Rectangle => {
+                            // Rectangle tool - create a rectangle
+                            let new_rect = StageItem {
+                                id: format!("rect_{}", self.stage_items.len() + 1),
+                                name: format!("Rectangle {}", self.stage_items.len() + 1),
+                                item_type: StageItemType::Rectangle,
+                                position: stage_pos,
+                                size: egui::Vec2::new(100.0, 60.0),
+                                color: self.tool_state.fill_color,
+                                alpha: 1.0,
+                                rotation: 0.0,
+                                text_content: String::new(),
+                                font_size: 16.0,
+                                font_family: "Arial".to_string(),
+                            };
+                            self.stage_items.push(new_rect.clone());
+                            self.log(LogLevel::Action, format!("Created {} with Rectangle tool", new_rect.name));
+                        }
+                        Tool::Oval => {
+                            // Oval tool - create a circle/oval
+                            let new_oval = StageItem {
+                                id: format!("oval_{}", self.stage_items.len() + 1),
+                                name: format!("Circle {}", self.stage_items.len() + 1),
+                                item_type: StageItemType::Circle,
+                                position: stage_pos,
+                                size: egui::Vec2::splat(80.0),
+                                color: self.tool_state.fill_color,
+                                alpha: 1.0,
+                                rotation: 0.0,
+                                text_content: String::new(),
+                                font_size: 16.0,
+                                font_family: "Arial".to_string(),
+                            };
+                            self.stage_items.push(new_oval.clone());
+                            self.log(LogLevel::Action, format!("Created {} with Oval tool", new_oval.name));
+                        }
+                        Tool::Text => {
+                            // Text tool - create a text object
+                            let new_text = StageItem {
+                                id: format!("text_{}", self.stage_items.len() + 1),
+                                name: format!("Text {}", self.stage_items.len() + 1),
+                                item_type: StageItemType::Text,
+                                position: stage_pos,
+                                size: egui::Vec2::new(120.0, 30.0),
+                                color: self.tool_state.fill_color,
+                                alpha: 1.0,
+                                rotation: 0.0,
+                                text_content: "New Text".to_string(),
+                                font_size: self.tool_state.text_font_size,
+                                font_family: self.tool_state.text_font_family.clone(),
+                            };
+                            self.stage_items.push(new_text.clone());
+                            self.log(LogLevel::Action, format!("Created {} with Text tool", new_text.name));
+                        }
+                        _ => {
+                            // Other tools - just log the click for now
+                            self.log(LogLevel::Action, format!("{} clicked at ({:.1}, {:.1})", 
+                                self.tool_state.active_tool.get_name(), stage_pos.x, stage_pos.y));
+                        }
+                    }
                 }
             }
             
@@ -962,55 +1366,579 @@ impl TimelineApp {
             let padded_rect = rect.shrink(10.0);
             ui.scope_builder(UiBuilder::new().max_rect(padded_rect), |ui| {
                 ui.vertical(|ui| {
-                    ui.heading("📚 Library");
+                    // Header with options
+                    ui.horizontal(|ui| {
+                        ui.heading("📚 Library");
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            if ui.small_button("⚙").on_hover_text("Library Options").clicked() {
+                                self.log(LogLevel::Action, "Library options clicked");
+                            }
+                        });
+                    });
                     ui.separator();
                     
                     // Tabs
                     ui.horizontal(|ui| {
-                        if ui.selectable_label(true, "Assets").clicked() {
+                        if ui.selectable_label(self.library_tab == LibraryTab::Assets, "Assets").clicked() {
+                            self.library_tab = LibraryTab::Assets;
                             self.log(LogLevel::Action, "Library tab: Assets selected");
                         }
-                        if ui.selectable_label(false, "Properties").clicked() {
-                            self.log(LogLevel::Action, "Library tab: Properties selected");
+                        if ui.selectable_label(self.library_tab == LibraryTab::Components, "Components").clicked() {
+                            self.library_tab = LibraryTab::Components;
+                            self.log(LogLevel::Action, "Library tab: Components selected");
+                        }
+                        if ui.selectable_label(self.library_tab == LibraryTab::ActionScript, "AS Linkage").clicked() {
+                            self.library_tab = LibraryTab::ActionScript;
+                            self.log(LogLevel::Action, "Library tab: ActionScript selected");
                         }
                     });
                     
                     ui.separator();
                     
-                    // Scrollable asset list
-                    egui::ScrollArea::vertical().show(ui, |ui| {
-                        ui.label("🎭 Symbols:");
-                        for i in 1..=5 {
-                            ui.horizontal(|ui| {
-                                if ui.button(format!("Symbol_{}", i)).clicked() {
-                                    self.log(LogLevel::Action, format!("Selected Symbol_{}", i));
-                                }
-                            });
-                        }
-                        
-                        ui.add_space(10.0);
-                        ui.label("🖼️ Bitmaps:");
-                        for i in 1..=3 {
-                            ui.horizontal(|ui| {
-                                if ui.button(format!("Image_{}", i)).clicked() {
-                                    self.log(LogLevel::Action, format!("Selected Image_{}", i));
-                                }
-                            });
-                        }
-                        
-                        ui.add_space(10.0);
-                        ui.label("🔊 Sounds:");
-                        for i in 1..=2 {
-                            ui.horizontal(|ui| {
-                                if ui.button(format!("Sound_{}", i)).clicked() {
-                                    self.log(LogLevel::Action, format!("Selected Sound_{}", i));
-                                }
-                            });
-                        }
-                    });
+                    // Tab content
+                    match self.library_tab {
+                        LibraryTab::Assets => self.draw_library_assets_tab(ui),
+                        LibraryTab::Components => self.draw_library_components_tab(ui),
+                        LibraryTab::ActionScript => self.draw_library_actionscript_tab(ui),
+                    }
                 });
             });
         });
+        
+        // Handle drag and drop
+        self.handle_library_drag_drop(ui, rect);
+        
+        // Handle context menu
+        if let Some(menu_state) = &self.library_context_menu.clone() {
+            self.show_library_context_menu(ui, menu_state);
+        }
+    }
+    
+    fn draw_library_assets_tab(&mut self, ui: &mut egui::Ui) {
+        // Search bar
+        ui.horizontal(|ui| {
+            ui.label("🔍");
+            let search_response = ui.text_edit_singleline(&mut self.library_search);
+            if search_response.changed() {
+                self.log(LogLevel::Action, format!("Library search: '{}'", self.library_search));
+            }
+        });
+        
+        ui.separator();
+        
+        // Action buttons
+        ui.horizontal(|ui| {
+            if ui.button("➕ Import").on_hover_text("Import assets from file").clicked() {
+                self.log(LogLevel::Action, "Import assets clicked");
+            }
+            if ui.button("🆕 New Symbol").on_hover_text("Create new symbol").clicked() {
+                self.log(LogLevel::Action, "New symbol clicked");
+            }
+            if ui.button("📁 New Folder").on_hover_text("Create new folder").clicked() {
+                self.log(LogLevel::Action, "New folder clicked");
+            }
+        });
+        
+        ui.separator();
+        
+        // Asset tree view
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            // Group assets by folder
+            let mut folders: std::collections::HashMap<String, Vec<LibraryAsset>> = std::collections::HashMap::new();
+            folders.insert("Graphics".to_string(), Vec::new());
+            folders.insert("Bitmaps".to_string(), Vec::new());
+            folders.insert("Sounds".to_string(), Vec::new());
+            folders.insert("Fonts".to_string(), Vec::new());
+            
+            let search_term = self.library_search.to_lowercase();
+            for asset in &self.library_assets {
+                if self.library_search.is_empty() || 
+                   asset.name.to_lowercase().contains(&search_term) {
+                    folders.entry(asset.folder.clone()).or_default().push(asset.clone());
+                }
+            }
+            
+            // Draw folders
+            let mut folders_to_expand = Vec::new();
+            let mut folders_to_collapse = Vec::new();
+            let mut log_messages = Vec::new();
+            
+            for (folder_name, assets) in folders.iter() {
+                let folder_id = ui.make_persistent_id(folder_name);
+                let is_expanded = self.library_folders_expanded.contains(folder_name);
+                
+                ui.horizontal(|ui| {
+                    // Folder toggle
+                    if ui.small_button(if is_expanded { "▼" } else { "▶" }).clicked() {
+                        if is_expanded {
+                            folders_to_collapse.push(folder_name.clone());
+                        } else {
+                            folders_to_expand.push(folder_name.clone());
+                        }
+                        log_messages.push((LogLevel::Action, format!("Folder '{}' {}", 
+                            folder_name, if is_expanded { "collapsed" } else { "expanded" })));
+                    }
+                    
+                    // Folder icon and name
+                    ui.label("📁");
+                    if ui.selectable_label(false, folder_name).clicked() {
+                        log_messages.push((LogLevel::Action, format!("Folder '{}' clicked", folder_name)));
+                    }
+                    
+                    // Right-click context menu
+                    ui.interact(ui.min_rect(), folder_id, egui::Sense::click())
+                        .context_menu(|ui| {
+                            if ui.button("📁 New Folder").clicked() {
+                                log_messages.push((LogLevel::Action, format!("New folder in '{}'", folder_name)));
+                                ui.close();
+                            }
+                            if ui.button("➕ Import to Folder").clicked() {
+                                log_messages.push((LogLevel::Action, format!("Import to '{}'", folder_name)));
+                                ui.close();
+                            }
+                            ui.separator();
+                            if ui.button("✏️ Rename").clicked() {
+                                log_messages.push((LogLevel::Action, format!("Rename folder '{}'", folder_name)));
+                                ui.close();
+                            }
+                            if ui.button("🗑️ Delete").clicked() {
+                                log_messages.push((LogLevel::Action, format!("Delete folder '{}'", folder_name)));
+                                ui.close();
+                            }
+                        });
+                });
+                
+                // Draw assets in folder if expanded
+                if is_expanded {
+                    ui.indent(folder_id, |ui| {
+                        for asset in assets {
+                            self.draw_library_asset(ui, asset);
+                        }
+                    });
+                }
+            }
+            
+            // Apply folder state changes
+            for folder in folders_to_expand {
+                self.library_folders_expanded.push(folder);
+            }
+            for folder in folders_to_collapse {
+                self.library_folders_expanded.retain(|f| f != &folder);
+            }
+            
+            // Log messages
+            for (level, msg) in log_messages {
+                self.log(level, msg);
+            }
+        });
+    }
+    
+    fn draw_library_asset(&mut self, ui: &mut egui::Ui, asset: &LibraryAsset) {
+        let is_selected = self.selected_library_asset.as_ref() == Some(&asset.id);
+        
+        ui.horizontal(|ui| {
+            // Asset icon
+            let icon = match asset.asset_type {
+                LibraryAssetType::MovieClip => "🎭",
+                LibraryAssetType::Button => "🔘",
+                LibraryAssetType::Graphic => "🎨",
+                LibraryAssetType::Bitmap => "🖼️",
+                LibraryAssetType::Sound => "🔊",
+                LibraryAssetType::Video => "🎬",
+                LibraryAssetType::Font => "🔤",
+                LibraryAssetType::Folder => "📁",
+            };
+            ui.label(icon);
+            
+            // Asset name with selection
+            let response = ui.selectable_label(is_selected, &asset.name);
+            
+            // Type label
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.weak(match asset.asset_type {
+                    LibraryAssetType::MovieClip => "MovieClip",
+                    LibraryAssetType::Button => "Button",
+                    LibraryAssetType::Graphic => "Graphic",
+                    LibraryAssetType::Bitmap => "Bitmap",
+                    LibraryAssetType::Sound => "Sound",
+                    LibraryAssetType::Video => "Video",
+                    LibraryAssetType::Font => "Font",
+                    LibraryAssetType::Folder => "Folder",
+                });
+            });
+            
+            // Handle selection
+            if response.clicked() {
+                self.selected_library_asset = Some(asset.id.clone());
+                self.log(LogLevel::Action, format!("Selected asset: {}", asset.name));
+            }
+            
+            // Handle drag start
+            if response.drag_started() {
+                self.dragging_asset = Some(asset.clone());
+                self.drag_offset = response.interact_pointer_pos()
+                    .map(|p| p - response.rect.center())
+                    .unwrap_or(egui::Vec2::ZERO);
+                self.log(LogLevel::Action, format!("Started dragging: {}", asset.name));
+            }
+            
+            // Right-click context menu
+            response.context_menu(|ui| {
+                ui.label(&asset.name);
+                ui.separator();
+                
+                if ui.button("✏️ Rename").clicked() {
+                    self.log(LogLevel::Action, format!("Rename asset: {}", asset.name));
+                    ui.close();
+                }
+                if ui.button("📑 Duplicate").clicked() {
+                    self.log(LogLevel::Action, format!("Duplicate asset: {}", asset.name));
+                    ui.close();
+                }
+                if ui.button("🗑️ Delete").clicked() {
+                    self.log(LogLevel::Action, format!("Delete asset: {}", asset.name));
+                    ui.close();
+                }
+                ui.separator();
+                
+                if ui.button("ℹ️ Properties").clicked() {
+                    self.log(LogLevel::Action, format!("Show properties: {}", asset.name));
+                    ui.close();
+                }
+                if ui.button("✏️ Edit").clicked() {
+                    self.log(LogLevel::Action, format!("Edit asset: {}", asset.name));
+                    ui.close();
+                }
+                
+                if asset.properties.linkage_class.is_some() {
+                    ui.separator();
+                    if ui.button("🔗 Edit Linkage").clicked() {
+                        self.log(LogLevel::Action, format!("Edit linkage: {}", asset.name));
+                        ui.close();
+                    }
+                }
+            });
+        });
+    }
+    
+    fn draw_library_components_tab(&mut self, ui: &mut egui::Ui) {
+        ui.label("Component library - organize reusable UI components");
+        ui.separator();
+        ui.weak("No components available");
+    }
+    
+    fn draw_library_actionscript_tab(&mut self, ui: &mut egui::Ui) {
+        ui.label("ActionScript Linkage - Export symbols for code access");
+        ui.separator();
+        
+        // Show assets with linkage
+        for asset in &self.library_assets {
+            if let Some(linkage_class) = &asset.properties.linkage_class {
+                ui.horizontal(|ui| {
+                    ui.label(&asset.name);
+                    ui.label("→");
+                    ui.code(linkage_class);
+                });
+            }
+        }
+    }
+    
+    fn handle_library_drag_drop(&mut self, ui: &mut egui::Ui, library_rect: egui::Rect) {
+        if let Some(asset) = self.dragging_asset.clone() {
+            if ui.input(|i| i.pointer.any_released()) {
+                // Check if dropped on stage
+                if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
+                    if !library_rect.contains(pointer_pos) {
+                        // Dropped outside library - create instance on stage
+                        let stage_pos = pointer_pos - self.drag_offset;
+                        self.create_stage_instance_from_asset(&asset, stage_pos);
+                    }
+                }
+                self.dragging_asset = None;
+                self.drag_offset = egui::Vec2::ZERO;
+            } else if let Some(pointer_pos) = ui.ctx().pointer_hover_pos() {
+                // Draw drag preview
+                let preview_pos = pointer_pos - self.drag_offset;
+                ui.painter().text(
+                    preview_pos,
+                    egui::Align2::CENTER_CENTER,
+                    &asset.name,
+                    egui::FontId::default(),
+                    ui.style().visuals.text_color(),
+                );
+            }
+        }
+    }
+    
+    fn create_stage_instance_from_asset(&mut self, asset: &LibraryAsset, position: egui::Pos2) {
+        let new_item = match asset.asset_type {
+            LibraryAssetType::MovieClip | LibraryAssetType::Button | LibraryAssetType::Graphic => {
+                StageItem {
+                    id: format!("{}_{}", asset.id, self.stage_items.len() + 1),
+                    name: format!("{} Instance", asset.name),
+                    item_type: StageItemType::MovieClip,
+                    position,
+                    size: egui::Vec2::new(100.0, 100.0),
+                    color: egui::Color32::from_rgb(150, 255, 150),
+                    alpha: 1.0,
+                    rotation: 0.0,
+                    text_content: String::new(),
+                    font_size: 16.0,
+                    font_family: "Arial".to_string(),
+                }
+            }
+            LibraryAssetType::Bitmap => {
+                let size = asset.properties.dimensions
+                    .map(|(w, h)| egui::Vec2::new(w as f32, h as f32))
+                    .unwrap_or(egui::Vec2::new(100.0, 100.0));
+                StageItem {
+                    id: format!("{}_{}", asset.id, self.stage_items.len() + 1),
+                    name: format!("{} Instance", asset.name),
+                    item_type: StageItemType::Rectangle, // Using rectangle as placeholder for bitmap
+                    position,
+                    size,
+                    color: egui::Color32::WHITE,
+                    alpha: 1.0,
+                    rotation: 0.0,
+                    text_content: String::new(),
+                    font_size: 16.0,
+                    font_family: "Arial".to_string(),
+                }
+            }
+            _ => return, // Don't create instances for other types
+        };
+        
+        self.stage_items.push(new_item.clone());
+        self.log(LogLevel::Action, format!("Created {} from library at ({:.1}, {:.1})", 
+            new_item.name, position.x, position.y));
+    }
+    
+    fn show_library_context_menu(&mut self, ui: &mut egui::Ui, menu_state: &LibraryContextMenuState) {
+        egui::Window::new("library_context_menu")
+            .fixed_pos(menu_state.position)
+            .title_bar(false)
+            .resizable(false)
+            .collapsible(false)
+            .show(ui.ctx(), |ui| {
+                match &menu_state.target {
+                    LibraryContextTarget::Asset(asset_id) => {
+                        let asset_name = self.library_assets.iter()
+                            .find(|a| a.id == *asset_id)
+                            .map(|a| a.name.clone())
+                            .unwrap_or_else(|| "Unknown".to_string());
+                        
+                        ui.label(&asset_name);
+                        ui.separator();
+                        
+                        if ui.button("✏️ Rename").clicked() {
+                            self.log(LogLevel::Action, format!("Rename asset: {}", asset_name));
+                            self.library_context_menu = None;
+                        }
+                        if ui.button("📑 Duplicate").clicked() {
+                            self.log(LogLevel::Action, format!("Duplicate asset: {}", asset_name));
+                            self.library_context_menu = None;
+                        }
+                        if ui.button("🗑️ Delete").clicked() {
+                            self.log(LogLevel::Action, format!("Delete asset: {}", asset_name));
+                            self.library_context_menu = None;
+                        }
+                    }
+                    LibraryContextTarget::Folder(folder_name) => {
+                        ui.label(folder_name);
+                        ui.separator();
+                        
+                        if ui.button("📁 New Folder").clicked() {
+                            self.log(LogLevel::Action, format!("New folder in '{}'", folder_name));
+                            self.library_context_menu = None;
+                        }
+                        if ui.button("➕ Import").clicked() {
+                            self.log(LogLevel::Action, format!("Import to '{}'", folder_name));
+                            self.library_context_menu = None;
+                        }
+                    }
+                    LibraryContextTarget::Background => {
+                        if ui.button("📁 New Folder").clicked() {
+                            self.log(LogLevel::Action, "New root folder");
+                            self.library_context_menu = None;
+                        }
+                        if ui.button("➕ Import Assets").clicked() {
+                            self.log(LogLevel::Action, "Import assets");
+                            self.library_context_menu = None;
+                        }
+                    }
+                }
+            });
+    }
+    
+    fn draw_tools_panel(&mut self, ui: &mut egui::Ui, rect: egui::Rect) {
+        ui.scope_builder(UiBuilder::new().max_rect(rect), |ui| {
+            // Background
+            ui.painter().rect_filled(rect, 0.0, egui::Color32::from_gray(45));
+            
+            // Border
+            let border_stroke = egui::Stroke::new(1.0, egui::Color32::from_gray(60));
+            ui.painter().line_segment([rect.right_top(), rect.right_bottom()], border_stroke);
+            
+            // Content with padding
+            let padded_rect = rect.shrink(5.0);
+            ui.scope_builder(UiBuilder::new().max_rect(padded_rect), |ui| {
+                ui.vertical(|ui| {
+                    // Selection Tools Section
+                    ui.label("Selection");
+                    ui.separator();
+                    
+                    ui.horizontal(|ui| {
+                        self.draw_tool_button(ui, Tool::Arrow);
+                        self.draw_tool_button(ui, Tool::Subselection);
+                    });
+                    ui.horizontal(|ui| {
+                        self.draw_tool_button(ui, Tool::Lasso);
+                        ui.add_space(24.0); // Empty space
+                    });
+                    
+                    ui.add_space(10.0);
+                    
+                    // Drawing Tools Section
+                    ui.label("Drawing");
+                    ui.separator();
+                    
+                    ui.horizontal(|ui| {
+                        self.draw_tool_button(ui, Tool::Line);
+                        self.draw_tool_button(ui, Tool::Pen);
+                    });
+                    ui.horizontal(|ui| {
+                        self.draw_tool_button(ui, Tool::Pencil);
+                        self.draw_tool_button(ui, Tool::Brush);
+                    });
+                    ui.horizontal(|ui| {
+                        self.draw_tool_button(ui, Tool::Rectangle);
+                        self.draw_tool_button(ui, Tool::Oval);
+                    });
+                    ui.horizontal(|ui| {
+                        self.draw_tool_button(ui, Tool::PolyStar);
+                        ui.add_space(24.0);
+                    });
+                    
+                    ui.add_space(10.0);
+                    
+                    // Text & Paint Tools Section
+                    ui.label("Text & Paint");
+                    ui.separator();
+                    
+                    ui.horizontal(|ui| {
+                        self.draw_tool_button(ui, Tool::Text);
+                        self.draw_tool_button(ui, Tool::PaintBucket);
+                    });
+                    ui.horizontal(|ui| {
+                        self.draw_tool_button(ui, Tool::InkBottle);
+                        self.draw_tool_button(ui, Tool::Eyedropper);
+                    });
+                    ui.horizontal(|ui| {
+                        self.draw_tool_button(ui, Tool::Eraser);
+                        ui.add_space(24.0);
+                    });
+                    
+                    ui.add_space(10.0);
+                    
+                    // Transform Tools Section
+                    ui.label("Transform");
+                    ui.separator();
+                    
+                    ui.horizontal(|ui| {
+                        self.draw_tool_button(ui, Tool::FreeTransform);
+                        self.draw_tool_button(ui, Tool::GradientTransform);
+                    });
+                    ui.horizontal(|ui| {
+                        self.draw_tool_button(ui, Tool::Zoom);
+                        self.draw_tool_button(ui, Tool::Hand);
+                    });
+                    
+                    ui.add_space(20.0);
+                    
+                    // Color Controls
+                    ui.label("Colors");
+                    ui.separator();
+                    
+                    // Stroke and Fill color swatches
+                    ui.horizontal(|ui| {
+                        // Stroke color
+                        ui.vertical(|ui| {
+                            ui.label("Stroke");
+                            let stroke_response = ui.add_sized(
+                                egui::vec2(30.0, 30.0),
+                                egui::Button::new("")
+                                    .fill(self.tool_state.stroke_color)
+                            );
+                            if stroke_response.clicked() {
+                                self.log(LogLevel::Action, "Stroke color picker opened");
+                            }
+                        });
+                        
+                        // Fill color
+                        ui.vertical(|ui| {
+                            ui.label("Fill");
+                            let fill_response = ui.add_sized(
+                                egui::vec2(30.0, 30.0),
+                                egui::Button::new("")
+                                    .fill(self.tool_state.fill_color)
+                            );
+                            if fill_response.clicked() {
+                                self.log(LogLevel::Action, "Fill color picker opened");
+                            }
+                        });
+                    });
+                    
+                    // Swap colors button
+                    if ui.button("⇄ Swap").clicked() {
+                        std::mem::swap(&mut self.tool_state.stroke_color, &mut self.tool_state.fill_color);
+                        self.log(LogLevel::Action, "Swapped stroke and fill colors");
+                    }
+                    
+                    // Default colors button
+                    if ui.button("⬜⬛ Default").clicked() {
+                        self.tool_state.stroke_color = egui::Color32::BLACK;
+                        self.tool_state.fill_color = egui::Color32::WHITE;
+                        self.log(LogLevel::Action, "Reset to default colors");
+                    }
+                });
+            });
+        });
+    }
+    
+    fn draw_tool_button(&mut self, ui: &mut egui::Ui, tool: Tool) {
+        let is_active = self.tool_state.active_tool == tool;
+        let button_size = egui::vec2(24.0, 24.0);
+        
+        let mut button = egui::Button::new(tool.get_icon())
+            .min_size(button_size);
+            
+        if is_active {
+            button = button.fill(ui.style().visuals.selection.bg_fill);
+        }
+        
+        let response = ui.add(button);
+        
+        // Tooltip with shortcut
+        let mut tooltip = tool.get_name().to_string();
+        if let Some(shortcut) = tool.get_shortcut() {
+            tooltip.push_str(&format!(" ({})", shortcut));
+        }
+        
+        // Handle click and hover
+        if response.clicked() {
+            self.tool_state.active_tool = tool;
+            self.log(LogLevel::Action, format!("Selected tool: {}", tool.get_name()));
+            
+            // Update cursor based on tool
+            match tool {
+                Tool::Hand => ui.ctx().set_cursor_icon(egui::CursorIcon::Grab),
+                Tool::Zoom => ui.ctx().set_cursor_icon(egui::CursorIcon::ZoomIn),
+                Tool::Text => ui.ctx().set_cursor_icon(egui::CursorIcon::Text),
+                _ => ui.ctx().set_cursor_icon(egui::CursorIcon::Default),
+            }
+        }
+        
+        response.on_hover_text(tooltip);
     }
     
     fn handle_horizontal_splitter(&mut self, ui: &mut egui::Ui, rect: egui::Rect) {
@@ -1322,6 +2250,61 @@ impl TimelineApp {
             }
         }
     }
+    fn handle_tool_shortcuts(&mut self, ctx: &egui::Context) {
+        // Check for single-key tool shortcuts
+        ctx.input(|i| {
+            // Only process shortcuts if no text field is focused
+            if i.focused {
+                return;
+            }
+            
+            let mut new_tool = None;
+            
+            if i.key_pressed(egui::Key::V) {
+                new_tool = Some(Tool::Arrow);
+            } else if i.key_pressed(egui::Key::A) {
+                new_tool = Some(Tool::Subselection);
+            } else if i.key_pressed(egui::Key::L) {
+                new_tool = Some(Tool::Lasso);
+            } else if i.key_pressed(egui::Key::N) {
+                new_tool = Some(Tool::Line);
+            } else if i.key_pressed(egui::Key::P) {
+                new_tool = Some(Tool::Pen);
+            } else if i.key_pressed(egui::Key::Y) {
+                new_tool = Some(Tool::Pencil);
+            } else if i.key_pressed(egui::Key::B) {
+                new_tool = Some(Tool::Brush);
+            } else if i.key_pressed(egui::Key::R) {
+                new_tool = Some(Tool::Rectangle);
+            } else if i.key_pressed(egui::Key::O) {
+                new_tool = Some(Tool::Oval);
+            } else if i.key_pressed(egui::Key::T) {
+                new_tool = Some(Tool::Text);
+            } else if i.key_pressed(egui::Key::K) {
+                new_tool = Some(Tool::PaintBucket);
+            } else if i.key_pressed(egui::Key::S) {
+                new_tool = Some(Tool::InkBottle);
+            } else if i.key_pressed(egui::Key::I) {
+                new_tool = Some(Tool::Eyedropper);
+            } else if i.key_pressed(egui::Key::E) {
+                new_tool = Some(Tool::Eraser);
+            } else if i.key_pressed(egui::Key::Q) {
+                new_tool = Some(Tool::FreeTransform);
+            } else if i.key_pressed(egui::Key::F) {
+                new_tool = Some(Tool::GradientTransform);
+            } else if i.key_pressed(egui::Key::Z) {
+                new_tool = Some(Tool::Zoom);
+            } else if i.key_pressed(egui::Key::H) {
+                new_tool = Some(Tool::Hand);
+            }
+            
+            if let Some(tool) = new_tool {
+                self.tool_state.active_tool = tool;
+                self.log(LogLevel::Action, format!("Selected tool: {} (keyboard)", tool.get_name()));
+            }
+        });
+    }
+    
     fn show_crash_dialog(&self, ctx: &egui::Context) {
         // Check if a crash occurred
         if !CRASH_OCCURRED.load(Ordering::SeqCst) {

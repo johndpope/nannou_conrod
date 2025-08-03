@@ -115,5 +115,74 @@ When modifying this codebase:
 3. Follow existing widget patterns when adding new UI components
 4. Update examples when adding significant features
 
+### Bug and Defect Tracking
+
+**IMPORTANT**: All bugs, defects, and issues discovered during development MUST be tracked in GitHub Issues.
+
+#### Bug Reporting Requirements:
+1. **Create GitHub Issue immediately** when any bug/defect is discovered
+2. **Use descriptive titles** that clearly identify the problem
+3. **Include reproduction steps** and affected files
+4. **Add appropriate labels**: `bug`, `task-master` (if part of Task Master workflow)
+5. **Link to related work** - reference the original issue/PR that introduced the bug
+6. **Set priority** based on impact (affects demo functionality = high priority)
+
+#### Bug Issue Template:
+```
+Title: [Component] Brief description of bug
+
+Description:
+- What happens vs expected behavior
+- Symptoms observed
+- Performance/functionality impact
+
+Reproduction Steps:
+1. Step one
+2. Step two
+3. Observe issue
+
+Files to Investigate:
+- path/to/file.rs - specific area
+- path/to/other.rs - related logic
+
+Related Work:
+- Part of Issue #XX implementation
+- Introduced in PR #YY
+```
+
+#### Issue State Management:
+- Use `in-progress` label for active work
+- Reference issues in commit messages
+- Close issues only when fully resolved and tested
+- Create follow-up issues for incomplete work rather than leaving things "by the wayside"
+
+### GitHub Issue Workflow
+
+#### Issue Labels:
+- `bug` - Something isn't working correctly
+- `enhancement` - New feature or improvement request  
+- `in-progress` - Issue is currently being worked on
+- `task-master` - Issues for Task Master AI workflow
+- `documentation` - Documentation improvements
+
+#### Working with Issues:
+```bash
+# List all open issues
+gh issue list
+
+# List issues by label
+gh issue list --label "in-progress"
+gh issue list --label "task-master"
+
+# Create new issue
+gh issue create --title "Title" --body "Description" --label "bug,task-master"
+
+# Add labels to existing issue
+gh issue edit 25 --add-label "in-progress"
+
+# Close completed issue
+gh issue close 25 --comment "Implementation complete"
+```
+
 ### Migration Notice
 Since this project is deprecated, any new GUI work should consider using `nannou_egui` instead. See https://github.com/PistonDevelopers/conrod/issues/1454 for context on why conrod development has ceased.

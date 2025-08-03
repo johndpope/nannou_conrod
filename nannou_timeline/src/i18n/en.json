@@ -9,7 +9,8 @@
       "loop_playback": "Toggle Loop Playback",
       "center_playhead": "Center Playhead",
       "edit_multiple_frames": "Edit Multiple Frames",
-      "frame_selection": "Frame-based Selection"
+      "frame_selection": "Frame-based Selection",
+      "label_panel": "Toggle Labels & Comments Panel"
     },
     "layer": {
       "outline_mode": "Outline Mode - Show only object outlines",
