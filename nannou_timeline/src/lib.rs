@@ -16,7 +16,6 @@ pub use track_simple::Track;
 pub mod playhead_egui;
 pub mod ruler_egui;
 pub mod timeline_egui;
-pub mod timeline_egui_fixed;
 pub mod layer;
 pub mod frame;
 pub mod track_simple;
@@ -28,7 +27,7 @@ pub mod audio;
 pub mod i18n;
 
 // Re-export time types
-pub use time::{FrameTime, FpsPreset, FrameLabel};
+pub use time::{FrameTime, FpsPreset, FrameLabel, FrameComment};
 
 // Re-export easing types
 pub use easing::{BezierCurve, BezierPoint, EasingPreset, PropertyId};
@@ -74,6 +73,11 @@ pub trait RiveEngine: Send + Sync {
     
     // Layer operations
     fn rename_layer(&mut self, layer_id: LayerId, new_name: String);
+    fn add_layer(&mut self, name: String, layer_type: layer::LayerType) -> LayerId;
+    fn delete_layer(&mut self, layer_id: LayerId);
+    fn duplicate_layer(&mut self, layer_id: LayerId) -> LayerId;
+    fn add_folder_layer(&mut self, name: String) -> LayerId;
+    fn add_motion_guide_layer(&mut self, name: String) -> LayerId;
 }
 
 /// Timeline configuration
@@ -93,6 +97,8 @@ pub struct TimelineConfig {
     pub fps: FpsPreset,
     /// Frame labels
     pub frame_labels: Vec<FrameLabel>,
+    /// Frame comments
+    pub frame_comments: Vec<FrameComment>,
     /// Colors and styling
     pub style: TimelineStyle,
     /// Snap-to-grid configuration
@@ -120,6 +126,7 @@ impl Default for TimelineConfig {
             frame_width: 10.0,
             fps: FpsPreset::default(),
             frame_labels: Vec::new(),
+            frame_comments: Vec::new(),
             style: TimelineStyle::default(),
             snap: SnapConfig::default(),
         }

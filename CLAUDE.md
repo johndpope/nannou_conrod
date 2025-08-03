@@ -32,7 +32,7 @@ cargo doc --no-deps
 ### Workspace Structure
 - **nannou_conrod**: Core GUI integration between conrod and nannou
 - **nannou_timeline**: Timeline widget for temporal data visualization/control
-  - Enhanced Flash CS6/Animate-style timeline implementation in `timeline_egui_fixed.rs`
+  - Enhanced Flash CS6/Animate-style timeline implementation in `timeline_egui.rs`
   - Internationalization (i18n) support with JSON language files
   - Context menus, tooltips, and professional UI polish
 - **examples**: Demo applications showing usage patterns
@@ -53,7 +53,7 @@ The timeline crate provides:
 - Musical time structures (bars, beats)
 - Envelope-based automation curves
 
-#### Enhanced Flash-Style Timeline (`timeline_egui_fixed.rs`)
+#### Enhanced Flash-Style Timeline (`timeline_egui.rs`)
 The enhanced timeline implementation provides:
 - **Complete Flash CS6/Animate IDE interface**: Layers panel, timeline grid, playback controls
 - **Internationalization (i18n)**: Full multi-language support (English, Spanish, Japanese, Chinese)

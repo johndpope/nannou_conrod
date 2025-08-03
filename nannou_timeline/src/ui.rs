@@ -162,6 +162,52 @@ impl crate::RiveEngine for MockRiveEngine {
             layer.name = new_name;
         }
     }
+    
+    fn add_layer(&mut self, name: String, layer_type: crate::layer::LayerType) -> crate::LayerId {
+        println!("MockRiveEngine: Adding new {:?} layer '{}'", layer_type, name);
+        let mut new_layer = crate::layer::LayerInfo::new(name);
+        new_layer.layer_type = layer_type;
+        let layer_id = new_layer.id.clone();
+        self.layers.push(new_layer);
+        layer_id
+    }
+    
+    fn delete_layer(&mut self, layer_id: crate::LayerId) {
+        println!("MockRiveEngine: Deleting layer {:?}", layer_id);
+        self.layers.retain(|layer| layer.id != layer_id);
+    }
+    
+    fn duplicate_layer(&mut self, layer_id: crate::LayerId) -> crate::LayerId {
+        println!("MockRiveEngine: Duplicating layer {:?}", layer_id);
+        if let Some(layer) = self.layers.iter().find(|l| l.id == layer_id).cloned() {
+            let mut new_layer = layer;
+            new_layer.id = crate::LayerId::new(format!("layer_{}", uuid::Uuid::new_v4()));
+            new_layer.name = format!("{} copy", new_layer.name);
+            let new_id = new_layer.id.clone();
+            self.layers.push(new_layer);
+            new_id
+        } else {
+            // Return a default layer if original not found
+            self.add_layer("Layer copy".to_string(), crate::layer::LayerType::Normal)
+        }
+    }
+    
+    fn add_folder_layer(&mut self, name: String) -> crate::LayerId {
+        println!("MockRiveEngine: Adding new folder layer '{}'", name);
+        let new_layer = crate::layer::LayerInfo::new_folder(name);
+        let layer_id = new_layer.id.clone();
+        self.layers.push(new_layer);
+        layer_id
+    }
+    
+    fn add_motion_guide_layer(&mut self, name: String) -> crate::LayerId {
+        println!("MockRiveEngine: Adding new motion guide layer '{}'", name);
+        let mut new_layer = crate::layer::LayerInfo::new(name);
+        new_layer.layer_type = crate::layer::LayerType::MotionGuide;
+        let layer_id = new_layer.id.clone();
+        self.layers.push(new_layer);
+        layer_id
+    }
 }
 
 /// Mock audio engine for testing and demo

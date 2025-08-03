@@ -104,10 +104,15 @@ impl Default for FrameData {
 
 /// Mock implementation for frame data
 pub fn create_mock_frame_data(layer_id: &LayerId, frame: u32) -> FrameData {
-    // Create some pattern for testing
+    // Create a more visible pattern for testing
     let frame_type = match (layer_id.0.as_str(), frame) {
-        (_, f) if f % 10 == 0 => FrameType::Keyframe,
-        (_, f) if f % 10 < 5 && f % 10 > 0 => FrameType::Tween,
+        // Audio layers: only keyframes at specific points
+        (id, f) if id.contains("layer6") || id.contains("layer7") => {
+            if f % 15 == 0 && f > 0 { FrameType::Keyframe } else { FrameType::Empty }
+        }
+        // Normal layers: more frequent keyframes for visibility
+        (_, f) if f % 5 == 0 && f > 0 => FrameType::Keyframe,
+        (_, f) if f % 5 < 3 && f % 5 > 0 => FrameType::Tween,
         _ => FrameType::Empty,
     };
 

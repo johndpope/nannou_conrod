@@ -2,8 +2,9 @@
 
 use eframe::egui::{self, UiBuilder, ComboBox};
 use nannou_timeline::{
-    timeline_egui_fixed::Timeline,
+    timeline_egui::Timeline,
     ui::MockRiveEngine, RiveEngine, LayerId,
+    layer::LayerType,
 };
 use std::sync::{Arc, Mutex};
 use std::process::Command;
@@ -142,6 +143,35 @@ impl RiveEngine for LoggingRiveEngine {
         self.log(LogLevel::Action, format!("Renamed layer {:?} to '{}'", layer_id, new_name));
         self.inner.rename_layer(layer_id, new_name)
     }
+    
+    fn add_layer(&mut self, name: String, layer_type: LayerType) -> LayerId {
+        let layer_id = self.inner.add_layer(name.clone(), layer_type);
+        self.log(LogLevel::Action, format!("Added new {:?} layer '{}' with id {:?}", layer_type, name, layer_id));
+        layer_id
+    }
+    
+    fn delete_layer(&mut self, layer_id: LayerId) {
+        self.log(LogLevel::Action, format!("Deleted layer {:?}", layer_id));
+        self.inner.delete_layer(layer_id)
+    }
+    
+    fn duplicate_layer(&mut self, layer_id: LayerId) -> LayerId {
+        let new_layer_id = self.inner.duplicate_layer(layer_id.clone());
+        self.log(LogLevel::Action, format!("Duplicated layer {:?} to {:?}", layer_id, new_layer_id));
+        new_layer_id
+    }
+    
+    fn add_folder_layer(&mut self, name: String) -> LayerId {
+        let layer_id = self.inner.add_folder_layer(name.clone());
+        self.log(LogLevel::Action, format!("Added new folder layer '{}' with id {:?}", name, layer_id));
+        layer_id
+    }
+    
+    fn add_motion_guide_layer(&mut self, name: String) -> LayerId {
+        let layer_id = self.inner.add_motion_guide_layer(name.clone());
+        self.log(LogLevel::Action, format!("Added new motion guide layer '{}' with id {:?}", name, layer_id));
+        layer_id
+    }
 }
 
 struct TimelineApp {
@@ -162,9 +192,14 @@ struct TimelineApp {
     selected_language: String,
     // Stage items
     stage_items: Vec<StageItem>,
-    selected_item: Option<usize>,
+    selected_items: Vec<usize>,
     // Context menu state
     context_menu: Option<ContextMenuState>,
+    // Properties panel state
+    properties_height: f32,
+    selected_property_tab: PropertyTab,
+    // Clipboard for copy/paste operations
+    clipboard: Vec<StageItem>,
 }
 
 #[derive(Clone)]
@@ -175,10 +210,15 @@ struct StageItem {
     position: egui::Pos2,
     size: egui::Vec2,
     color: egui::Color32,
+    alpha: f32,  // 0.0 to 1.0
     rotation: f32,
+    // Text-specific properties
+    text_content: String,
+    font_size: f32,
+    font_family: String,
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 enum StageItemType {
     Rectangle,
     Circle,
@@ -196,6 +236,14 @@ struct ContextMenuState {
 enum ContextMenuType {
     Stage(egui::Pos2),
     StageItem(usize),
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum PropertyTab {
+    Properties,
+    Filters,
+    ColorEffect,
+    Display,
 }
 
 #[derive(Clone)]
@@ -226,7 +274,11 @@ impl Default for TimelineApp {
                 position: egui::Pos2::new(100.0, 100.0),
                 size: egui::Vec2::new(120.0, 80.0),
                 color: egui::Color32::from_rgb(100, 150, 255),
+                alpha: 1.0,
                 rotation: 0.0,
+                text_content: "Default Text".to_string(),
+                font_size: 16.0,
+                font_family: "Arial".to_string(),
             },
             StageItem {
                 id: "circle1".to_string(),
@@ -235,7 +287,11 @@ impl Default for TimelineApp {
                 position: egui::Pos2::new(300.0, 150.0),
                 size: egui::Vec2::new(100.0, 100.0),
                 color: egui::Color32::from_rgb(255, 100, 100),
+                alpha: 1.0,
                 rotation: 0.0,
+                text_content: "Default Text".to_string(),
+                font_size: 16.0,
+                font_family: "Arial".to_string(),
             },
             StageItem {
                 id: "text1".to_string(),
@@ -244,7 +300,11 @@ impl Default for TimelineApp {
                 position: egui::Pos2::new(200.0, 250.0),
                 size: egui::Vec2::new(150.0, 40.0),
                 color: egui::Color32::WHITE,
+                alpha: 1.0,
                 rotation: 0.0,
+                text_content: "Default Text".to_string(),
+                font_size: 16.0,
+                font_family: "Arial".to_string(),
             },
             StageItem {
                 id: "mc1".to_string(),
@@ -253,7 +313,11 @@ impl Default for TimelineApp {
                 position: egui::Pos2::new(400.0, 300.0),
                 size: egui::Vec2::new(80.0, 80.0),
                 color: egui::Color32::from_rgb(150, 255, 150),
+                alpha: 1.0,
                 rotation: 45.0,
+                text_content: "Default Text".to_string(),
+                font_size: 16.0,
+                font_family: "Arial".to_string(),
             },
         ];
         
@@ -270,8 +334,11 @@ impl Default for TimelineApp {
             engine_logs,
             selected_language: "en".to_string(),
             stage_items,
-            selected_item: None,
+            selected_items: Vec::new(),
             context_menu: None,
+            properties_height: 200.0,
+            selected_property_tab: PropertyTab::Properties,
+            clipboard: Vec::new(),
         };
         app.log(LogLevel::Info, "Timeline application started");
         app.log(LogLevel::Info, "🎮 Keyboard shortcuts:");
@@ -331,9 +398,14 @@ impl eframe::App for TimelineApp {
                 egui::vec2(available_rect.width() - self.library_width, self.timeline_height),
             );
             
+            let properties_rect = egui::Rect::from_min_size(
+                egui::pos2(available_rect.min.x, available_rect.max.y - self.timeline_height - console_space - self.properties_height),
+                egui::vec2(available_rect.width() - self.library_width, self.properties_height),
+            );
+            
             let stage_rect = egui::Rect::from_min_size(
                 available_rect.min,
-                egui::vec2(available_rect.width() - self.library_width, available_rect.height() - self.timeline_height - console_space),
+                egui::vec2(available_rect.width() - self.library_width, available_rect.height() - self.timeline_height - console_space - self.properties_height),
             );
             
             let console_rect = if self.console_visible {
@@ -350,6 +422,9 @@ impl eframe::App for TimelineApp {
             
             // Draw library/hierarchy panel (right side)
             self.draw_library(ui, library_rect);
+            
+            // Draw properties panel
+            self.draw_properties_panel(ui, properties_rect);
             
             // Draw timeline (bottom) - capture any println! from timeline
             ui.scope_builder(UiBuilder::new().max_rect(timeline_rect), |ui| {
@@ -661,7 +736,7 @@ impl TimelineApp {
                 }
                 
                 // Handle selection
-                let is_selected = self.selected_item == Some(index);
+                let is_selected = self.selected_items.contains(&index);
                 
                 // Handle dragging
                 if response.dragged() && is_selected {
@@ -688,7 +763,13 @@ impl TimelineApp {
                             // Full rotation would require transform matrix
                         }
                         
-                        ui.painter().rect_filled(item_rect, 5.0, item.color);
+                        let color_with_alpha = egui::Color32::from_rgba_premultiplied(
+                            item.color.r(),
+                            item.color.g(), 
+                            item.color.b(),
+                            (item.alpha * 255.0) as u8
+                        );
+                        ui.painter().rect_filled(item_rect, 5.0, color_with_alpha);
                         
                         // Draw selection border if selected
                         if is_selected {
@@ -704,7 +785,13 @@ impl TimelineApp {
                     StageItemType::Circle => {
                         let center = item_rect.center();
                         let radius = item.size.x.min(item.size.y) / 2.0;
-                        ui.painter().circle_filled(center, radius, item.color);
+                        let color_with_alpha = egui::Color32::from_rgba_premultiplied(
+                            item.color.r(),
+                            item.color.g(), 
+                            item.color.b(),
+                            (item.alpha * 255.0) as u8
+                        );
+                        ui.painter().circle_filled(center, radius, color_with_alpha);
                         
                         // Draw selection border if selected
                         if is_selected {
@@ -716,12 +803,18 @@ impl TimelineApp {
                         }
                     },
                     StageItemType::Text => {
+                        let color_with_alpha = egui::Color32::from_rgba_premultiplied(
+                            item.color.r(),
+                            item.color.g(), 
+                            item.color.b(),
+                            (item.alpha * 255.0) as u8
+                        );
                         ui.painter().text(
                             item_rect.center(),
                             egui::Align2::CENTER_CENTER,
-                            "Hello World",
-                            egui::FontId::proportional(18.0),
-                            item.color,
+                            &item.text_content,
+                            egui::FontId::proportional(item.font_size),
+                            color_with_alpha,
                         );
                         
                         // Draw selection rect if selected
@@ -737,7 +830,13 @@ impl TimelineApp {
                     },
                     StageItemType::MovieClip => {
                         // Draw as a rounded rectangle with icon
-                        ui.painter().rect_filled(item_rect, 10.0, item.color);
+                        let color_with_alpha = egui::Color32::from_rgba_premultiplied(
+                            item.color.r(),
+                            item.color.g(), 
+                            item.color.b(),
+                            (item.alpha * 255.0) as u8
+                        );
+                        ui.painter().rect_filled(item_rect, 10.0, color_with_alpha);
                         ui.painter().text(
                             item_rect.center(),
                             egui::Align2::CENTER_CENTER,
@@ -777,7 +876,7 @@ impl TimelineApp {
             
             if stage_response.clicked() && clicked_item.is_none() {
                 // Clicked on empty stage - deselect
-                self.selected_item = None;
+                self.selected_items.clear();
                 if let Some(pos) = stage_response.interact_pointer_pos() {
                     self.log(LogLevel::Action, format!("Stage clicked at ({:.1}, {:.1})", 
                         pos.x - rect.min.x, pos.y - rect.min.y));
@@ -796,12 +895,31 @@ impl TimelineApp {
             
             // Handle item clicks after drawing
             if let Some(index) = clicked_item {
-                self.selected_item = Some(index);
-                self.log(LogLevel::Action, format!("Selected: {}", self.stage_items[index].name));
+                // Handle multi-selection with Ctrl/Cmd
+                let modifiers = ui.input(|i| i.modifiers);
+                if modifiers.ctrl || modifiers.command {
+                    // Toggle selection
+                    if self.selected_items.contains(&index) {
+                        self.selected_items.retain(|&i| i != index);
+                        self.log(LogLevel::Action, format!("Deselected: {}", self.stage_items[index].name));
+                    } else {
+                        self.selected_items.push(index);
+                        self.log(LogLevel::Action, format!("Added to selection: {}", self.stage_items[index].name));
+                    }
+                } else {
+                    // Single selection
+                    self.selected_items.clear();
+                    self.selected_items.push(index);
+                    self.log(LogLevel::Action, format!("Selected: {}", self.stage_items[index].name));
+                }
             }
             
             if let Some(index) = right_clicked_item {
-                self.selected_item = Some(index);
+                // Ensure right-clicked item is selected
+                if !self.selected_items.contains(&index) {
+                    self.selected_items.clear();
+                    self.selected_items.push(index);
+                }
                 if let Some(pos) = ui.ctx().pointer_interact_pos() {
                     self.context_menu = Some(ContextMenuState {
                         position: pos,
@@ -968,7 +1086,11 @@ impl TimelineApp {
                                 position: *stage_pos,
                                 size: egui::Vec2::new(100.0, 60.0),
                                 color: egui::Color32::from_rgb(150, 150, 255),
+                                alpha: 1.0,
                                 rotation: 0.0,
+                                text_content: "Default Text".to_string(),
+                                font_size: 16.0,
+                                font_family: "Arial".to_string(),
                             };
                             self.stage_items.push(new_item.clone());
                             self.log(LogLevel::Action, format!("Added {} at ({:.1}, {:.1})", 
@@ -984,7 +1106,11 @@ impl TimelineApp {
                                 position: *stage_pos,
                                 size: egui::Vec2::splat(80.0),
                                 color: egui::Color32::from_rgb(255, 150, 150),
+                                alpha: 1.0,
                                 rotation: 0.0,
+                                text_content: "Default Text".to_string(),
+                                font_size: 16.0,
+                                font_family: "Arial".to_string(),
                             };
                             self.stage_items.push(new_item.clone());
                             self.log(LogLevel::Action, format!("Added {} at ({:.1}, {:.1})", 
@@ -1000,7 +1126,11 @@ impl TimelineApp {
                                 position: *stage_pos,
                                 size: egui::Vec2::new(120.0, 30.0),
                                 color: egui::Color32::WHITE,
+                                alpha: 1.0,
                                 rotation: 0.0,
+                                text_content: "Default Text".to_string(),
+                                font_size: 16.0,
+                                font_family: "Arial".to_string(),
                             };
                             self.stage_items.push(new_item.clone());
                             self.log(LogLevel::Action, format!("Added {} at ({:.1}, {:.1})", 
@@ -1016,11 +1146,53 @@ impl TimelineApp {
                                 position: *stage_pos,
                                 size: egui::Vec2::splat(100.0),
                                 color: egui::Color32::from_rgb(150, 255, 150),
+                                alpha: 1.0,
                                 rotation: 0.0,
+                                text_content: "Default Text".to_string(),
+                                font_size: 16.0,
+                                font_family: "Arial".to_string(),
                             };
                             self.stage_items.push(new_item.clone());
                             self.log(LogLevel::Action, format!("Added {} at ({:.1}, {:.1})", 
                                 new_item.name, stage_pos.x, stage_pos.y));
+                            self.context_menu = None;
+                        }
+                        
+                        ui.separator();
+                        
+                        // Paste options
+                        let can_paste = !self.clipboard.is_empty();
+                        if ui.add_enabled(can_paste, egui::Button::new("📄 Paste in Place")).clicked() {
+                            let clipboard_items = self.clipboard.clone();
+                            for clipboard_item in clipboard_items {
+                                let mut new_item = clipboard_item;
+                                new_item.id = format!("{}_paste_{}", new_item.id, self.stage_items.len());
+                                new_item.name = format!("{} (Copy)", new_item.name);
+                                let name = new_item.name.clone();
+                                self.stage_items.push(new_item);
+                                self.log(LogLevel::Action, format!("Pasted {} in place", name));
+                            }
+                            self.context_menu = None;
+                        }
+                        
+                        if ui.add_enabled(can_paste, egui::Button::new("📍 Paste at Position")).clicked() {
+                            let clipboard_items = self.clipboard.clone();
+                            for clipboard_item in clipboard_items {
+                                let mut new_item = clipboard_item;
+                                new_item.id = format!("{}_paste_{}", new_item.id, self.stage_items.len());
+                                new_item.name = format!("{} (Copy)", new_item.name);
+                                new_item.position = *stage_pos;
+                                let name = new_item.name.clone();
+                                self.stage_items.push(new_item);
+                                self.log(LogLevel::Action, format!("Pasted {} at cursor", name));
+                            }
+                            self.context_menu = None;
+                        }
+                        
+                        // Select All option
+                        if ui.button("📋 Select All").clicked() {
+                            self.selected_items = (0..self.stage_items.len()).collect();
+                            self.log(LogLevel::Action, format!("Selected all {} items", self.stage_items.len()));
                             self.context_menu = None;
                         }
                         
@@ -1036,6 +1208,42 @@ impl TimelineApp {
                             
                             if ui.button("✏️ Rename").clicked() {
                                 self.log(LogLevel::Action, format!("Rename {} (not implemented)", item.name));
+                                self.context_menu = None;
+                            }
+                            
+                            ui.separator();
+                            
+                            // Copy selected items to clipboard
+                            if ui.button("📄 Copy").clicked() {
+                                self.clipboard.clear();
+                                for &selected_index in &self.selected_items {
+                                    if let Some(selected_item) = self.stage_items.get(selected_index) {
+                                        self.clipboard.push(selected_item.clone());
+                                    }
+                                }
+                                self.log(LogLevel::Action, format!("Copied {} item(s) to clipboard", self.clipboard.len()));
+                                self.context_menu = None;
+                            }
+                            
+                            // Cut selected items (copy and delete)
+                            if ui.button("✂️ Cut").clicked() {
+                                self.clipboard.clear();
+                                let mut items_to_remove = Vec::new();
+                                for &selected_index in &self.selected_items {
+                                    if let Some(selected_item) = self.stage_items.get(selected_index) {
+                                        self.clipboard.push(selected_item.clone());
+                                        items_to_remove.push(selected_index);
+                                    }
+                                }
+                                // Remove items in reverse order to maintain valid indices
+                                items_to_remove.sort_by(|a, b| b.cmp(a));
+                                for index in items_to_remove {
+                                    if index < self.stage_items.len() {
+                                        let removed_item = self.stage_items.remove(index);
+                                        self.log(LogLevel::Action, format!("Cut {} to clipboard", removed_item.name));
+                                    }
+                                }
+                                self.selected_items.clear();
                                 self.context_menu = None;
                             }
                             
@@ -1056,7 +1264,9 @@ impl TimelineApp {
                                 if *index < self.stage_items.len() - 1 {
                                     let item = self.stage_items.remove(*index);
                                     self.stage_items.push(item);
-                                    self.selected_item = Some(self.stage_items.len() - 1);
+                                    let new_index = self.stage_items.len() - 1;
+                                    self.selected_items.clear();
+                                    self.selected_items.push(new_index);
                                     self.log(LogLevel::Action, "Brought to front");
                                 }
                                 self.context_menu = None;
@@ -1066,7 +1276,8 @@ impl TimelineApp {
                                 if *index > 0 {
                                     let item = self.stage_items.remove(*index);
                                     self.stage_items.insert(0, item);
-                                    self.selected_item = Some(0);
+                                    self.selected_items.clear();
+                                    self.selected_items.push(0);
                                     self.log(LogLevel::Action, "Sent to back");
                                 }
                                 self.context_menu = None;
@@ -1088,7 +1299,7 @@ impl TimelineApp {
                             if ui.button("🗑️ Delete").clicked() {
                                 let removed = self.stage_items.remove(*index);
                                 self.log(LogLevel::Action, format!("Deleted {}", removed.name));
-                                self.selected_item = None;
+                                self.selected_items.clear();
                                 self.context_menu = None;
                             }
                             
@@ -1188,6 +1399,231 @@ impl TimelineApp {
                     });
                 });
         }
+    }
+    
+    fn draw_properties_panel(&mut self, ui: &mut egui::Ui, rect: egui::Rect) {
+        ui.scope_builder(UiBuilder::new().max_rect(rect), |ui| {
+            // Background
+            ui.painter().rect_filled(rect, 0.0, egui::Color32::from_gray(45));
+            
+            // Border
+            let border_stroke = egui::Stroke::new(1.0, egui::Color32::from_gray(60));
+            ui.painter().line_segment([rect.left_top(), rect.right_top()], border_stroke);
+            ui.painter().line_segment([rect.right_top(), rect.right_bottom()], border_stroke);
+            ui.painter().line_segment([rect.right_bottom(), rect.left_bottom()], border_stroke);
+            ui.painter().line_segment([rect.left_bottom(), rect.left_top()], border_stroke);
+            
+            // Content with padding
+            let padded_rect = rect.shrink(10.0);
+            ui.scope_builder(UiBuilder::new().max_rect(padded_rect), |ui| {
+                ui.vertical(|ui| {
+                    ui.heading("🔧 Properties");
+                    ui.separator();
+                    
+                    // Tab bar
+                    ui.horizontal(|ui| {
+                        if ui.selectable_label(
+                            self.selected_property_tab == PropertyTab::Properties, 
+                            "Properties"
+                        ).clicked() {
+                            self.selected_property_tab = PropertyTab::Properties;
+                        }
+                        
+                        if ui.selectable_label(
+                            self.selected_property_tab == PropertyTab::Filters, 
+                            "Filters"
+                        ).clicked() {
+                            self.selected_property_tab = PropertyTab::Filters;
+                        }
+                        
+                        if ui.selectable_label(
+                            self.selected_property_tab == PropertyTab::ColorEffect, 
+                            "Color Effect"
+                        ).clicked() {
+                            self.selected_property_tab = PropertyTab::ColorEffect;
+                        }
+                        
+                        if ui.selectable_label(
+                            self.selected_property_tab == PropertyTab::Display, 
+                            "Display"
+                        ).clicked() {
+                            self.selected_property_tab = PropertyTab::Display;
+                        }
+                    });
+                    
+                    ui.separator();
+                    
+                    // Property content based on selected item
+                    if let Some(&item_index) = self.selected_items.first() {
+                        if let Some(item) = self.stage_items.get_mut(item_index) {
+                            let item_name = item.name.clone();
+                            
+                            match self.selected_property_tab {
+                                PropertyTab::Properties => {
+                                    ui.label(format!("Selected: {}", item_name));
+                                    ui.separator();
+                                    
+                                    // Position controls
+                                    ui.label("Position:");
+                                    ui.horizontal(|ui| {
+                                        ui.label("X:");
+                                        let old_x = item.position.x;
+                                        if ui.add(egui::DragValue::new(&mut item.position.x).speed(1.0)).changed() {
+                                            // Log later to avoid borrow conflict
+                                        }
+                                        ui.label("Y:");
+                                        let old_y = item.position.y;
+                                        if ui.add(egui::DragValue::new(&mut item.position.y).speed(1.0)).changed() {
+                                            // Log later to avoid borrow conflict
+                                        }
+                                    });
+                                    
+                                    // Size controls
+                                    ui.label("Size:");
+                                    ui.horizontal(|ui| {
+                                        ui.label("W:");
+                                        let old_w = item.size.x;
+                                        if ui.add(egui::DragValue::new(&mut item.size.x).speed(1.0).range(1.0..=500.0)).changed() {
+                                            // Log later to avoid borrow conflict
+                                        }
+                                        ui.label("H:");
+                                        let old_h = item.size.y;
+                                        if ui.add(egui::DragValue::new(&mut item.size.y).speed(1.0).range(1.0..=500.0)).changed() {
+                                            // Log later to avoid borrow conflict
+                                        }
+                                    });
+                                    
+                                    // Rotation control
+                                    ui.label("Rotation:");
+                                    let old_rotation = item.rotation;
+                                    if ui.add(egui::DragValue::new(&mut item.rotation).speed(1.0).suffix("°")).changed() {
+                                        item.rotation = item.rotation % 360.0;
+                                        // Log later to avoid borrow conflict
+                                    }
+                                    
+                                    // Color control
+                                    ui.label("Color:");
+                                    let mut color = [
+                                        item.color.r() as f32 / 255.0,
+                                        item.color.g() as f32 / 255.0,
+                                        item.color.b() as f32 / 255.0,
+                                    ];
+                                    if ui.color_edit_button_rgb(&mut color).changed() {
+                                        item.color = egui::Color32::from_rgb(
+                                            (color[0] * 255.0) as u8,
+                                            (color[1] * 255.0) as u8,
+                                            (color[2] * 255.0) as u8,
+                                        );
+                                        // Log later to avoid borrow conflict
+                                    }
+                                    
+                                    // Alpha control  
+                                    ui.label("Alpha (Transparency):");
+                                    ui.horizontal(|ui| {
+                                        let mut alpha_percent = item.alpha * 100.0;
+                                        if ui.add(egui::Slider::new(&mut alpha_percent, 0.0..=100.0).suffix("%")).changed() {
+                                            item.alpha = alpha_percent / 100.0;
+                                            // Log later to avoid borrow conflict
+                                        }
+                                        ui.label(format!("{:.0}%", alpha_percent));
+                                    });
+                                    
+                                    // Text-specific properties for text items
+                                    if item.item_type == StageItemType::Text {
+                                        ui.separator();
+                                        ui.label("Text Properties:");
+                                        
+                                        // Text content
+                                        ui.label("Text Content:");
+                                        if ui.text_edit_singleline(&mut item.text_content).changed() {
+                                            // Log later to avoid borrow conflict
+                                        }
+                                        
+                                        // Font size
+                                        ui.label("Font Size:");
+                                        if ui.add(egui::DragValue::new(&mut item.font_size).speed(1.0).range(8.0..=72.0).suffix("pt")).changed() {
+                                            // Log later to avoid borrow conflict  
+                                        }
+                                        
+                                        // Font family
+                                        ui.label("Font Family:");
+                                        ComboBox::from_label("")
+                                            .selected_text(&item.font_family)
+                                            .show_ui(ui, |ui| {
+                                                if ui.selectable_value(&mut item.font_family, "Arial".to_string(), "Arial").clicked() {
+                                                    // Font changed
+                                                }
+                                                if ui.selectable_value(&mut item.font_family, "Times New Roman".to_string(), "Times New Roman").clicked() {
+                                                    // Font changed
+                                                }
+                                                if ui.selectable_value(&mut item.font_family, "Courier New".to_string(), "Courier New").clicked() {
+                                                    // Font changed
+                                                }
+                                                if ui.selectable_value(&mut item.font_family, "Helvetica".to_string(), "Helvetica").clicked() {
+                                                    // Font changed
+                                                }
+                                            });
+                                    }
+                                    
+                                    // Item type info
+                                    ui.separator();
+                                    ui.label(format!("Type: {:?}", item.item_type));
+                                    ui.label(format!("ID: {}", item.id));
+                                },
+                                PropertyTab::Filters => {
+                                    ui.label("🎨 Filters");
+                                    ui.separator();
+                                    ui.label("Drop Shadow");
+                                    ui.checkbox(&mut false, "Enable Drop Shadow");
+                                    ui.label("Blur");
+                                    ui.checkbox(&mut false, "Enable Blur");
+                                    ui.label("Glow");
+                                    ui.checkbox(&mut false, "Enable Glow");
+                                    ui.label("Bevel and Emboss");
+                                    ui.checkbox(&mut false, "Enable Bevel");
+                                },
+                                PropertyTab::ColorEffect => {
+                                    ui.label("🌈 Color Effect");
+                                    ui.separator();
+                                    ui.label("Style:");
+                                    ComboBox::from_label("")
+                                        .selected_text("None")
+                                        .show_ui(ui, |ui| {
+                                            ui.selectable_value(&mut 0, 0, "None");
+                                            ui.selectable_value(&mut 0, 1, "Brightness");
+                                            ui.selectable_value(&mut 0, 2, "Tint");
+                                            ui.selectable_value(&mut 0, 3, "Alpha");
+                                            ui.selectable_value(&mut 0, 4, "Advanced");
+                                        });
+                                },
+                                PropertyTab::Display => {
+                                    ui.label("📺 Display");
+                                    ui.separator();
+                                    ui.label("Blend mode:");
+                                    ComboBox::from_label("")
+                                        .selected_text("Normal")
+                                        .show_ui(ui, |ui| {
+                                            ui.selectable_value(&mut 0, 0, "Normal");
+                                            ui.selectable_value(&mut 0, 1, "Multiply");
+                                            ui.selectable_value(&mut 0, 2, "Screen");
+                                            ui.selectable_value(&mut 0, 3, "Overlay");
+                                            ui.selectable_value(&mut 0, 4, "Hard Light");
+                                        });
+                                    
+                                    ui.checkbox(&mut true, "Visible");
+                                    ui.checkbox(&mut false, "Cache as Bitmap");
+                                },
+                            }
+                        }
+                    } else {
+                        // No item selected
+                        ui.label("No object selected");
+                        ui.separator();
+                        ui.label("Select an object on the stage to view and edit its properties.");
+                    }
+                });
+            });
+        });
     }
 }
 

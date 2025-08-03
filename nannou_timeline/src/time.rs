@@ -133,6 +133,44 @@ impl FrameLabel {
     }
 }
 
+/// Frame comment for non-functional notes and organization
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct FrameComment {
+    pub frame: u32,
+    pub comment: String,
+    pub author: Option<String>,
+    pub timestamp: Option<String>,
+    #[serde(skip)]
+    pub color: Option<egui::Color32>,
+}
+
+impl FrameComment {
+    pub fn new(frame: u32, comment: impl Into<String>) -> Self {
+        Self {
+            frame,
+            comment: comment.into(),
+            author: None,
+            timestamp: None,
+            color: Some(egui::Color32::from_rgb(100, 150, 255)), // Light blue for comments
+        }
+    }
+
+    pub fn with_author(mut self, author: impl Into<String>) -> Self {
+        self.author = Some(author.into());
+        self
+    }
+
+    pub fn with_timestamp(mut self, timestamp: impl Into<String>) -> Self {
+        self.timestamp = Some(timestamp.into());
+        self
+    }
+
+    pub fn with_color(mut self, color: egui::Color32) -> Self {
+        self.color = Some(color);
+        self
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

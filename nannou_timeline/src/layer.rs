@@ -18,6 +18,7 @@ pub enum LayerType {
     Normal,
     Mask,
     Guide,
+    MotionGuide,
     Folder,
     Audio,
 }

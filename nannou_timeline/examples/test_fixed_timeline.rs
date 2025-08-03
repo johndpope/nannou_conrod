@@ -2,7 +2,7 @@
 //! Run with: cargo run --example test_fixed_timeline
 
 use eframe::egui::{self, UiBuilder};
-use nannou_timeline::{timeline_egui_fixed::Timeline, ui::MockRiveEngine, RiveEngine};
+use nannou_timeline::{timeline_egui::Timeline, ui::MockRiveEngine, RiveEngine};
 
 fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
