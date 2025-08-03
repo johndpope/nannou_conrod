@@ -1557,6 +1557,60 @@ impl TimelineApp {
                             self.stage_items.push(new_line.clone());
                             self.log(LogLevel::Action, format!("Created {} with Line tool", new_line.name));
                             }
+                            Tool::Pen => {
+                            // Pen tool - create a bezier path point (simplified as a small circle for now)
+                            let new_path_point = StageItem {
+                                id: format!("path_{}", self.stage_items.len() + 1),
+                                name: format!("Path {}", self.stage_items.len() + 1),
+                                item_type: StageItemType::Circle,
+                                position: stage_pos,
+                                size: egui::Vec2::splat(8.0), // Small circle for path point
+                                color: self.tool_state.stroke_color,
+                                alpha: 1.0,
+                                rotation: 0.0,
+                                text_content: String::new(),
+                                font_size: 16.0,
+                                font_family: "Arial".to_string(),
+                                };
+                            self.stage_items.push(new_path_point.clone());
+                            self.log(LogLevel::Action, format!("Created {} with Pen tool", new_path_point.name));
+                            }
+                            Tool::Pencil => {
+                            // Pencil tool - create freehand drawing (simplified as a small circle for now)
+                            let new_pencil_mark = StageItem {
+                                id: format!("pencil_{}", self.stage_items.len() + 1),
+                                name: format!("Pencil Mark {}", self.stage_items.len() + 1),
+                                item_type: StageItemType::Circle,
+                                position: stage_pos,
+                                size: egui::Vec2::splat(4.0), // Small mark
+                                color: self.tool_state.stroke_color,
+                                alpha: 1.0,
+                                rotation: 0.0,
+                                text_content: String::new(),
+                                font_size: 16.0,
+                                font_family: "Arial".to_string(),
+                                };
+                            self.stage_items.push(new_pencil_mark.clone());
+                            self.log(LogLevel::Action, format!("Created {} with Pencil tool", new_pencil_mark.name));
+                            }
+                            Tool::Brush => {
+                            // Brush tool - create brush stroke (simplified as a circle with variable size)
+                            let new_brush_stroke = StageItem {
+                                id: format!("brush_{}", self.stage_items.len() + 1),
+                                name: format!("Brush Stroke {}", self.stage_items.len() + 1),
+                                item_type: StageItemType::Circle,
+                                position: stage_pos,
+                                size: egui::Vec2::splat(self.tool_state.brush_size),
+                                color: self.tool_state.stroke_color,
+                                alpha: 1.0,
+                                rotation: 0.0,
+                                text_content: String::new(),
+                                font_size: 16.0,
+                                font_family: "Arial".to_string(),
+                                };
+                            self.stage_items.push(new_brush_stroke.clone());
+                            self.log(LogLevel::Action, format!("Created {} with Brush tool", new_brush_stroke.name));
+                            }
                             Tool::Hand => {
                             // Hand tool - pan/scroll functionality (log for now)
                             self.log(LogLevel::Action, format!("Hand tool panning at ({:.1}, {:.1})", 
@@ -1632,6 +1686,109 @@ impl TimelineApp {
                             self.marquee_selection = None;
                         }
                     }
+                }
+                
+                // Handle drag-and-drop from library to stage
+                if let Some(ref dragging_asset) = self.dragging_asset {
+                    // Visual feedback - show dragging asset under cursor
+                    if let Some(pointer_pos) = ui.input(|i| i.pointer.hover_pos()) {
+                        ui.painter().text(
+                            pointer_pos + egui::vec2(10.0, -10.0),
+                            egui::Align2::LEFT_BOTTOM,
+                            &dragging_asset.name,
+                            egui::FontId::proportional(12.0),
+                            egui::Color32::WHITE,
+                        );
+                    }
+                    
+                    // Check for drop on stage
+                    if stage_response.hovered() && ui.input(|i| i.pointer.any_released()) {
+                        if let Some(drop_pos) = stage_response.interact_pointer_pos() {
+                            let stage_pos = drop_pos - rect.min.to_vec2();
+                            
+                            // Create stage item from library asset
+                            let new_item = match dragging_asset.asset_type {
+                                LibraryAssetType::MovieClip => StageItem {
+                                    id: format!("instance_{}", self.stage_items.len() + 1),
+                                    name: format!("{}_instance", dragging_asset.name),
+                                    item_type: StageItemType::MovieClip,
+                                    position: stage_pos,
+                                    size: egui::Vec2::new(80.0, 60.0),
+                                    color: egui::Color32::LIGHT_BLUE,
+                                    alpha: 1.0,
+                                    rotation: 0.0,
+                                    text_content: String::new(),
+                                    font_size: 16.0,
+                                    font_family: "Arial".to_string(),
+                                },
+                                LibraryAssetType::Graphic => StageItem {
+                                    id: format!("graphic_{}", self.stage_items.len() + 1),
+                                    name: format!("{}_graphic", dragging_asset.name),
+                                    item_type: StageItemType::Rectangle,
+                                    position: stage_pos,
+                                    size: egui::Vec2::new(100.0, 60.0),
+                                    color: egui::Color32::GREEN,
+                                    alpha: 1.0,
+                                    rotation: 0.0,
+                                    text_content: String::new(),
+                                    font_size: 16.0,
+                                    font_family: "Arial".to_string(),
+                                },
+                                LibraryAssetType::Bitmap => StageItem {
+                                    id: format!("bitmap_{}", self.stage_items.len() + 1),
+                                    name: format!("{}_bitmap", dragging_asset.name),
+                                    item_type: StageItemType::Rectangle,
+                                    position: stage_pos,
+                                    size: egui::Vec2::new(120.0, 80.0),
+                                    color: egui::Color32::YELLOW,
+                                    alpha: 1.0,
+                                    rotation: 0.0,
+                                    text_content: String::new(),
+                                    font_size: 16.0,
+                                    font_family: "Arial".to_string(),
+                                },
+                                LibraryAssetType::Button => StageItem {
+                                    id: format!("button_{}", self.stage_items.len() + 1),
+                                    name: format!("{}_button", dragging_asset.name),
+                                    item_type: StageItemType::Rectangle,
+                                    position: stage_pos,
+                                    size: egui::Vec2::new(100.0, 30.0),
+                                    color: egui::Color32::LIGHT_GRAY,
+                                    alpha: 1.0,
+                                    rotation: 0.0,
+                                    text_content: "Button".to_string(),
+                                    font_size: 14.0,
+                                    font_family: "Arial".to_string(),
+                                },
+                                _ => StageItem {
+                                    id: format!("asset_{}", self.stage_items.len() + 1),
+                                    name: format!("{}_asset", dragging_asset.name),
+                                    item_type: StageItemType::Rectangle,
+                                    position: stage_pos,
+                                    size: egui::Vec2::new(60.0, 60.0),
+                                    color: egui::Color32::GRAY,
+                                    alpha: 1.0,
+                                    rotation: 0.0,
+                                    text_content: String::new(),
+                                    font_size: 16.0,
+                                    font_family: "Arial".to_string(),
+                                },
+                            };
+                            
+                            self.stage_items.push(new_item.clone());
+                            self.log(LogLevel::Action, format!("Dropped '{}' onto stage, created '{}'", 
+                                dragging_asset.name, new_item.name));
+                            
+                            // Clear dragging state
+                            self.dragging_asset = None;
+                        }
+                    }
+                }
+                
+                // Clear drag state if mouse released anywhere
+                if ui.input(|i| i.pointer.any_released()) && self.dragging_asset.is_some() {
+                    self.log(LogLevel::Action, "Drag cancelled".to_string());
+                    self.dragging_asset = None;
                 }
                 
                 // Set cursor for empty stage area based on active tool
