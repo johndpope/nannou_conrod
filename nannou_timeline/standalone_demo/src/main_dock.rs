@@ -228,6 +228,10 @@ struct TimelineApp {
     // Library context menu
     library_context_menu: Option<LibraryContextMenuState>,
     
+    // Scene management
+    scene_manager: nannou_timeline::SceneManager,
+    scene_tab_state: nannou_timeline::SceneTabState,
+    
     // Tools panel state
     tool_state: ToolState,
     tools_panel_width: f32,
@@ -365,6 +369,10 @@ impl Default for TimelineApp {
             dragging_asset: None,
             drag_offset: egui::Vec2::ZERO,
             library_context_menu: None,
+            
+            // Initialize scene management
+            scene_manager: nannou_timeline::SceneManager::new(),
+            scene_tab_state: nannou_timeline::SceneTabState::default(),
             
             // Initialize tools panel
             tool_state: ToolState {
@@ -681,6 +689,50 @@ impl TimelineApp {
             self.log_messages.drain(0..100);
         }
     }
+    
+    fn handle_scene_events(&mut self, events: Vec<nannou_timeline::SceneTabEvent>) {
+        for event in events {
+            match event {
+                nannou_timeline::SceneTabEvent::SwitchToScene(scene_id) => {
+                    if let Err(e) = self.scene_manager.switch_to_scene(&scene_id) {
+                        self.log(LogLevel::Error, format!("Failed to switch to scene: {}", e));
+                    } else {
+                        self.log(LogLevel::Info, format!("Switched to scene: {}", scene_id));
+                    }
+                }
+                nannou_timeline::SceneTabEvent::AddScene => {
+                    let scene_count = self.scene_manager.scene_count();
+                    let scene_name = format!("Scene {}", scene_count + 1);
+                    let scene_id = self.scene_manager.create_scene(&scene_name);
+                    self.log(LogLevel::Info, format!("Created new scene: {} ({})", scene_name, scene_id));
+                }
+                nannou_timeline::SceneTabEvent::CloseScene(scene_id) => {
+                    if let Err(e) = self.scene_manager.remove_scene(&scene_id) {
+                        self.log(LogLevel::Error, format!("Failed to remove scene: {}", e));
+                    } else {
+                        self.log(LogLevel::Info, format!("Removed scene: {}", scene_id));
+                    }
+                }
+                nannou_timeline::SceneTabEvent::RenameScene(scene_id) => {
+                    // This is handled by the scene tabs widget directly
+                    self.log(LogLevel::Info, format!("Started renaming scene: {}", scene_id));
+                }
+                nannou_timeline::SceneTabEvent::ConfirmRename(scene_id, new_name) => {
+                    if let Err(e) = self.scene_manager.rename_scene(&scene_id, &new_name) {
+                        self.log(LogLevel::Error, format!("Failed to rename scene: {}", e));
+                    } else {
+                        self.log(LogLevel::Info, format!("Renamed scene {} to: {}", scene_id, new_name));
+                    }
+                }
+                nannou_timeline::SceneTabEvent::CancelRename => {
+                    self.log(LogLevel::Info, "Cancelled scene rename".to_string());
+                }
+                nannou_timeline::SceneTabEvent::ContextMenu(scene_id, _pos) => {
+                    self.log(LogLevel::Info, format!("Opened context menu for scene: {}", scene_id));
+                }
+            }
+        }
+    }
 }
 
 impl eframe::App for TimelineApp {
@@ -729,6 +781,11 @@ impl eframe::App for TimelineApp {
             self.curve_editor.open = !self.curve_editor.open;
             self.log(LogLevel::Info, format!("Curve editor {}", if self.curve_editor.open { "opened" } else { "closed" }));
         }
+        
+        // Handle scene navigation shortcuts
+        let navigation = nannou_timeline::SceneNavigation::new(&self.scene_manager);
+        let navigation_events = navigation.handle_shortcuts(ctx);
+        self.handle_scene_events(navigation_events);
         
         // Show console if visible
         if self.console_visible {
@@ -804,6 +861,20 @@ impl eframe::App for TimelineApp {
                         });
                 });
         }
+        
+        // Show scene tabs at the top
+        let scene_events = egui::TopBottomPanel::top("scene_tabs").show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                ui.label("Scenes:");
+                ui.separator();
+                
+                let scene_tabs = nannou_timeline::SceneTabs::new(&self.scene_manager, &mut self.scene_tab_state);
+                scene_tabs.show(ui)
+            }).inner
+        }).inner;
+        
+        // Handle scene events
+        self.handle_scene_events(scene_events);
         
         // Create tab viewer
         let mut tab_viewer = FlashTabViewer {

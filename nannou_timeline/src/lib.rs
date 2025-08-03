@@ -29,6 +29,8 @@ pub mod scripting;
 pub mod dock_manager;
 pub mod curve_editor;
 pub mod rive_integration;
+pub mod scene;
+pub mod scene_tabs;
 
 // Re-export time types
 pub use time::{FrameTime, FpsPreset, FrameLabel, FrameComment};
@@ -47,6 +49,10 @@ pub use scripting::{ScriptContext, ScriptStage, ScriptDisplayObject, ScriptEvent
 
 // Re-export dock manager
 pub use dock_manager::{DockManager, TabType, FlashTabViewer};
+
+// Re-export scene management
+pub use scene::{Scene, SceneId, SceneProperties, SceneSummary, SceneManager};
+pub use scene_tabs::{SceneTabs, SceneTabState, SceneTabEvent, SceneNavigation, SceneContextMenuState};
 
 // Re-export curve editor
 pub use curve_editor::{CurveEditor, CurveEditorPanel};
