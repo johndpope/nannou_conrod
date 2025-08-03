@@ -845,8 +845,8 @@ impl Timeline {
             egui::epaint::StrokeKind::Outside,
         );
         
-        // Properly scope the ScrollArea within the given rect
-        ui.scope_builder(UiBuilder::new().max_rect(rect), |ui| {
+        // Use allocate_ui_at_rect to properly constrain the ScrollArea
+        ui.allocate_ui_at_rect(rect, |ui| {
             ScrollArea::both()
                 .id_salt("timeline_frame_grid")
                 .auto_shrink([false, false])
@@ -868,14 +868,24 @@ impl Timeline {
                     ui.set_min_size(vec2(total_width, total_height));
                     
                     // Debug: Draw a test to ensure ScrollArea is working
-                    ui.label(format!("Layers: {}, Frames: {}", layers.len(), total_frames));
+                    ui.label(format!("Layers: {}, Frames: {}, Size: {}x{}", layers.len(), total_frames, total_width as i32, total_height as i32));
+                    
+                    // Draw a simple test pattern to verify coordinate system
+                    ui.painter().rect_filled(
+                        Rect::from_min_size(pos2(10.0, 10.0), vec2(100.0, 50.0)),
+                        0.0,
+                        Color32::YELLOW,
+                    );
+                    ui.painter().text(
+                        pos2(20.0, 20.0),
+                        egui::Align2::LEFT_TOP,
+                        "Test",
+                        egui::FontId::default(),
+                        Color32::BLACK,
+                    );
                     
                     // Get viewport for optimization
                     let viewport = ui.clip_rect();
-                    
-                    // Update scroll state
-                    self.state.scroll_x = viewport.min.x;
-                    self.state.scroll_y = viewport.min.y;
                     
                     // Calculate visible range
                     let visible_start_frame = ((viewport.min.x / frame_width).floor() as u32).saturating_sub(1);
