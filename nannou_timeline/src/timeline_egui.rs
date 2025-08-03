@@ -845,8 +845,8 @@ impl Timeline {
             egui::epaint::StrokeKind::Outside,
         );
         
-        // Use allocate_ui_at_rect to properly constrain the ScrollArea
-        ui.allocate_ui_at_rect(rect, |ui| {
+        // Use allocate_new_ui to properly constrain the ScrollArea
+        ui.allocate_new_ui(UiBuilder::new().max_rect(rect), |ui| {
             ScrollArea::both()
                 .id_salt("timeline_frame_grid")
                 .auto_shrink([false, false])
@@ -1006,10 +1006,24 @@ impl Timeline {
                                                 ui.painter().line_segment([selection_rect.left_bottom(), selection_rect.left_top()], selection_stroke);
                                             }
                                             
+                                            // Highlight keyframe at playhead position
+                                            let is_at_playhead = frame == self.state.playhead_frame;
+                                            if is_at_playhead {
+                                                // Draw glow effect around keyframe at playhead
+                                                let glow_rect = frame_rect.expand(2.0);
+                                                ui.painter().rect_filled(
+                                                    glow_rect,
+                                                    2.0,
+                                                    self.config.style.playhead_color.gamma_multiply(0.3),
+                                                );
+                                            }
+                                            
                                             ui.painter().circle_filled(
                                                 frame_rect.center(),
                                                 3.0,
-                                                if is_selected {
+                                                if is_at_playhead {
+                                                    self.config.style.playhead_color
+                                                } else if is_selected {
                                                     Color32::from_rgb(100, 150, 255)
                                                 } else {
                                                     self.config.style.text_color
@@ -1762,6 +1776,23 @@ impl Timeline {
              pos2(*frame_range.end() as f32 * frame_width, center_y)],
             Stroke::new(0.5, waveform_color.gamma_multiply(0.3)),
         );
+        
+        // Highlight playhead position if it's in this layer's audio
+        let playhead_x = self.state.playhead_frame as f32 * frame_width;
+        if self.state.playhead_frame >= *frame_range.start() && self.state.playhead_frame <= *frame_range.end() {
+            // Draw vertical line at playhead position
+            ui.painter().line_segment(
+                [pos2(playhead_x, y_offset), pos2(playhead_x, y_offset + layer_height)],
+                Stroke::new(2.0, self.config.style.playhead_color),
+            );
+            
+            // Draw a small indicator circle at the waveform center
+            ui.painter().circle_filled(
+                pos2(playhead_x, center_y),
+                4.0,
+                self.config.style.playhead_color,
+            );
+        }
         
         // Draw audio label with high contrast color
         if layer_rect.width() > 100.0 {

@@ -12,9 +12,25 @@ use std::sync::{Arc, Mutex};
 use std::process::Command;
 use std::panic;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::collections::{HashMap, HashSet};
+use chrono;
 
 mod rustflash_integration;
 use rustflash_integration::RustFlashIntegration;
+
+// Import our helper modules
+mod stage;
+mod tools;
+mod library;
+mod properties;
+mod logging;
+mod script_templates;
+
+use stage::{StageItem, StageItemType, ResizeHandle, MarqueeSelection, ContextMenuState, ContextMenuType};
+use tools::{Tool, ToolState};
+use library::{LibraryTab, LibraryAsset, LibraryAssetType, AssetProperties, LibraryContextMenuState, LibraryContextTarget};
+use properties::PropertyTab;
+use logging::{LogMessage, LogLevel};
 
 // Global crash state
 static CRASH_OCCURRED: AtomicBool = AtomicBool::new(false);
@@ -200,6 +216,10 @@ struct TimelineApp {
     selected_items: Vec<usize>,
     // Marquee selection state
     marquee_selection: Option<MarqueeSelection>,
+    // Resize handle state
+    active_resize_handle: Option<(usize, ResizeHandle)>,
+    resize_start_size: Option<egui::Vec2>,
+    resize_start_pos: egui::Pos2,
     // Context menu state
     context_menu: Option<ContextMenuState>,
     // Properties panel state
@@ -221,6 +241,9 @@ struct TimelineApp {
     // Tools panel state
     tool_state: ToolState,
     tools_panel_width: f32,
+    // Pen tool state
+    pen_tool_points: Vec<egui::Pos2>,
+    pen_tool_preview: Option<egui::Pos2>,
     // Script editor state
     script_visible: bool,
     script_content: String,
@@ -231,254 +254,14 @@ struct TimelineApp {
     curve_editor: CurveEditorPanel,
 }
 
-#[derive(Clone)]
-struct StageItem {
-    id: String,
-    name: String,
-    item_type: StageItemType,
-    position: egui::Pos2,
-    size: egui::Vec2,
-    color: egui::Color32,
-    alpha: f32,  // 0.0 to 1.0
-    rotation: f32,
-    // Text-specific properties
-    text_content: String,
-    font_size: f32,
-    font_family: String,
-}
+// These types are now imported from our modules
 
-#[derive(Clone, Copy, PartialEq, Debug)]
-enum StageItemType {
-    Rectangle,
-    Circle,
-    Text,
-    MovieClip,
-}
+// LogMessage and LogLevel are imported from logging module
+// LibraryTab is imported from library module
 
-#[derive(Clone)]
-struct ContextMenuState {
-    position: egui::Pos2,
-    menu_type: ContextMenuType,
-}
+// Tool enum and ToolState are imported from tools module
 
-#[derive(Clone)]
-enum ContextMenuType {
-    Stage(egui::Pos2),
-    StageItem(usize),
-}
-
-#[derive(Clone, Debug)]
-struct MarqueeSelection {
-    start_pos: egui::Pos2,
-    current_pos: egui::Pos2,
-    is_dragging: bool,
-}
-
-impl MarqueeSelection {
-    fn new(start_pos: egui::Pos2) -> Self {
-        Self {
-            start_pos,
-            current_pos: start_pos,
-            is_dragging: true,
-        }
-    }
-    
-    fn get_rect(&self) -> egui::Rect {
-        egui::Rect::from_two_pos(self.start_pos, self.current_pos)
-    }
-}
-
-#[derive(Clone, Copy, PartialEq)]
-enum PropertyTab {
-    Properties,
-    Filters,
-    ColorEffect,
-    Display,
-}
-
-#[derive(Clone)]
-struct LogMessage {
-    timestamp: String,
-    level: LogLevel,
-    message: String,
-}
-
-#[derive(Clone, Copy, PartialEq)]
-enum LogLevel {
-    Info,
-    Action,
-    Warning,
-    Error,
-}
-
-#[derive(Clone, Copy, PartialEq)]
-enum LibraryTab {
-    Assets,
-    Components,
-    ActionScript,
-}
-
-#[derive(Clone, Copy, PartialEq, Debug)]
-enum Tool {
-    // Selection Tools
-    Arrow,        // V - Primary selection
-    Subselection, // A - Direct selection
-    Lasso,        // L - Free-form selection
-    
-    // Drawing Tools
-    Line,         // N - Straight lines
-    Pen,          // P - Bezier curves
-    Pencil,       // Y - Freehand
-    Brush,        // B - Variable width
-    Rectangle,    // R - Rectangles
-    Oval,         // O - Circles/ellipses
-    PolyStar,     // Polygons/stars
-    
-    // Text and Paint Tools
-    Text,         // T - Text objects
-    PaintBucket,  // K - Fill areas
-    InkBottle,    // S - Apply stroke
-    Eyedropper,   // I - Sample colors
-    Eraser,       // E - Erase parts
-    
-    // Transform Tools
-    FreeTransform,    // Q - Scale/rotate/skew
-    GradientTransform,// F - Adjust gradients
-    Zoom,             // Z - Zoom view
-    Hand,             // H - Pan view
-}
-
-impl Tool {
-    fn get_icon(&self) -> &'static str {
-        match self {
-            Tool::Arrow => "↖",         // Better arrow for selection
-            Tool::Subselection => "◇",   // Direct selection
-            Tool::Lasso => "⟡",         // Lasso selection
-            Tool::Line => "╱",          // Line tool
-            Tool::Pen => "⌐",           // Pen tool
-            Tool::Pencil => "✎",        // Pencil
-            Tool::Brush => "🖌",        // Brush
-            Tool::Rectangle => "▭",     // Rectangle
-            Tool::Oval => "○",          // Oval/Circle
-            Tool::PolyStar => "⬟",      // Star/Polygon
-            Tool::Text => "A",          // Text tool
-            Tool::PaintBucket => "▣",   // Paint bucket
-            Tool::InkBottle => "🖋",    // Ink bottle
-            Tool::Eyedropper => "🔍",   // Eyedropper
-            Tool::Eraser => "▤",        // Eraser
-            Tool::FreeTransform => "⤢", // Free transform
-            Tool::GradientTransform => "◐", // Gradient transform
-            Tool::Zoom => "⊕",         // Zoom
-            Tool::Hand => "✋",         // Hand
-        }
-    }
-    
-    fn get_name(&self) -> &'static str {
-        match self {
-            Tool::Arrow => "Selection Tool",
-            Tool::Subselection => "Subselection Tool",
-            Tool::Lasso => "Lasso Tool",
-            Tool::Line => "Line Tool",
-            Tool::Pen => "Pen Tool",
-            Tool::Pencil => "Pencil Tool",
-            Tool::Brush => "Brush Tool",
-            Tool::Rectangle => "Rectangle Tool",
-            Tool::Oval => "Oval Tool",
-            Tool::PolyStar => "PolyStar Tool",
-            Tool::Text => "Text Tool",
-            Tool::PaintBucket => "Paint Bucket Tool",
-            Tool::InkBottle => "Ink Bottle Tool",
-            Tool::Eyedropper => "Eyedropper Tool",
-            Tool::Eraser => "Eraser Tool",
-            Tool::FreeTransform => "Free Transform Tool",
-            Tool::GradientTransform => "Gradient Transform Tool",
-            Tool::Zoom => "Zoom Tool",
-            Tool::Hand => "Hand Tool",
-        }
-    }
-    
-    fn get_shortcut(&self) -> Option<char> {
-        match self {
-            Tool::Arrow => Some('V'),
-            Tool::Subselection => Some('A'),
-            Tool::Lasso => Some('L'),
-            Tool::Line => Some('N'),
-            Tool::Pen => Some('P'),
-            Tool::Pencil => Some('Y'),
-            Tool::Brush => Some('B'),
-            Tool::Rectangle => Some('R'),
-            Tool::Oval => Some('O'),
-            Tool::Text => Some('T'),
-            Tool::PaintBucket => Some('K'),
-            Tool::InkBottle => Some('S'),
-            Tool::Eyedropper => Some('I'),
-            Tool::Eraser => Some('E'),
-            Tool::FreeTransform => Some('Q'),
-            Tool::GradientTransform => Some('F'),
-            Tool::Zoom => Some('Z'),
-            Tool::Hand => Some('H'),
-            _ => None,
-        }
-    }
-}
-
-#[derive(Clone)]
-struct ToolState {
-    active_tool: Tool,
-    stroke_color: egui::Color32,
-    fill_color: egui::Color32,
-    stroke_width: f32,
-    // Tool-specific options
-    rectangle_corner_radius: f32,
-    star_points: u32,
-    star_inner_radius: f32,
-    brush_size: f32,
-    text_font_size: f32,
-    text_font_family: String,
-}
-
-#[derive(Clone)]
-struct LibraryAsset {
-    id: String,
-    name: String,
-    asset_type: LibraryAssetType,
-    folder: String,
-    properties: AssetProperties,
-}
-
-#[derive(Clone, Copy, PartialEq)]
-enum LibraryAssetType {
-    MovieClip,
-    Button,
-    Graphic,
-    Bitmap,
-    Sound,
-    Video,
-    Font,
-    Folder,
-}
-
-#[derive(Clone)]
-struct AssetProperties {
-    file_size: Option<u64>,
-    dimensions: Option<(u32, u32)>,
-    format: Option<String>,
-    usage_count: u32,
-    linkage_class: Option<String>,
-}
-
-#[derive(Clone)]
-struct LibraryContextMenuState {
-    position: egui::Pos2,
-    target: LibraryContextTarget,
-}
-
-#[derive(Clone)]
-enum LibraryContextTarget {
-    Asset(String),
-    Folder(String),
-    Background,
-}
+// LibraryAsset, LibraryAssetType, AssetProperties, and related types are imported from library module
 
 impl Default for TimelineApp {
     fn default() -> Self {
@@ -498,6 +281,7 @@ impl Default for TimelineApp {
                 text_content: "Default Text".to_string(),
                 font_size: 16.0,
                 font_family: "Arial".to_string(),
+                path_points: Vec::new(),
             },
             StageItem {
                 id: "circle1".to_string(),
@@ -511,6 +295,7 @@ impl Default for TimelineApp {
                 text_content: "Default Text".to_string(),
                 font_size: 16.0,
                 font_family: "Arial".to_string(),
+                path_points: Vec::new(),
             },
             StageItem {
                 id: "text1".to_string(),
@@ -524,6 +309,7 @@ impl Default for TimelineApp {
                 text_content: "Default Text".to_string(),
                 font_size: 16.0,
                 font_family: "Arial".to_string(),
+                path_points: Vec::new(),
             },
             StageItem {
                 id: "mc1".to_string(),
@@ -537,6 +323,7 @@ impl Default for TimelineApp {
                 text_content: "Default Text".to_string(),
                 font_size: 16.0,
                 font_family: "Arial".to_string(),
+                path_points: Vec::new(),
             },
         ];
         
@@ -568,6 +355,9 @@ impl Default for TimelineApp {
             stage_items,
             selected_items: Vec::new(),
             marquee_selection: None,
+            active_resize_handle: None,
+            resize_start_size: None,
+            resize_start_pos: egui::Pos2::ZERO,
             context_menu: None,
             properties_height: 200.0,
             selected_property_tab: PropertyTab::Properties,
@@ -595,9 +385,12 @@ impl Default for TimelineApp {
                 text_font_family: "Arial".to_string(),
             },
             tools_panel_width: 60.0,
+            // Pen tool state
+            pen_tool_points: Vec::new(),
+            pen_tool_preview: None,
             // Script editor
             script_visible: false,
-            script_content: templates::LOOP_ANIMATION.to_string(),
+            script_content: script_templates::LOOP_ANIMATION.to_string(),
             script_context: None,
             script_error: None,
             script_panel_height: 200.0,
@@ -945,6 +738,53 @@ impl TimelineApp {
         }
     }
     
+    fn draw_resize_handles(&self, ui: &mut egui::Ui, rect: egui::Rect) -> Option<ResizeHandle> {
+        let handle_size = 8.0;
+        let handle_color = egui::Color32::WHITE;
+        let handle_stroke = egui::Stroke::new(1.0, egui::Color32::from_gray(60));
+        
+        // Define handle positions
+        let handles = [
+            (ResizeHandle::TopLeft, rect.left_top()),
+            (ResizeHandle::TopRight, rect.right_top()),
+            (ResizeHandle::BottomLeft, rect.left_bottom()),
+            (ResizeHandle::BottomRight, rect.right_bottom()),
+            (ResizeHandle::Top, egui::pos2(rect.center().x, rect.top())),
+            (ResizeHandle::Bottom, egui::pos2(rect.center().x, rect.bottom())),
+            (ResizeHandle::Left, egui::pos2(rect.left(), rect.center().y)),
+            (ResizeHandle::Right, egui::pos2(rect.right(), rect.center().y)),
+        ];
+        
+        let mut hit_handle = None;
+        
+        // Draw handles and check for mouse interaction
+        for (handle_type, pos) in handles {
+            let handle_rect = egui::Rect::from_center_size(pos, egui::Vec2::splat(handle_size));
+            
+            // Check if mouse is over this handle
+            if let Some(pointer_pos) = ui.ctx().pointer_hover_pos() {
+                if handle_rect.contains(pointer_pos) {
+                    hit_handle = Some(handle_type);
+                    
+                    // Set appropriate cursor
+                    let cursor = match handle_type {
+                        ResizeHandle::Top | ResizeHandle::Bottom => egui::CursorIcon::ResizeVertical,
+                        ResizeHandle::Left | ResizeHandle::Right => egui::CursorIcon::ResizeHorizontal,
+                        ResizeHandle::TopLeft | ResizeHandle::BottomRight => egui::CursorIcon::ResizeNwSe,
+                        ResizeHandle::TopRight | ResizeHandle::BottomLeft => egui::CursorIcon::ResizeNeSw,
+                    };
+                    ui.ctx().set_cursor_icon(cursor);
+                }
+            }
+            
+            // Draw the handle
+            ui.painter().rect_filled(handle_rect, 0.0, handle_color);
+            ui.painter().rect_stroke(handle_rect, 0.0, handle_stroke, egui::epaint::StrokeKind::Outside);
+        }
+        
+        hit_handle
+    }
+    
     fn take_screenshot(&mut self, _ctx: &egui::Context) {
         // Create timestamp for filename
         let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S").to_string();
@@ -1155,19 +995,19 @@ impl TimelineApp {
                         .selected_text("Select template...")
                         .show_ui(ui, |ui| {
                             if ui.selectable_label(false, "Loop Animation").clicked() {
-                                self.script_content = templates::LOOP_ANIMATION.to_string();
+                                self.script_content = script_templates::LOOP_ANIMATION.to_string();
                                 self.log(LogLevel::Info, "Loaded loop animation template");
                                 }
                             if ui.selectable_label(false, "Stop at Frame").clicked() {
-                                self.script_content = templates::STOP_AT_FRAME.to_string();
+                                self.script_content = script_templates::STOP_AT_FRAME.to_string();
                                 self.log(LogLevel::Info, "Loaded stop at frame template");
                                 }
                             if ui.selectable_label(false, "Animate Object").clicked() {
-                                self.script_content = templates::ANIMATE_OBJECT.to_string();
+                                self.script_content = script_templates::ANIMATE_OBJECT.to_string();
                                 self.log(LogLevel::Info, "Loaded animate object template");
                                 }
                             if ui.selectable_label(false, "Create Object").clicked() {
-                                self.script_content = templates::CREATE_OBJECT.to_string();
+                                self.script_content = script_templates::CREATE_OBJECT.to_string();
                                 self.log(LogLevel::Info, "Loaded create object template");
                                 }
                             });
@@ -1307,6 +1147,7 @@ impl TimelineApp {
             let mut right_clicked_item = None;
             let mut hovered_item = None;
             let mut drag_info = None;
+            let mut resize_handle_hit = None;
             
             for (index, item) in self.stage_items.iter().enumerate() {
                 let item_rect = egui::Rect::from_center_size(
@@ -1459,6 +1300,33 @@ impl TimelineApp {
                             ui.painter().line_segment([r.left_bottom(), r.left_top()], stroke);
                             }
                     },
+                    StageItemType::Path => {
+                        // Draw path using the path_points
+                        if item.path_points.len() >= 2 {
+                            let color_with_alpha = egui::Color32::from_rgba_premultiplied(
+                                item.color.r(),
+                                item.color.g(), 
+                                item.color.b(),
+                                (item.alpha * 255.0) as u8
+                            );
+                            
+                            // Draw lines between consecutive points
+                            for window in item.path_points.windows(2) {
+                                ui.painter().line_segment(
+                                    [window[0], window[1]], 
+                                    egui::Stroke::new(2.0, color_with_alpha)
+                                );
+                            }
+                            
+                            // Draw selection if selected
+                            if is_selected {
+                                // Draw points
+                                for &point in &item.path_points {
+                                    ui.painter().circle_filled(point, 3.0, egui::Color32::LIGHT_BLUE);
+                                }
+                            }
+                        }
+                    },
                 }
                 
                 // Draw item name when hovered
@@ -1471,6 +1339,23 @@ impl TimelineApp {
                         egui::FontId::proportional(12.0),
                         egui::Color32::WHITE,
                     );
+                }
+            }
+            
+            // Draw resize handles for selected items
+            if self.tool_state.active_tool == Tool::Arrow {
+                for &index in &self.selected_items {
+                    if let Some(item) = self.stage_items.get(index) {
+                        let item_rect = egui::Rect::from_center_size(
+                            rect.min + item.position.to_vec2(),
+                            item.size
+                        );
+                        
+                        // Draw resize handles and check for hits
+                        if let Some(handle) = self.draw_resize_handles(ui, item_rect) {
+                            resize_handle_hit = Some((index, handle));
+                        }
+                    }
                 }
             }
             
@@ -1504,6 +1389,7 @@ impl TimelineApp {
                                 text_content: String::new(),
                                 font_size: 16.0,
                                 font_family: "Arial".to_string(),
+                path_points: Vec::new(),
                                 };
                             self.stage_items.push(new_rect.clone());
                             self.log(LogLevel::Action, format!("Created {} with Rectangle tool", new_rect.name));
@@ -1522,6 +1408,7 @@ impl TimelineApp {
                                 text_content: String::new(),
                                 font_size: 16.0,
                                 font_family: "Arial".to_string(),
+                path_points: Vec::new(),
                                 };
                             self.stage_items.push(new_oval.clone());
                             self.log(LogLevel::Action, format!("Created {} with Oval tool", new_oval.name));
@@ -1540,6 +1427,7 @@ impl TimelineApp {
                                 text_content: "New Text".to_string(),
                                 font_size: self.tool_state.text_font_size,
                                 font_family: self.tool_state.text_font_family.clone(),
+                                path_points: Vec::new(),
                                 };
                             self.stage_items.push(new_text.clone());
                             self.log(LogLevel::Action, format!("Created {} with Text tool", new_text.name));
@@ -1558,6 +1446,7 @@ impl TimelineApp {
                                 text_content: String::new(),
                                 font_size: 16.0,
                                 font_family: "Arial".to_string(),
+                path_points: Vec::new(),
                                 };
                             self.stage_items.push(new_line.clone());
                             self.log(LogLevel::Action, format!("Created {} with Line tool", new_line.name));
@@ -1576,6 +1465,7 @@ impl TimelineApp {
                                 text_content: String::new(),
                                 font_size: 16.0,
                                 font_family: "Arial".to_string(),
+                path_points: Vec::new(),
                                 };
                             self.stage_items.push(new_path_point.clone());
                             self.log(LogLevel::Action, format!("Created {} with Pen tool", new_path_point.name));
@@ -1594,6 +1484,7 @@ impl TimelineApp {
                                 text_content: String::new(),
                                 font_size: 16.0,
                                 font_family: "Arial".to_string(),
+                path_points: Vec::new(),
                                 };
                             self.stage_items.push(new_pencil_mark.clone());
                             self.log(LogLevel::Action, format!("Created {} with Pencil tool", new_pencil_mark.name));
@@ -1612,6 +1503,7 @@ impl TimelineApp {
                                 text_content: String::new(),
                                 font_size: 16.0,
                                 font_family: "Arial".to_string(),
+                path_points: Vec::new(),
                                 };
                             self.stage_items.push(new_brush_stroke.clone());
                             self.log(LogLevel::Action, format!("Created {} with Brush tool", new_brush_stroke.name));
@@ -1725,6 +1617,7 @@ impl TimelineApp {
                                     text_content: String::new(),
                                     font_size: 16.0,
                                     font_family: "Arial".to_string(),
+                path_points: Vec::new(),
                                 },
                                 LibraryAssetType::Graphic => StageItem {
                                     id: format!("graphic_{}", self.stage_items.len() + 1),
@@ -1738,6 +1631,7 @@ impl TimelineApp {
                                     text_content: String::new(),
                                     font_size: 16.0,
                                     font_family: "Arial".to_string(),
+                path_points: Vec::new(),
                                 },
                                 LibraryAssetType::Bitmap => StageItem {
                                     id: format!("bitmap_{}", self.stage_items.len() + 1),
@@ -1751,6 +1645,7 @@ impl TimelineApp {
                                     text_content: String::new(),
                                     font_size: 16.0,
                                     font_family: "Arial".to_string(),
+                path_points: Vec::new(),
                                 },
                                 LibraryAssetType::Button => StageItem {
                                     id: format!("button_{}", self.stage_items.len() + 1),
@@ -1764,6 +1659,7 @@ impl TimelineApp {
                                     text_content: "Button".to_string(),
                                     font_size: 14.0,
                                     font_family: "Arial".to_string(),
+                path_points: Vec::new(),
                                 },
                                 _ => StageItem {
                                     id: format!("asset_{}", self.stage_items.len() + 1),
@@ -1777,6 +1673,7 @@ impl TimelineApp {
                                     text_content: String::new(),
                                     font_size: 16.0,
                                     font_family: "Arial".to_string(),
+                path_points: Vec::new(),
                                 },
                             };
                             
@@ -1843,6 +1740,96 @@ impl TimelineApp {
                         position: pos,
                         menu_type: ContextMenuType::StageItem(index),
                     });
+                }
+            }
+            
+            // Handle resize handle detection and dragging
+            if let Some((item_index, handle)) = resize_handle_hit {
+                if ui.input(|i| i.pointer.button_clicked(egui::PointerButton::Primary)) {
+                    // Start resize
+                    self.active_resize_handle = Some((item_index, handle));
+                    if let Some(item) = self.stage_items.get(item_index) {
+                        self.resize_start_size = Some(item.size);
+                        self.resize_start_pos = item.position;
+                    }
+                }
+            }
+            
+            // Handle active resize dragging
+            if let Some((item_index, handle)) = self.active_resize_handle {
+                if ui.input(|i| i.pointer.button_down(egui::PointerButton::Primary)) {
+                    if let Some(pointer_pos) = ui.ctx().pointer_hover_pos() {
+                        if let Some(item) = self.stage_items.get_mut(item_index) {
+                            if let Some(start_size) = self.resize_start_size {
+                                let stage_pos = pointer_pos - rect.min.to_vec2();
+                                let item_center = self.resize_start_pos;
+                                
+                                match handle {
+                                    ResizeHandle::Right => {
+                                        item.size.x = (stage_pos.x - item_center.x) * 2.0;
+                                        item.size.x = item.size.x.max(10.0);
+                                    }
+                                    ResizeHandle::Left => {
+                                        let new_width = (item_center.x - stage_pos.x) * 2.0;
+                                        if new_width > 10.0 {
+                                            item.size.x = new_width;
+                                            item.position.x = self.resize_start_pos.x - (new_width - start_size.x) / 2.0;
+                                        }
+                                    }
+                                    ResizeHandle::Bottom => {
+                                        item.size.y = (stage_pos.y - item_center.y) * 2.0;
+                                        item.size.y = item.size.y.max(10.0);
+                                    }
+                                    ResizeHandle::Top => {
+                                        let new_height = (item_center.y - stage_pos.y) * 2.0;
+                                        if new_height > 10.0 {
+                                            item.size.y = new_height;
+                                            item.position.y = self.resize_start_pos.y - (new_height - start_size.y) / 2.0;
+                                        }
+                                    }
+                                    ResizeHandle::BottomRight => {
+                                        item.size.x = (stage_pos.x - item_center.x) * 2.0;
+                                        item.size.y = (stage_pos.y - item_center.y) * 2.0;
+                                        item.size.x = item.size.x.max(10.0);
+                                        item.size.y = item.size.y.max(10.0);
+                                    }
+                                    ResizeHandle::TopLeft => {
+                                        let new_width = (item_center.x - stage_pos.x) * 2.0;
+                                        let new_height = (item_center.y - stage_pos.y) * 2.0;
+                                        if new_width > 10.0 && new_height > 10.0 {
+                                            item.size = egui::Vec2::new(new_width, new_height);
+                                            item.position.x = self.resize_start_pos.x - (new_width - start_size.x) / 2.0;
+                                            item.position.y = self.resize_start_pos.y - (new_height - start_size.y) / 2.0;
+                                        }
+                                    }
+                                    ResizeHandle::TopRight => {
+                                        let new_width = (stage_pos.x - item_center.x) * 2.0;
+                                        let new_height = (item_center.y - stage_pos.y) * 2.0;
+                                        if new_width > 10.0 && new_height > 10.0 {
+                                            item.size = egui::Vec2::new(new_width, new_height);
+                                            item.position.y = self.resize_start_pos.y - (new_height - start_size.y) / 2.0;
+                                        }
+                                    }
+                                    ResizeHandle::BottomLeft => {
+                                        let new_width = (item_center.x - stage_pos.x) * 2.0;
+                                        let new_height = (stage_pos.y - item_center.y) * 2.0;
+                                        if new_width > 10.0 && new_height > 10.0 {
+                                            item.size = egui::Vec2::new(new_width, new_height);
+                                            item.position.x = self.resize_start_pos.x - (new_width - start_size.x) / 2.0;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // Mouse released - stop resizing
+                    if let Some(item) = self.stage_items.get(item_index) {
+                        self.log(LogLevel::Action, format!("Resized {} to {:.1}x{:.1}", 
+                            item.name, item.size.x, item.size.y));
+                    }
+                    self.active_resize_handle = None;
+                    self.resize_start_size = None;
                 }
             }
             
@@ -2252,6 +2239,7 @@ impl TimelineApp {
                     text_content: String::new(),
                     font_size: 16.0,
                     font_family: "Arial".to_string(),
+                path_points: Vec::new(),
                 }
             }
             LibraryAssetType::Bitmap => {
@@ -2270,6 +2258,7 @@ impl TimelineApp {
                     text_content: String::new(),
                     font_size: 16.0,
                     font_family: "Arial".to_string(),
+                path_points: Vec::new(),
                 }
             }
             _ => return, // Don't create instances for other types
@@ -2541,8 +2530,26 @@ impl TimelineApp {
         if response.dragged() {
             if let Some(pointer_pos) = ui.ctx().pointer_interact_pos() {
                 let available_height = ui.available_height();
-                self.timeline_height = (available_height - pointer_pos.y + rect.height() / 2.0)
-                    .clamp(100.0, available_height - 200.0);
+                let bottom_panels_height = if self.console_visible { 120.0 } else { 0.0 }; // Developer console height
+                let min_stage_height = 100.0; // Reduced minimum height for stage
+                let min_timeline_height = 100.0; // Reduced minimum height for timeline
+                
+                // Calculate the space available for both stage and timeline
+                let available_for_both = available_height - bottom_panels_height - self.properties_height - self.splitter_thickness;
+                
+                // Ensure we have enough space for minimum sizes
+                if available_for_both >= min_stage_height + min_timeline_height {
+                    // Calculate new timeline height based on drag position
+                    let new_timeline_height = available_height - pointer_pos.y + rect.height() / 2.0;
+                    
+                    // Calculate what the stage height would be
+                    let stage_height = available_for_both - new_timeline_height;
+                    
+                    // Only update if both components meet minimum requirements
+                    if stage_height >= min_stage_height && new_timeline_height >= min_timeline_height {
+                        self.timeline_height = new_timeline_height;
+                    }
+                }
             }
         }
         
@@ -2578,6 +2585,7 @@ impl TimelineApp {
                                 text_content: "Default Text".to_string(),
                                 font_size: 16.0,
                                 font_family: "Arial".to_string(),
+                path_points: Vec::new(),
                                 };
                             self.stage_items.push(new_item.clone());
                             self.log(LogLevel::Action, format!("Added {} at ({:.1}, {:.1})", 
@@ -2598,6 +2606,7 @@ impl TimelineApp {
                                 text_content: "Default Text".to_string(),
                                 font_size: 16.0,
                                 font_family: "Arial".to_string(),
+                path_points: Vec::new(),
                                 };
                             self.stage_items.push(new_item.clone());
                             self.log(LogLevel::Action, format!("Added {} at ({:.1}, {:.1})", 
@@ -2618,6 +2627,7 @@ impl TimelineApp {
                                 text_content: "Default Text".to_string(),
                                 font_size: 16.0,
                                 font_family: "Arial".to_string(),
+                path_points: Vec::new(),
                                 };
                             self.stage_items.push(new_item.clone());
                             self.log(LogLevel::Action, format!("Added {} at ({:.1}, {:.1})", 
@@ -2638,6 +2648,7 @@ impl TimelineApp {
                                 text_content: "Default Text".to_string(),
                                 font_size: 16.0,
                                 font_family: "Arial".to_string(),
+                path_points: Vec::new(),
                                 };
                             self.stage_items.push(new_item.clone());
                             self.log(LogLevel::Action, format!("Added {} at ({:.1}, {:.1})", 
